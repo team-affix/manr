@@ -4,6 +4,8 @@ CompileFlags:
     - -I.
     - -Icore/hpp
     - -Imcts/core/hpp
+    - -Imultiprecision/include
+    - -Iboost_config/include
     - -Imodules/piecewise/hpp
     - -Imodules/arith/hpp
     - -Imodules/arith_fit/hpp

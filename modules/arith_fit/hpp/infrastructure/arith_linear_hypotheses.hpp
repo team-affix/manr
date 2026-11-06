@@ -1,12 +1,12 @@
 #ifndef ARITH_LINEAR_HYPOTHESES_HPP
 #define ARITH_LINEAR_HYPOTHESES_HPP
 
-#include <cstdint>
 #include <optional>
 #include <unordered_set>
 #include <vector>
 #include "value_objects/arith_symbols.hpp"
 #include "value_objects/expr.hpp"
+#include "value_objects/integer.hpp"
 #include "value_objects/pw_data_point.hpp"
 
 // A detector, not a rewrite rule: it reads the data directly and proposes the line through every pair of points
@@ -20,7 +20,7 @@ struct arith_linear_hypotheses {
                             arith_symbols symbols);
     void propose_hypotheses(const std::vector<pw_data_point>& points, std::vector<const expr*>& out);
 private:
-    const expr* make_line(int64_t slope, int64_t intercept);
+    const expr* make_line(const integer& slope, const integer& intercept);
 
     IFindLiteralValue& find_literal_value_;
     IMakeLiteral& make_literal_;
@@ -43,18 +43,18 @@ ARITH_LINEAR_HYPOTHESES_TEMPLATE void ARITH_LINEAR_HYPOTHESES::propose_hypothese
     std::unordered_set<const expr*> proposed;
     for (size_t first = 0; first < points.size(); ++first) {
         for (size_t second = first + 1; second < points.size(); ++second) {
-            const std::optional<int64_t> x0 = find_literal_value_.find_value(points[first].input);
-            const std::optional<int64_t> y0 = find_literal_value_.find_value(points[first].output);
-            const std::optional<int64_t> x1 = find_literal_value_.find_value(points[second].input);
-            const std::optional<int64_t> y1 = find_literal_value_.find_value(points[second].output);
+            const std::optional<integer> x0 = find_literal_value_.find_value(points[first].input);
+            const std::optional<integer> y0 = find_literal_value_.find_value(points[first].output);
+            const std::optional<integer> x1 = find_literal_value_.find_value(points[second].input);
+            const std::optional<integer> y1 = find_literal_value_.find_value(points[second].output);
             if (!x0.has_value() || !y0.has_value() || !x1.has_value() || !y1.has_value())
                 continue;
-            const int64_t run = x1.value() - x0.value();
-            const int64_t rise = y1.value() - y0.value();
+            const integer run = x1.value() - x0.value();
+            const integer rise = y1.value() - y0.value();
             if (run == 0 || rise % run != 0)
                 continue;
-            const int64_t slope = rise / run;
-            const expr* line = make_line(slope, y0.value() - slope * x0.value());
+            const integer slope = rise / run;
+            const expr* line = make_line(slope, integer(y0.value() - slope * x0.value()));
             const bool fresh = proposed.insert(line).second;
             if (!fresh)
                 continue;
@@ -63,7 +63,7 @@ ARITH_LINEAR_HYPOTHESES_TEMPLATE void ARITH_LINEAR_HYPOTHESES::propose_hypothese
     }
 }
 
-ARITH_LINEAR_HYPOTHESES_TEMPLATE const expr* ARITH_LINEAR_HYPOTHESES::make_line(int64_t slope, int64_t intercept) {
+ARITH_LINEAR_HYPOTHESES_TEMPLATE const expr* ARITH_LINEAR_HYPOTHESES::make_line(const integer& slope, const integer& intercept) {
     const expr* input = make_functor_.make_functor(symbols_.input, {});
     if (slope == 0)
         return make_literal_.make_literal(intercept);

@@ -10,7 +10,8 @@ AR       = ar
 ARFLAGS  = rcs
 
 MODULE_INCS = $(patsubst %,-I%,$(sort $(wildcard modules/*/hpp)))
-CXXFLAGS    = -std=c++20 -Wall -Wextra -I. -Icore/hpp -Imcts/core/hpp $(MODULE_INCS) $(DEPFLAGS)
+CXXFLAGS    = -std=c++20 -Wall -Wextra -I. -Icore/hpp -Imcts/core/hpp \
+              -Imultiprecision/include -Iboost_config/include $(MODULE_INCS) $(DEPFLAGS)
 
 DEBUG_CXXFLAGS      = -DDEBUG -g
 DEBUG_FAST_CXXFLAGS = -DDEBUG -g -O3
@@ -104,3 +105,12 @@ $(eval $(call VARIANT,debug,_debug,$(DEBUG_CXXFLAGS)))
 $(eval $(call VARIANT,debug_fast,_debug_fast,$(DEBUG_FAST_CXXFLAGS)))
 $(eval $(call TEST_BINARIES,debug,_debug))
 $(eval $(call TEST_BINARIES,debug_fast,_debug_fast))
+
+# ==============================================================================
+# Benchmarks (release)
+# ==============================================================================
+
+.PHONY: poly_bench
+
+poly_bench: build/libmanr_modules.a build/libmanr_core.a
+	$(CXX) $(CXXFLAGS) $(RELEASE_CXXFLAGS) bench/poly_bench.cpp -Lbuild -lmanr_modules -lmanr_core -o build/poly_bench

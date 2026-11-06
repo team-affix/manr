@@ -1,12 +1,12 @@
 #ifndef ARITH_SIMPLIFIER_HPP
 #define ARITH_SIMPLIFIER_HPP
 
-#include <cstdint>
 #include <optional>
 #include <variant>
 #include <vector>
 #include "value_objects/arith_symbols.hpp"
 #include "value_objects/expr.hpp"
+#include "value_objects/integer.hpp"
 
 // Local rules of integer arithmetic: constant folding of a binary node over two literals, and the identities
 // `e + 0`, `0 + e`, `e - 0`, `e * 1`, `1 * e` -> `e`, and `e * 0`, `0 * e`, `e - e` -> `0`.
@@ -40,16 +40,16 @@ ARITH_SIMPLIFIER_TEMPLATE void ARITH_SIMPLIFIER::propose(const expr* e, std::vec
         return;
     const expr* lhs = f->args[0];
     const expr* rhs = f->args[1];
-    const std::optional<int64_t> lhs_value = find_literal_value_.find_value(lhs);
-    const std::optional<int64_t> rhs_value = find_literal_value_.find_value(rhs);
+    const std::optional<integer> lhs_value = find_literal_value_.find_value(lhs);
+    const std::optional<integer> rhs_value = find_literal_value_.find_value(rhs);
     const bool lhs_zero = lhs_value.has_value() && lhs_value.value() == 0;
     const bool rhs_zero = rhs_value.has_value() && rhs_value.value() == 0;
     const bool lhs_one = lhs_value.has_value() && lhs_value.value() == 1;
     const bool rhs_one = rhs_value.has_value() && rhs_value.value() == 1;
     if (lhs_value.has_value() && rhs_value.has_value()) {
-        if (add) out.push_back(make_literal_.make_literal(lhs_value.value() + rhs_value.value()));
-        if (sub) out.push_back(make_literal_.make_literal(lhs_value.value() - rhs_value.value()));
-        if (mul) out.push_back(make_literal_.make_literal(lhs_value.value() * rhs_value.value()));
+        if (add) out.push_back(make_literal_.make_literal(integer(lhs_value.value() + rhs_value.value())));
+        if (sub) out.push_back(make_literal_.make_literal(integer(lhs_value.value() - rhs_value.value())));
+        if (mul) out.push_back(make_literal_.make_literal(integer(lhs_value.value() * rhs_value.value())));
         return;
     }
     if (add && rhs_zero) out.push_back(lhs);

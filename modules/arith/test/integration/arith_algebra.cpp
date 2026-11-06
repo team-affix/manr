@@ -59,3 +59,8 @@ TEST_F(ArithAlgebraIntegrationTest, IdentitiesDropTheNeutralOperand) {
     simplifier.propose(sub(x, x), out);
     EXPECT_EQ(out, (std::vector<const expr*>{x, x, lit(0), lit(0)}));
 }
+
+TEST_F(ArithAlgebraIntegrationTest, FoldingPast64BitsIsExact) {
+    simplifier.propose(mul(literals.make_literal(integer("9223372036854775807")), lit(2)), out);
+    EXPECT_EQ(out, std::vector<const expr*>{literals.make_literal(integer("18446744073709551614"))});
+}

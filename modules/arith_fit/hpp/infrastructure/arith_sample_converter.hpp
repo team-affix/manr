@@ -3,6 +3,7 @@
 
 #include <vector>
 #include "value_objects/arith_sample.hpp"
+#include "value_objects/integer.hpp"
 #include "value_objects/pw_data_point.hpp"
 
 // Interns each sample's input and output as literals.
@@ -26,8 +27,8 @@ ARITH_SAMPLE_CONVERTER_TEMPLATE std::vector<pw_data_point> ARITH_SAMPLE_CONVERTE
     points.reserve(samples.size());
     for (const arith_sample& sample : samples)
         points.push_back(pw_data_point{
-            .input = make_literal_.make_literal(sample.input),
-            .output = make_literal_.make_literal(sample.output)});
+            .input = make_literal_.make_literal(integer(sample.input)),
+            .output = make_literal_.make_literal(integer(sample.output))});
     return points;
 }
 

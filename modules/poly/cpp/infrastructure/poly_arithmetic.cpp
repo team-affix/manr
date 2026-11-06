@@ -1,0 +1,134 @@
+#include "infrastructure/poly_arithmetic.hpp"
+#include "debug_assert.hpp"
+
+namespace {
+
+poly_monomial multiply_monomials(const poly_monomial& lhs, const poly_monomial& rhs) {
+    poly_monomial product;
+    size_t l = 0;
+    size_t r = 0;
+    while (l < lhs.powers.size() || r < rhs.powers.size()) {
+        const bool take_lhs = r == rhs.powers.size()
+            || (l < lhs.powers.size() && lhs.powers[l].variable < rhs.powers[r].variable);
+        const bool take_rhs = l == lhs.powers.size()
+            || (r < rhs.powers.size() && rhs.powers[r].variable < lhs.powers[l].variable);
+        if (take_lhs) { product.powers.push_back(lhs.powers[l++]); continue; }
+        if (take_rhs) { product.powers.push_back(rhs.powers[r++]); continue; }
+        product.powers.push_back(poly_power{
+            .variable = lhs.powers[l].variable,
+            .exponent = lhs.powers[l].exponent + rhs.powers[r].exponent});
+        ++l;
+        ++r;
+    }
+    return product;
+}
+
+std::optional<poly_monomial> divide_monomials(const poly_monomial& dividend, const poly_monomial& divisor) {
+    poly_monomial quotient;
+    size_t d = 0;
+    for (const poly_power& power : dividend.powers) {
+        if (d < divisor.powers.size() && divisor.powers[d].variable < power.variable)
+            return std::nullopt;
+        const bool shared = d < divisor.powers.size() && divisor.powers[d].variable == power.variable;
+        if (!shared) { quotient.powers.push_back(power); continue; }
+        if (divisor.powers[d].exponent > power.exponent)
+            return std::nullopt;
+        if (divisor.powers[d].exponent < power.exponent)
+            quotient.powers.push_back(poly_power{
+                .variable = power.variable, .exponent = power.exponent - divisor.powers[d].exponent});
+        ++d;
+    }
+    if (d != divisor.powers.size())
+        return std::nullopt;
+    return quotient;
+}
+
+}
+
+poly_arithmetic::poly_arithmetic(size_t max_terms)
+    : max_terms_(max_terms) {}
+
+std::optional<poly_polynomial> poly_arithmetic::add(const poly_polynomial& lhs, const poly_polynomial& rhs) const {
+    return combine(lhs, rhs, 1);
+}
+
+std::optional<poly_polynomial> poly_arithmetic::subtract(const poly_polynomial& lhs, const poly_polynomial& rhs) const {
+    return combine(lhs, rhs, -1);
+}
+
+std::optional<poly_polynomial> poly_arithmetic::multiply(const poly_polynomial& lhs, const poly_polynomial& rhs) const {
+    poly_polynomial product;
+    for (const auto& [lhs_monomial, lhs_coefficient] : lhs.terms) {
+        for (const auto& [rhs_monomial, rhs_coefficient] : rhs.terms) {
+            product.terms[multiply_monomials(lhs_monomial, rhs_monomial)] += lhs_coefficient * rhs_coefficient;
+        }
+        if (product.terms.size() > max_terms_ * 4)
+            return std::nullopt;
+    }
+    for (auto term = product.terms.begin(); term != product.terms.end();) {
+        if (term->second == 0) { term = product.terms.erase(term); continue; }
+        ++term;
+    }
+    if (product.terms.size() > max_terms_)
+        return std::nullopt;
+    return product;
+}
+
+std::optional<poly_polynomial> poly_arithmetic::power(const poly_polynomial& base, uint32_t exponent) const {
+    poly_polynomial result;
+    result.terms.emplace(poly_monomial{}, 1);
+    for (uint32_t step = 0; step < exponent; ++step) {
+        const std::optional<poly_polynomial> next = multiply(result, base);
+        if (!next.has_value())
+            return std::nullopt;
+        result = next.value();
+    }
+    return result;
+}
+
+std::optional<poly_polynomial> poly_arithmetic::find_quotient(
+    const poly_polynomial& dividend, const poly_polynomial& divisor) const {
+    if (divisor.terms.empty())
+        return std::nullopt;
+    const auto& [lead_monomial, lead_coefficient] = *divisor.terms.rbegin();
+    poly_polynomial quotient;
+    poly_polynomial remainder = dividend;
+    // Each step removes the remainder's leading term, so the loop is bounded; the cap only guards blow-up.
+    for (size_t step = 0; !remainder.terms.empty(); ++step) {
+        if (step > max_terms_)
+            return std::nullopt;
+        const poly_monomial monomial = remainder.terms.rbegin()->first;
+        const integer coefficient = remainder.terms.rbegin()->second;
+        if (coefficient % lead_coefficient != 0)
+            return std::nullopt;
+        const std::optional<poly_monomial> factor = divide_monomials(monomial, lead_monomial);
+        if (!factor.has_value())
+            return std::nullopt;
+        poly_polynomial step_term;
+        step_term.terms.emplace(factor.value(), integer(coefficient / lead_coefficient));
+        const std::optional<poly_polynomial> removed = multiply(step_term, divisor);
+        if (!removed.has_value())
+            return std::nullopt;
+        const std::optional<poly_polynomial> next = subtract(remainder, removed.value());
+        if (!next.has_value())
+            return std::nullopt;
+        remainder = next.value();
+        quotient.terms.emplace(factor.value(), integer(coefficient / lead_coefficient));
+    }
+    return quotient;
+}
+
+std::optional<poly_polynomial> poly_arithmetic::combine(
+    const poly_polynomial& lhs, const poly_polynomial& rhs, int sign) const {
+    poly_polynomial result = lhs;
+    for (const auto& [monomial, coefficient] : rhs.terms) {
+        integer& slot = result.terms[monomial];
+        if (sign < 0) slot -= coefficient;
+        else slot += coefficient;
+        if (slot == 0)
+            result.terms.erase(monomial);
+    }
+    if (result.terms.size() > max_terms_)
+        return std::nullopt;
+    return result;
+}

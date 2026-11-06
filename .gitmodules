@@ -4,3 +4,9 @@
 [submodule "mcts"]
 	path = mcts
 	url = https://github.com/team-affix/mcts.git
+[submodule "multiprecision"]
+	path = multiprecision
+	url = https://github.com/boostorg/multiprecision.git
+[submodule "boost_config"]
+	path = boost_config
+	url = https://github.com/boostorg/config.git

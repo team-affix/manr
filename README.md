@@ -19,7 +19,8 @@ pw(case(10, 99), add(mul(2, x), 1))
 
 ## Build
 
-Requires g++ with C++20 and the submodules (googletest, team-affix/mcts):
+Requires g++ with C++20 and the submodules (googletest, team-affix/mcts, and Boost.Multiprecision with Boost.Config
+for arbitrary-precision integers, all header-only except mcts):
 
 ```bash
 git submodule update --init --recursive

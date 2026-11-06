@@ -27,8 +27,12 @@ modules/<name>/{hpp,cpp,test}/...             one directory per rule module; pre
   piecewise/  (pw_)                           the extension algebra over data sets, generic over the domain
   arith/      (arith_)                        integer arithmetic: literals, evaluator, simplifier
   arith_fit/  (arith_)                        composition: linear-fit detector, manifest, runtime
+  poly/       (poly_)                         polynomial algebra over Z: normal form oracle, rules, detectors
+  poly_reduce/ (poly_)                        composition: kernel, rule sets, four solver manifests
+bench/                                        release benchmarks (`make poly_bench`), not tests
 modules/test_main.cpp                         GTest entry for the modules binary
 googletest/ mcts/                             git submodules (github), not ours to edit; mcts/core/cpp is built into core
+multiprecision/ boost_config/                 git submodules: header-only Boost.Multiprecision, standalone (needs Boost.Config)
 debug_assert.hpp                              DEBUG_ASSERT(cond): throws std::logic_error under -DDEBUG
 docs/                                         design notes
 ```
@@ -54,6 +58,12 @@ A module depends on core and on other modules' headers; core never depends on a 
 - Domains plug into the piecewise module through capabilities: `IEvaluateAt` (value of an expression at an input,
   as an interned expression, or nullopt) and `IProposeHypotheses` (candidate resolutions of an extension term given
   the data points).
+- **Every rule and detector follows `docs/rule-design.md`**: exit on the first failed requirement, run cheap
+  necessary-condition filters (cached signatures, modular arithmetic) before any exact or big-integer work, and let
+  filters only reject, never accept. Read it before writing or changing a rule.
+- Integers are `integer` (`core/hpp/value_objects/integer.hpp`, Boost's `cpp_int`): arbitrary precision, so literal
+  and coefficient arithmetic is exact and never overflows. Don't use built-in integer types for literal values.
+- Polynomial algebra is the first full domain. Read `docs/poly.md` for its rules, detectors and benchmark.
 - The search strategy is a manifest choice: `arith_fit_manifest` (best-first) and `arith_fit_mcts_manifest` share
   every rule and differ only in search. Read `docs/search.md` before touching either search.
 
