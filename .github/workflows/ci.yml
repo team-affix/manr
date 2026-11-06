@@ -1,0 +1,20 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Build tests
+        run: make core_debug_fast modules_debug_fast DEBUG_FAST_CXXFLAGS="-DDEBUG -O1"
+      - name: Run core tests
+        run: ./build/core_debug_fast
+      - name: Run module tests
+        run: ./build/modules_debug_fast

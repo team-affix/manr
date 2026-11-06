@@ -1,0 +1,62 @@
+#include <vector>
+#include <gtest/gtest.h>
+#include <gmock/gmock.h>
+#include "infrastructure/expr_pool.hpp"
+#include "infrastructure/pw_extension_binder.hpp"
+
+using ::testing::_;
+using ::testing::Return;
+using ::testing::SetArgReferee;
+using ::testing::StrictMock;
+
+namespace {
+
+struct MockProposeHypotheses {
+    MOCK_METHOD(void, propose_hypotheses, ((const std::vector<pw_data_point>&), (std::vector<const expr*>&)));
+};
+
+struct MockFindUncovered {
+    MOCK_METHOD(std::vector<const expr*>, find_uncovered, ((const std::vector<const expr*>&), const expr*));
+};
+
+struct MockAssemble {
+    MOCK_METHOD(const expr*, assemble, ((const std::vector<const expr*>&), const expr*));
+};
+
+struct PwExtensionBinderTest : ::testing::Test {
+    StrictMock<MockProposeHypotheses> propose_hypotheses;
+    StrictMock<MockFindUncovered> find_uncovered;
+    StrictMock<MockAssemble> assemble;
+    pw_extension_binder<MockProposeHypotheses, MockFindUncovered, MockAssemble> binder{
+        propose_hypotheses, find_uncovered, assemble, pw_symbols{.piecewise = 7, .branch = 8}};
+    expr_pool pool{};
+    const expr* key0 = pool.make_functor(1, {});
+    const expr* key1 = pool.make_functor(2, {});
+    const expr* value0 = pool.make_functor(3, {});
+    const expr* value1 = pool.make_functor(4, {});
+    const expr* branch0 = pool.make_functor(8, {key0, value0});
+    const expr* branch1 = pool.make_functor(8, {key1, value1});
+    const expr* hypothesis = pool.make_functor(5, {});
+    const expr* useless = pool.make_functor(6, {});
+    std::vector<const expr*> out{};
+    std::vector<const expr*> branches{branch0, branch1};
+    std::vector<pw_data_point> points{{.input = key0, .output = value0}, {.input = key1, .output = value1}};
+};
+
+}
+
+TEST_F(PwExtensionBinderTest, AnOpenCatchAllIsResolvedToEachUsefulHypothesisWithItsBranchesDropped) {
+    const expr* bound = pool.make_functor(9, {});
+    EXPECT_CALL(propose_hypotheses, propose_hypotheses(points, _))
+        .WillOnce(SetArgReferee<1>(std::vector<const expr*>{hypothesis, useless}));
+    EXPECT_CALL(find_uncovered, find_uncovered(branches, hypothesis)).WillOnce(Return(std::vector<const expr*>{branch1}));
+    EXPECT_CALL(find_uncovered, find_uncovered(branches, useless)).WillOnce(Return(branches));
+    EXPECT_CALL(assemble, assemble(std::vector<const expr*>{branch1}, hypothesis)).WillOnce(Return(bound));
+    binder.propose(pool.make_functor(7, {branch0, branch1, pool.make_var(0)}), out);
+    EXPECT_EQ(out, std::vector<const expr*>{bound});
+}
+
+TEST_F(PwExtensionBinderTest, AClosedCatchAllIsNotRebound) {
+    binder.propose(pool.make_functor(7, {branch0, branch1, hypothesis}), out);
+    EXPECT_TRUE(out.empty());
+}

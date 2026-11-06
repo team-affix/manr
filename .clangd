@@ -1,0 +1,11 @@
+CompileFlags:
+  Add:
+    - -std=c++20
+    - -I.
+    - -Icore/hpp
+    - -Imcts/core/hpp
+    - -Imodules/piecewise/hpp
+    - -Imodules/arith/hpp
+    - -Imodules/arith_fit/hpp
+    - -Igoogletest/googletest/include
+    - -Igoogletest/googlemock/include
