@@ -30,13 +30,15 @@ Both kinds have already happened:
 
 ## The corpus is the specification
 
-What the solvers can do is defined by two benchmarks. Both are deterministic in cost: best-first has no randomness
+What the solvers can do is defined by three benchmarks. All are deterministic in cost: best-first has no randomness
 and MCTS is seeded. So a cost that changes is a real change, not noise.
 
 - `bench/poly_bench.cpp`: 42 polynomial simplification problems under four solvers (full or low-level rules, each
   under best-first and MCTS).
 - `bench/fit_bench.cpp`: 20 data-fitting problems (one of them open): polynomials, outliers, piecewise polynomials, up to three variables
   and 1000 points. Two solvers (best-first and MCTS).
+- `bench/list_bench.cpp`: 17 list-program problems (three of them open): folds, maps and filters, some with a wrong
+  label. Two solvers (best-first and MCTS).
 
 Each problem has a target cost: the cost of a known compact form. A problem is solved when a solver reaches a cost no
 larger than the target. Problems marked `(open)` have a target no solver reaches yet. They are kept so the gate reports

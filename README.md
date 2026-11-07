@@ -61,5 +61,15 @@ fit.best();        // e.g. "(2 * x - 1)^3", "pw(case(point(3), 17), x^2 + 1)" wi
                    // or "pw(when(lt(x, 0), x^2), 3 * x + 1)" for data from two polynomials
 ```
 
+List programs, from samples of a list to an integer or to a list (`docs/list.md`):
+
+```cpp
+#include "infrastructure/list_fit_runtime.hpp"
+
+list_fit_runtime fit{samples, k_poly_default_limits, k_poly_fit_default_limits, 20000};
+while (fit.rewrites() < 3000 && fit.next()) {}
+fit.best();        // e.g. "fold(h + acc, 0, xs)" for sums, "map(e^2, xs)", "filter(lt(0, e), xs)"
+```
+
 `arith_fit_mcts_runtime` runs the same rules under Monte Carlo tree search, for reductions that only pay off
 several rewrites later. See `docs/search.md`.

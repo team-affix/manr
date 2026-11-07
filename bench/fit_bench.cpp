@@ -93,8 +93,8 @@ outcome finish(Manifest& m, const std::vector<poly_sample>& samples, std::chrono
     const double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
     const expr* best = m.search_.best();
     bool sound = true;
-    for (const pw_data_point& point : m.rule_set_.converter_.convert(samples)) {
-        const std::optional<const expr*> value = m.rule_set_.pw_evaluator_.evaluate_at(best, point.input);
+    for (const pw_data_point& point : m.rule_set_.fit_.converter_.convert(samples)) {
+        const std::optional<const expr*> value = m.rule_set_.fit_.pw_evaluator_.evaluate_at(best, point.input);
         sound = sound && value.has_value() && value.value() == point.output;
     }
     std::ostringstream os;

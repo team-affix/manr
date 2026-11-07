@@ -22,7 +22,7 @@ struct PolyFitSoundnessIntegrationTest : ::testing::Test {
     size_t walk(const std::vector<std::string>& variables, const std::vector<poly_sample>& samples, int walks, int depth) {
         poly_fit_manifest manifest{variables, samples, k_poly_default_limits, k_poly_fit_default_limits, 1};
         poly_fit_rules_manifest& rules = manifest.rule_set_;
-        const std::vector<pw_data_point> points = rules.converter_.convert(samples);
+        const std::vector<pw_data_point> points = rules.fit_.converter_.convert(samples);
         size_t checked = 0;
         for (int index = 0; index < walks; ++index) {
             const expr* e = rules.initial_;
@@ -37,7 +37,7 @@ struct PolyFitSoundnessIntegrationTest : ::testing::Test {
                     if (proposal == nullptr)
                         return checked;
                     for (const pw_data_point& point : points) {
-                        const std::optional<const expr*> value = rules.pw_evaluator_.evaluate_at(proposal, point.input);
+                        const std::optional<const expr*> value = rules.fit_.pw_evaluator_.evaluate_at(proposal, point.input);
                         const bool reproduced = value.has_value() && value.value() == point.output;
                         EXPECT_TRUE(reproduced) << print(manifest, e) << "  ->  " << print(manifest, proposal)
                                                 << "  misses " << print(manifest, point.input);

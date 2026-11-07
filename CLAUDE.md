@@ -33,7 +33,11 @@ modules/<name>/{hpp,cpp,test}/...             one directory per rule module; pre
   poly/       (poly_)                         polynomial algebra over Z: normal form oracle, rules, detectors
   poly_reduce/ (poly_)                        composition: kernel, rule sets, four solver manifests
   poly_fit/   (poly_)                         composition: polynomial data fitting over piecewises (interpolation
-                                              detector, point evaluator, rule set, solver manifests, runtime)
+                                              detector, point evaluator, rule set, solver manifests, runtime;
+                                              `poly_fit_hypotheses_manifest` lends polynomial fitting to other domains)
+  list/       (list_)                         lists and list programs (map, filter, fold): vocabulary, evaluator
+  list_fit/   (list_)                         composition: program detectors over list data, delegating bodies to
+                                              polynomial fitting; rule set, solver manifests, runtime
 bench/                                        release benchmarks and the regression gate (`make bench_check`), not
                                               tests; committed baselines in bench/baseline/
 modules/test_main.cpp                         GTest entry for the modules binary
@@ -72,6 +76,8 @@ A module depends on core and on other modules' headers; core never depends on a 
 - Integers are `integer` (`core/hpp/value_objects/integer.hpp`, Boost's `cpp_int`): arbitrary precision, so literal
   and coefficient arithmetic is exact and never overflows. Don't use built-in integer types for literal values.
 - Polynomial algebra is the first full domain. Read `docs/poly.md` for its rules, detectors and benchmark.
+- Lists are the first program domain. Read `docs/list.md`: detectors recognize a program's shape and hand the rest
+  to polynomial fitting.
 - The search strategy is a manifest choice: `arith_fit_manifest` (best-first) and `arith_fit_mcts_manifest` share
   every rule and differ only in search. Read `docs/search.md` before touching either search.
 

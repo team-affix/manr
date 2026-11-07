@@ -18,7 +18,7 @@ struct PolyPointEvaluatorIntegrationTest : ::testing::Test {
     }
 
     std::optional<integer> evaluate(const expr* e, const expr* at) {
-        const std::optional<const expr*> value = manifest.rule_set_.evaluator_.evaluate_at(e, at);
+        const std::optional<const expr*> value = manifest.rule_set_.fit_.evaluator_.evaluate_at(e, at);
         if (!value.has_value())
             return std::nullopt;
         return kernel.literals_.find_value(value.value());

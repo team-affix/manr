@@ -33,7 +33,7 @@ pw(case(input1, label1), case(input2, label2), ..., ?0)
 | Algebra | tuples of elements of an unknown structure | elements | the operation and its laws: a group or ring presentation, an identity |
 | Calculus | functions as expressions | their derivatives, integrals, limits or series | the operator as rules, e.g. the product and chain rules, or a closed form |
 | Sequences | indices | terms | a closed form or a recurrence |
-| Lists and programs | lists | lists, numbers or booleans | a program: map, filter, fold, sort, built from a small vocabulary |
+| Lists and programs (started, `docs/list.md`) | lists | lists, numbers or booleans | a program: map, filter, fold, sort, built from a small vocabulary |
 | Graph theory | graphs (edge lists) | numbers, polynomials or graphs | an invariant as a formula or algorithm, e.g. counts in terms of vertices and edges |
 | Logic | assignments | truth values | the smallest formula |
 
@@ -60,23 +60,31 @@ The piecewise module is already domain-free. A domain plugs in through capabilit
 - **Models with structure.** Recursion, folds and higher-order functions, so a model can be a program and not only a
   formula.
 - **Free variables anywhere.** Holes inside a partial model, not only the catch-all, with detectors that fill them.
-- **Noise, kept exact by associative models.** Real data is rarely exact. Instead of learning `y = f(x)` and
-  allowing error, learn the relation between input and output as a predicate. The whole observation becomes the
-  input and the label is a boolean: `case(point(x, y), true)` for what was observed, `case(point(x, y), false)` for
-  points that were not. The model is still fit exactly, so nothing about reduction or soundness changes. Noise shows
-  up as structure in the model, e.g. `lt(abs(y - (2*x + 1)), 3)`: a band around a line, built from comparators and
-  ranges. The same form also covers relations that are not functions, such as a circle.
-  - Where the false points come from decides how tight the model is. The false points nearest the true ones set the
-    width of the band, so they have to be sampled deliberately: close enough to the data to rule out a loose model,
-    but not on top of observations that noise could have produced.
-  - Unseen points are still left to the catch-all, so labeling a point false is a claim, not an assumption that
-    everything unobserved is impossible.
-  - Related ideas in the literature: learning a relation's characteristic function (inductive logic programming,
-    constraint acquisition), and sampling negatives to learn a distribution's support (noise-contrastive
-    estimation, one-class classification).
 - **Composition across domains.** A model in one domain can use another: a graph invariant that is a polynomial, a
   list program whose step is arithmetic.
 - **A front end.** Reading data and expressions from text, so that a domain can be used without writing C++.
+
+## Using the system on real data: associative models
+
+Real data is rarely exact. One strategy for it needs nothing special from the system: rewrite the problem before
+handing it over. Instead of learning `y = f(x)` and allowing error, learn the relation between input and output as a
+predicate. The whole observation becomes the input and the label is a boolean: `case(point(x, y), true)` for what
+was observed, `case(point(x, y), false)` for points that were not. To the system this is just a piecewise with
+boolean labels, fit exactly like any other. Noise shows up as structure in the model, e.g.
+`lt(abs(y - (2*x + 1)), 3)`: a band around a line, built from comparators and ranges. The same form also covers
+relations that are not functions, such as a circle.
+
+This is a way of using the system, not a part of it. What it asks of the system is only what the vision asks anyway:
+boolean labels, comparators and regions in the domains involved.
+
+- Where the false points come from decides how tight the model is. The false points nearest the true ones set the
+  width of the band, so they have to be sampled deliberately: close enough to the data to rule out a loose model,
+  but not on top of observations that noise could have produced.
+- Unseen points are still left to the catch-all, so labeling a point false is a claim, not an assumption that
+  everything unobserved is impossible.
+- Related ideas in the literature: learning a relation's characteristic function (inductive logic programming,
+  constraint acquisition), and sampling negatives to learn a distribution's support (noise-contrastive estimation,
+  one-class classification).
 
 ## How we get there
 

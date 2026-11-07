@@ -19,7 +19,7 @@ struct PolyInterpolationHypothesesIntegrationTest : ::testing::Test {
         manifest = std::make_unique<poly_fit_manifest>(variables, samples, k_poly_default_limits,
                                                        k_poly_fit_default_limits, 1);
         std::vector<const expr*> out;
-        manifest->rule_set_.interpolations_.propose_hypotheses(manifest->rule_set_.converter_.convert(samples), out);
+        manifest->rule_set_.fit_.interpolations_.propose_hypotheses(manifest->rule_set_.fit_.converter_.convert(samples), out);
         std::vector<std::string> printed;
         for (const expr* hypothesis : out) {
             std::ostringstream os;

@@ -1,0 +1,35 @@
+# problem	solver	cost	target	seconds	sound
+sum	best-1st	6	6	0.0029491	1
+sum	mcts	6	6	0.205285	1
+length	best-1st	6	6	0.00114922	1
+length	mcts	6	6	0.113503	1
+product	best-1st	6	6	0.0812949	1
+product	mcts	6	6	0.371584	1
+sum of squares	best-1st	8	8	0.0116877	1
+sum of squares	mcts	8	8	0.381721	1
+alternating sum	best-1st	6	6	0.00252366	1
+alternating sum	mcts	6	6	0.194735	1
+digits	best-1st	8	8	0.000759463	1
+digits	mcts	8	8	0.0985396	1
+sum with wrong label	best-1st	14	14	0.329384	1
+sum with wrong label	mcts	14	14	34.2555	1
+sum 781	best-1st	6	6	0.00708052	1
+sum 781	mcts	6	6	0.609044	1
+map square	best-1st	5	5	0.0011618	1
+map square	mcts	5	5	0.0876638	1
+map affine	best-1st	7	7	0.000916015	1
+map affine	mcts	7	7	0.0730479	1
+map absolute value	best-1st	11	11	0.00115455	1
+map absolute value	mcts	11	11	0.127988	1
+map with wrong label	best-1st	13	13	0.00122203	1
+map with wrong label	mcts	13	13	0.0963302	1
+filter positives	best-1st	5	5	0.000703413	1
+filter positives	mcts	5	5	0.0535902	1
+filter below one	best-1st	5	5	0.00101395	1
+filter below one	mcts	5	5	0.0741934	1
+maximum (open)	best-1st	271	10	0.0626263	1
+maximum (open)	mcts	271	10	1.7952	1
+sum without tails (open)	best-1st	956	6	0.000226895	1
+sum without tails (open)	mcts	956	6	0.0130828	1
+squares of positives (open)	best-1st	853	9	0.000791837	1
+squares of positives (open)	mcts	853	9	0.0657257	1
