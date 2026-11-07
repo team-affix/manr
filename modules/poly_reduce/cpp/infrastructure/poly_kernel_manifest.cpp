@@ -12,7 +12,8 @@ poly_kernel_manifest::poly_kernel_manifest(const poly_limits& limits)
           .pow = symbols_.intern_symbol("pow")}
     , literals_(symbols_, exprs_)
     , arithmetic_(limits.max_terms)
-    , linear_factors_(arithmetic_, limits.max_linear_candidates, limits.max_root_divisor)
+    , linear_factors_(arithmetic_, limits.max_linear_candidates, limits.max_root_divisor,
+                      limits.linear_shift_points, limits.max_shifted_terms)
     , divisibility_(limits.divisibility_points)
     , expander_(literals_, arithmetic_, arithmetic_, arithmetic_, arithmetic_, poly_symbols_, limits.max_exponent)
     , renderer_(exprs_, literals_, poly_symbols_)

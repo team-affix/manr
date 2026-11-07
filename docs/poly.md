@@ -26,7 +26,7 @@ High-level detectors (each reads the normal form and proposes a far-away result 
 | `poly_like_terms` | like terms merged without expanding them | `3*(a+b+c)^9 - 2*(a+b+c)^9` -> `(a+b+c)^9` |
 | `poly_power_detector` + `poly_root_extractor` | `q^n + r`: binomial/multinomial theorem backwards, completing the square/cube | `x^2+6x+10` -> `(x+3)^2 + 1` |
 | `poly_factor_detector` | `d * (p/d)` by exact division against candidates: content, rational-root linear factors, variable pairs, the subterm's own sums, and restriction | `x^3+6x^2+11x+6` -> `(x+1)*(...)` |
-| `poly_linear_factor_finder` | multivariate linear factors with any coefficients, from the rational roots of each one-variable restriction | `... ` -> `(x - 3z + 2) * ...` |
+| `poly_linear_factor_finder` | multivariate linear factors with any coefficients, from the rational roots of each one-variable restriction (moving the origin first when there is no constant term) | `... ` -> `(x - 3z + 2) * ...` |
 | `poly_horner_detector` | (multivariate) Horner form | `x^5+2x^4+...+6` -> `((((x+2)x+3)x+4)x+5)x+6` |
 | `poly_component_splitter` | regroups a sum into variable-disjoint parts so other detectors can see them | `x^2+2x+y^2+2y+2` -> `(x^2+2x) + (y^2+2y) + 2` |
 
@@ -46,15 +46,15 @@ best-first and MCTS: `poly_reduce_manifest`, `poly_reduce_mcts_manifest`, `poly_
 make poly_bench && ./build/poly_bench
 ```
 
-22 hand-written problems from easy to hard, plus 12 random ones. A random problem takes a compact target built from
+22 hand-written problems from easy to hard, plus 12 random ones over x, y, z and 8 wide ones over 5 to 8 of a..h. A random problem takes a compact target built from
 linear forms (powers and products of up to three of them) and gives the solver only its full expansion. A problem
 counts as solved when the result is no larger than the target. Some hand-written targets turned out not to be
 minimal, and the solvers beat them, e.g. `(x+2)^3 - (x+2)` for `x^3+6x^2+11x+6`.
 
 Known gaps:
 
-- `poly_linear_factor_finder` needs a nonzero constant term, so linear factors of homogeneous polynomials come only
-  from the pair candidates. Restricting at 1 instead of 0 (dehomogenizing) would cover them.
-- Irreducible non-linear factors (e.g. `x^2 + x + 1` inside a product) are found only when the factor is already
-  written as a subterm, or as the root of an exact power.
+- Non-linear factors are found only as the quotient left after a linear factor, as an existing subterm, or as the
+  root of an exact power. A product of factors that are each non-linear in every variable, e.g.
+  `(x^2+y^2+1)*(x^2-y^2+x*y+2)`, stays expanded; that needs full multivariate factoring (Zassenhaus and Hensel
+  lifting).
 - Detectors run at every position on every expansion. The factor detector dominates the run time.

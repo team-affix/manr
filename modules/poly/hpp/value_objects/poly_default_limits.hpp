@@ -23,6 +23,8 @@ constexpr poly_limits k_poly_default_limits{
     .max_constant_divisor = k_poly_default_max_constant_divisor,
     .max_linear_candidates = k_poly_default_max_linear_candidates,
     .max_root_divisor = k_poly_default_max_root_divisor,
+    .linear_shift_points = k_poly_default_linear_shift_points,
+    .max_shifted_terms = k_poly_default_max_terms,
 };
 
 #endif

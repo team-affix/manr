@@ -18,6 +18,8 @@ struct poly_limits {
     uint64_t max_constant_divisor;     // largest such divisor
     size_t max_linear_candidates;      // candidates the linear factor finder returns per polynomial
     uint64_t max_root_divisor;         // largest numerator/denominator the rational root search tries
+    size_t linear_shift_points;        // points the linear factor finder tries to move the origin to
+    size_t max_shifted_terms;          // largest polynomial the linear factor finder builds by moving the origin
     auto operator<=>(const poly_limits&) const = default;
 };
 

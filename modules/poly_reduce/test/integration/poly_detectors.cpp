@@ -71,8 +71,12 @@ TEST_F(PolyDetectorsIntegrationTest, RestrictionFindsMultivariateLinearFactorsWi
     EXPECT_THAT(factors, Contains(normal_form("2*x - 3")));
 }
 
-TEST_F(PolyDetectorsIntegrationTest, RestrictionNeedsAConstantTerm) {
-    EXPECT_TRUE(kernel.linear_factors_.find_linear_factors(normal_form("(x - y) * (x + 2*y)")).empty());
+TEST_F(PolyDetectorsIntegrationTest, RestrictionMovesTheOriginPastAPointWhereThePolynomialVanishes) {
+    // vanishes at (1, 1), the first point tried
+    const std::vector<poly_polynomial> factors =
+        kernel.linear_factors_.find_linear_factors(normal_form("(x - y) * (x + 2*y)"));
+    EXPECT_THAT(factors, Contains(normal_form("x - y")));
+    EXPECT_THAT(factors, Contains(normal_form("x + 2*y")));
 }
 
 TEST_F(PolyDetectorsIntegrationTest, ThePowerDetectorRecoversAPowerWhoseExpansionHasHugeCoefficients) {
@@ -94,4 +98,19 @@ TEST_F(PolyDetectorsIntegrationTest, RestrictionFindsTheFactorsOfAWideProductWit
     EXPECT_THAT(factors, Contains(normal_form("2*a + 2*b + 3*c + d - 2*f + g + h - 1")));
     EXPECT_THAT(factors, Contains(normal_form("2*a - b - 3*c + e + 2*f + 2*h + 2")));
     EXPECT_EQ(factors.size(), 3u);
+}
+
+TEST_F(PolyDetectorsIntegrationTest, RestrictionFindsFactorsThroughTheOriginByMovingIt) {
+    const std::vector<poly_polynomial> factors = kernel.linear_factors_.find_linear_factors(normal_form(
+        "(2*a - b + c + 3*e + 1) * (a + 3*b - 3*c + 2*d + h) * (a - 2*c + d - g - 2)"));
+    EXPECT_THAT(factors, Contains(normal_form("2*a - b + c + 3*e + 1")));
+    EXPECT_THAT(factors, Contains(normal_form("a + 3*b - 3*c + 2*d + h")));
+    EXPECT_THAT(factors, Contains(normal_form("a - 2*c + d - g - 2")));
+    EXPECT_EQ(factors.size(), 3u);
+}
+
+TEST_F(PolyDetectorsIntegrationTest, FactorDetectorSplitsWideProductsWithNoConstantTerm) {
+    std::vector<rewrite> out;
+    rules.factor_.detect(kernel.renderer_.render(normal_form("(a + 3*b - 2*c + d) * (2*a - b + c - 3*d + 1)")), out);
+    EXPECT_THAT(print_all(perform(out)), Contains("(a + 3 * b - 2 * c + d) * (2 * a - b + c - 3 * d + 1)"));
 }
