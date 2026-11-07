@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 #include "infrastructure/expr_pool.hpp"
+#include "infrastructure/expr_size.hpp"
 #include "infrastructure/poly_condition_evaluator.hpp"
 #include "infrastructure/poly_interpolation_hypotheses.hpp"
 #include "infrastructure/poly_interpolator.hpp"
@@ -65,8 +66,11 @@ struct poly_fit_rules_manifest {
         using poly_split_hypotheses<converter_t, poly_interpolator, poly_interpolator, kernel_t::renderer_t,
                                     kernel_t::literals_t, expr_pool>::poly_split_hypotheses;
     };
-    struct hypotheses_t : pw_hypotheses_union<pw_constant_hypotheses, interpolations_t, splits_t> {
-        using pw_hypotheses_union<pw_constant_hypotheses, interpolations_t, splits_t>::pw_hypotheses_union;
+    struct constants_t : pw_constant_hypotheses<expr_size> {
+        using pw_constant_hypotheses<expr_size>::pw_constant_hypotheses;
+    };
+    struct hypotheses_t : pw_hypotheses_union<constants_t, interpolations_t, splits_t> {
+        using pw_hypotheses_union<constants_t, interpolations_t, splits_t>::pw_hypotheses_union;
     };
     struct binder_t : pw_extension_binder<hypotheses_t, filter_t, assembler_t> {
         using pw_extension_binder<hypotheses_t, filter_t, assembler_t>::pw_extension_binder;
@@ -99,7 +103,7 @@ struct poly_fit_rules_manifest {
     assembler_t assembler_;
     builder_t builder_;
     filter_t filter_;
-    pw_constant_hypotheses constants_;
+    constants_t constants_;
     interpolations_t interpolations_;
     splits_t splits_;
     hypotheses_t hypotheses_;

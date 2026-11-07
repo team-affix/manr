@@ -32,7 +32,8 @@ modules/<name>/{hpp,cpp,test}/...             one directory per rule module; pre
   poly_reduce/ (poly_)                        composition: kernel, rule sets, four solver manifests
   poly_fit/   (poly_)                         composition: polynomial data fitting over piecewises (interpolation
                                               detector, point evaluator, rule set, solver manifests, runtime)
-bench/                                        release benchmarks (`make poly_bench`), not tests
+bench/                                        release benchmarks and the regression gate (`make bench_check`), not
+                                              tests; committed baselines in bench/baseline/
 modules/test_main.cpp                         GTest entry for the modules binary
 googletest/ mcts/                             git submodules (github), not ours to edit; mcts/core/cpp is built into core
 multiprecision/ boost_config/                 git submodules: header-only Boost.Multiprecision, standalone (needs Boost.Config)
@@ -76,6 +77,10 @@ A module depends on core and on other modules' headers; core never depends on a 
 
 - `make core_debug_fast && ./build/core_debug_fast`, `make modules_debug_fast && ./build/modules_debug_fast`.
   `make run_tests` builds and runs both. `--gtest_filter=...` narrows a run.
+- **Regression gate.** `make bench_check` (fast) and `make bench_check_full` compare every solver's cost on the
+  polynomial and fitting corpora (`bench/`) with the committed baseline (`bench/baseline/*.tsv`), and fail on any
+  cost that got worse or any unsound result. Any change to rules or search must pass it. When a change is accepted,
+  run `make bench_baseline` and commit the baseline with the change. Follow `docs/extending.md` to add capability.
 - The makefile `find`s every `.cpp` under `core/` and `modules/*/{cpp,test}`, and every `modules/*/hpp` is on the
   include path. **A new file or module is picked up automatically; don't register it in the makefile.**
 

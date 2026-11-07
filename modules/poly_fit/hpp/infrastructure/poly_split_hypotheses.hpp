@@ -20,9 +20,10 @@ constexpr size_t k_poly_fit_default_max_piece_starts = 8;
 
 // A detector that reads the data and proposes a piecewise polynomial: different polynomials on intervals of one
 // variable, `pw(when(lt(x, k1), P1), ..., when(lt(x, kn), Pn), Q)`. For each variable, the data is ordered by it and
-// cut greedily into runs: from the first point not yet explained, the lowest-degree interpolant that runs furthest
-// (points sharing the variable's value are one step, and one step it misses is tolerated if the next fits) and
-// reproduces more points than its unknowns is the next piece. Interpolants are taken from each of the next few
+// cut greedily into runs: from the first point not yet explained, the interpolant whose run reproduces the most
+// points (lowest degree on ties; points sharing the variable's value are one step, and one step it misses is
+// tolerated if the next fits), and more points than its unknowns, is the next piece. Most reproduced rather than
+// furthest reached: a tolerated miss would otherwise let a higher degree that fits a stray step win. Interpolants are taken from each of the next few
 // points, so an outlier among the first points of a piece does not hide it; a point no interpolant explains is skipped. Greedy is
 // the fewest pieces, since any sub-run of a run is a run. Each bound is where the next piece starts. Proposed when
 // there are two pieces or more (one is the interpolation detector's job); points left unexplained stay as branches.
@@ -145,6 +146,7 @@ POLY_SPLIT_HYPOTHESES_TEMPLATE std::vector<typename POLY_SPLIT_HYPOTHESES::piece
     size_t first = 0;
     while (first < ordered.size()) {
         std::optional<piece> best;
+        size_t best_reproduced = 0;
         const size_t starts = std::min(max_starts_, ordered.size() - first);
         for (size_t degree = 0; degree <= max_degree_; ++degree) {
             for (size_t start = first; start < first + starts; ++start) {
@@ -154,9 +156,10 @@ POLY_SPLIT_HYPOTHESES_TEMPLATE std::vector<typename POLY_SPLIT_HYPOTHESES::piece
                 const run reached = find_run(ordered, position, first, interpolant.value().polynomial);
                 if (reached.reproduced <= interpolant.value().unknowns)
                     continue;
-                const bool longer = !best.has_value() || reached.end > best.value().end;
-                if (longer)
-                    best = piece{.first = first, .end = reached.end, .polynomial = interpolant.value().polynomial};
+                if (reached.reproduced <= best_reproduced)
+                    continue;
+                best = piece{.first = first, .end = reached.end, .polynomial = interpolant.value().polynomial};
+                best_reproduced = reached.reproduced;
             }
             const bool complete = best.has_value() && best.value().end == ordered.size();
             if (complete)

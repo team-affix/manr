@@ -1,6 +1,11 @@
 // Polynomial reduction benchmark: every problem under four solvers (full rules or low-level only, best-first or
 // MCTS) with comparable budgets. A problem is solved when the result is no larger than a known compact form.
 // Every result is checked against the input's normal form.
+//
+//   poly_bench [--fast] [--write FILE] [--check FILE]
+//
+// --fast skips MCTS on the wide problems (minutes each); --write saves the results, --check gates them against a
+// baseline (bench/bench_gate.hpp).
 #include <chrono>
 #include <cstdio>
 #include <random>
@@ -12,6 +17,7 @@
 #include "infrastructure/poly_reduce_manifest.hpp"
 #include "infrastructure/poly_reduce_mcts_manifest.hpp"
 #include "value_objects/poly_default_limits.hpp"
+#include "bench_gate.hpp"
 
 namespace {
 
@@ -106,7 +112,8 @@ std::string cell(const outcome& o, size_t target) {
 
 }
 
-int main() {
+int main(int argc, char** argv) {
+    const bench_options options = parse_bench_options(argc, argv);
     std::vector<problem> problems{
         {"identity", "x + 0", "x"},
         {"like terms", "2*x + 3*x", "5*x"},
@@ -146,18 +153,28 @@ int main() {
                 "full mcts", "base best-1st", "base mcts");
     size_t solved[4] = {0, 0, 0, 0};
     std::vector<std::string> notes;
+    std::vector<bench_result> gated;
     for (const problem& p : problems) {
         poly_kernel_manifest sizing{k_poly_default_limits};
         const size_t input = sizing.sizes_.cost(sizing.parser_.parse(p.text));
         const size_t target = sizing.sizes_.cost(sizing.parser_.parse(p.target));
+        const bool skip_mcts = options.fast && p.name.rfind("wide", 0) == 0;
+        const outcome skipped{.cost = input, .best = "(skipped)", .seconds = 0, .sound = true};
         const outcome results[4] = {
             run_best_first<poly_reduce_manifest>(p.text),
-            run_mcts<poly_reduce_mcts_manifest>(p.text),
+            skip_mcts ? skipped : run_mcts<poly_reduce_mcts_manifest>(p.text),
             run_best_first<poly_baseline_manifest>(p.text),
-            run_mcts<poly_baseline_mcts_manifest>(p.text),
+            skip_mcts ? skipped : run_mcts<poly_baseline_mcts_manifest>(p.text),
         };
-        for (int config = 0; config < 4; ++config)
+        const char* const solvers[4] = {"full best-1st", "full mcts", "base best-1st", "base mcts"};
+        for (int config = 0; config < 4; ++config) {
             solved[config] += results[config].cost <= target ? 1 : 0;
+            const bool ran = !(skip_mcts && (config == 1 || config == 3));
+            if (ran)
+                gated.push_back(bench_result{.problem = p.name, .solver = solvers[config], .cost = results[config].cost,
+                                             .target = target, .seconds = results[config].seconds,
+                                             .sound = results[config].sound});
+        }
         std::printf("%-28s %5zu %6zu | %s | %s | %s | %s\n", p.name.c_str(), input, target,
                     cell(results[0], target).c_str(), cell(results[1], target).c_str(),
                     cell(results[2], target).c_str(), cell(results[3], target).c_str());
@@ -170,5 +187,5 @@ int main() {
                 problems.size(), solved[0], solved[1], solved[2], solved[3]);
     for (const std::string& note : notes)
         std::printf("%s\n", note.c_str());
-    return 0;
+    return finish_bench(options, gated);
 }

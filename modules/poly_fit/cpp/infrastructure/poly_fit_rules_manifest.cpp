@@ -20,7 +20,7 @@ poly_fit_rules_manifest::poly_fit_rules_manifest(
     , assembler_(kernel.exprs_, pw_symbols_)
     , builder_(kernel.exprs_, kernel.exprs_, assembler_, pw_symbols_)
     , filter_(pw_evaluator_, pw_symbols_)
-    , constants_()
+    , constants_(kernel.sizes_)
     , interpolations_(converter_, interpolator_, interpolator_, kernel.renderer_, fit_limits.max_degree,
                       fit_limits.max_starts)
     , splits_(converter_, interpolator_, interpolator_, kernel.renderer_, kernel.literals_, kernel.exprs_, variables_,

@@ -52,8 +52,11 @@ struct arith_fit_manifest {
     struct lines_t : arith_linear_hypotheses<literals_t, literals_t, expr_pool> {
         using arith_linear_hypotheses<literals_t, literals_t, expr_pool>::arith_linear_hypotheses;
     };
-    struct hypotheses_t : pw_hypotheses_union<pw_constant_hypotheses, lines_t> {
-        using pw_hypotheses_union<pw_constant_hypotheses, lines_t>::pw_hypotheses_union;
+    struct constants_t : pw_constant_hypotheses<expr_size> {
+        using pw_constant_hypotheses<expr_size>::pw_constant_hypotheses;
+    };
+    struct hypotheses_t : pw_hypotheses_union<constants_t, lines_t> {
+        using pw_hypotheses_union<constants_t, lines_t>::pw_hypotheses_union;
     };
     struct binder_t : pw_extension_binder<hypotheses_t, filter_t, assembler_t> {
         using pw_extension_binder<hypotheses_t, filter_t, assembler_t>::pw_extension_binder;
@@ -90,7 +93,7 @@ struct arith_fit_manifest {
     assembler_t assembler_;
     builder_t builder_;
     filter_t filter_;
-    pw_constant_hypotheses constants_;
+    constants_t constants_;
     lines_t lines_;
     hypotheses_t hypotheses_;
     binder_t binder_;

@@ -110,7 +110,33 @@ $(eval $(call TEST_BINARIES,debug_fast,_debug_fast))
 # Benchmarks (release)
 # ==============================================================================
 
-.PHONY: poly_bench
+.PHONY: poly_bench fit_bench bench_check bench_check_full bench_baseline
 
 poly_bench: build/libmanr_modules.a build/libmanr_core.a
 	$(CXX) $(CXXFLAGS) $(RELEASE_CXXFLAGS) bench/poly_bench.cpp -Lbuild -lmanr_modules -lmanr_core -o build/poly_bench
+
+fit_bench: build/libmanr_modules.a build/libmanr_core.a
+	$(CXX) $(CXXFLAGS) $(RELEASE_CXXFLAGS) bench/fit_bench.cpp -Lbuild -lmanr_modules -lmanr_core -o build/fit_bench
+
+# The regression gate (docs/extending.md): every solver's cost on every problem must be no worse than the committed
+# baseline, and every result sound. bench_check skips MCTS on the largest problems; bench_check_full runs everything.
+bench_check: poly_bench fit_bench
+	@status=0; \
+	./build/poly_bench --fast --check bench/baseline/poly.tsv > build/poly_bench.txt || status=1; \
+	sed -n '/^gate against/,$$p' build/poly_bench.txt; \
+	./build/fit_bench --fast --check bench/baseline/fit.tsv > build/fit_bench.txt || status=1; \
+	sed -n '/^gate against/,$$p' build/fit_bench.txt; \
+	exit $$status
+
+bench_check_full: poly_bench fit_bench
+	@status=0; \
+	./build/poly_bench --check bench/baseline/poly.tsv > build/poly_bench.txt || status=1; \
+	sed -n '/^gate against/,$$p' build/poly_bench.txt; \
+	./build/fit_bench --check bench/baseline/fit.tsv > build/fit_bench.txt || status=1; \
+	sed -n '/^gate against/,$$p' build/fit_bench.txt; \
+	exit $$status
+
+# Records the current results as the baseline. Run only when a change is accepted; commit the diff with it.
+bench_baseline: poly_bench fit_bench
+	./build/poly_bench --write bench/baseline/poly.tsv > build/poly_bench.txt
+	./build/fit_bench --write bench/baseline/fit.tsv > build/fit_bench.txt
