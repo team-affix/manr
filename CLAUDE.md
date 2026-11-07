@@ -16,6 +16,8 @@ MANR is a domain-specific symbolic expression reduction engine in C++20, the mos
   and propose a far-away result in one step (e.g. `arith_linear_hypotheses` feeding `pw_extension_binder`).
   Detectors are the point of the project: search should not have to stumble into a reducible form.
 - It is a library. Users write rules in C++ and compose them in a manifest. There is no CLI or parser yet.
+- **Long-term goal** (`docs/vision.md`): the same recipe in every domain (algebra, calculus, lists, graphs, ...),
+  with inputs and labels as any expressions of the domain and free variables for generality.
 
 ## Layout
 

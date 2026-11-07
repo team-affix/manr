@@ -17,6 +17,9 @@ them by accident. Here a linear-fit detector resolves `?0` to a line and drops e
 pw(case(10, 99), add(mul(2, x), 1))
 ```
 
+The long-term goal is the same recipe in every domain: arithmetic, algebra, calculus, lists, graphs. Inputs and
+labels can be any expressions of the domain, and free variables leave room for generality. See `docs/vision.md`.
+
 ## Build
 
 Requires g++ with C++20 and the submodules (googletest, team-affix/mcts, and Boost.Multiprecision with Boost.Config
