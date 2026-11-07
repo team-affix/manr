@@ -23,8 +23,8 @@ poly_fit_rules_manifest::poly_fit_rules_manifest(
     , constants_(kernel.sizes_)
     , interpolations_(converter_, interpolator_, interpolator_, kernel.renderer_, fit_limits.max_degree,
                       fit_limits.max_starts)
-    , splits_(converter_, interpolator_, interpolator_, kernel.renderer_, kernel.literals_, kernel.exprs_, variables_,
-              pw_symbols_, less_symbol_, fit_limits.max_degree, fit_limits.max_starts)
+    , splits_(converter_, interpolator_, interpolator_, kernel.renderer_, kernel.sizes_, kernel.literals_, kernel.exprs_,
+              variables_, pw_symbols_, less_symbol_, fit_limits.max_degree, fit_limits.max_starts)
     , hypotheses_(constants_, interpolations_, splits_)
     , binder_(hypotheses_, filter_, assembler_, pw_symbols_)
     , absorber_(filter_, assembler_, pw_symbols_)

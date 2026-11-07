@@ -20,19 +20,22 @@ constexpr size_t k_poly_fit_default_max_piece_starts = 8;
 
 // A detector that reads the data and proposes a piecewise polynomial: different polynomials on intervals of one
 // variable, `pw(when(lt(x, k1), P1), ..., when(lt(x, kn), Pn), Q)`. For each variable, the data is ordered by it and
-// cut greedily into runs: from the first point not yet explained, the interpolant whose run reproduces the most
-// points (lowest degree on ties; points sharing the variable's value are one step, and one step it misses is
-// tolerated if the next fits), and more points than its unknowns, is the next piece. Most reproduced rather than
-// furthest reached: a tolerated miss would otherwise let a higher degree that fits a stray step win. Interpolants are taken from each of the next few
-// points, so an outlier among the first points of a piece does not hide it; a point no interpolant explains is skipped. Greedy is
-// the fewest pieces, since any sub-run of a run is a run. Each bound is where the next piece starts. Proposed when
-// there are two pieces or more (one is the interpolation detector's job); points left unexplained stay as branches.
+// cut greedily into runs. From the first point not yet explained, the next piece is the interpolant whose run saves
+// the most nodes: the branches of the points it reproduces, less the size of its polynomial (expanded, so an upper
+// bound). Points sharing the variable's value are one step, and one step it misses is tolerated if the next fits. A
+// piece must reproduce more points than its unknowns; ties go to the lower degree. Ranking by saving rather than by
+// reach or by points reproduced means a higher degree that fits a stray step, or one more point, wins only when it
+// pays for its own size. Interpolants are taken from each of the next few points, so an outlier among the first
+// points of a piece does not hide it; a point no interpolant explains is skipped. Each bound is where the next piece
+// starts. Proposed when there are two pieces or more (one is the interpolation detector's job); points left
+// unexplained stay as branches.
 //
 // Proposes expanded normal forms; the polynomial rules compress each piece afterwards.
 template<typename IFindSamples,
          typename IInterpolate,
          typename IEvaluatePolynomial,
          typename IRender,
+         typename IGetCost,
          typename IMakeLiteral,
          typename IMakeFunctor>
 struct poly_split_hypotheses {
@@ -40,6 +43,7 @@ struct poly_split_hypotheses {
                           IInterpolate& interpolate,
                           IEvaluatePolynomial& evaluate_polynomial,
                           IRender& render,
+                          IGetCost& get_cost,
                           IMakeLiteral& make_literal,
                           IMakeFunctor& make_functor,
                           std::vector<uint32_t> variables,
@@ -70,6 +74,7 @@ private:
     IInterpolate& interpolate_;
     IEvaluatePolynomial& evaluate_polynomial_;
     IRender& render_;
+    IGetCost& get_cost_;
     IMakeLiteral& make_literal_;
     IMakeFunctor& make_functor_;
     std::vector<uint32_t> variables_;
@@ -81,15 +86,17 @@ private:
 
 #define POLY_SPLIT_HYPOTHESES_TEMPLATE                                                                         \
     template<typename IFindSamples, typename IInterpolate, typename IEvaluatePolynomial, typename IRender, \
-             typename IMakeLiteral, typename IMakeFunctor>
+             typename IGetCost, typename IMakeLiteral, typename IMakeFunctor>
 #define POLY_SPLIT_HYPOTHESES \
-    poly_split_hypotheses<IFindSamples, IInterpolate, IEvaluatePolynomial, IRender, IMakeLiteral, IMakeFunctor>
+    poly_split_hypotheses<IFindSamples, IInterpolate, IEvaluatePolynomial, IRender, IGetCost, IMakeLiteral, \
+                          IMakeFunctor>
 
 POLY_SPLIT_HYPOTHESES_TEMPLATE POLY_SPLIT_HYPOTHESES::poly_split_hypotheses(
     IFindSamples& find_samples,
     IInterpolate& interpolate,
     IEvaluatePolynomial& evaluate_polynomial,
     IRender& render,
+    IGetCost& get_cost,
     IMakeLiteral& make_literal,
     IMakeFunctor& make_functor,
     std::vector<uint32_t> variables,
@@ -101,6 +108,7 @@ POLY_SPLIT_HYPOTHESES_TEMPLATE POLY_SPLIT_HYPOTHESES::poly_split_hypotheses(
     , interpolate_(interpolate)
     , evaluate_polynomial_(evaluate_polynomial)
     , render_(render)
+    , get_cost_(get_cost)
     , make_literal_(make_literal)
     , make_functor_(make_functor)
     , variables_(std::move(variables))
@@ -142,11 +150,13 @@ POLY_SPLIT_HYPOTHESES_TEMPLATE void POLY_SPLIT_HYPOTHESES::propose_hypotheses(
 // does not explain) are one.
 POLY_SPLIT_HYPOTHESES_TEMPLATE std::vector<typename POLY_SPLIT_HYPOTHESES::piece> POLY_SPLIT_HYPOTHESES::find_pieces(
     const std::vector<poly_sample>& ordered, size_t position) const {
+    // the branch `case(point(v1, ..., vk), output)` of one point, all literals
+    const int64_t branch_size = static_cast<int64_t>(variables_.size()) + 3;
     std::vector<piece> pieces;
     size_t first = 0;
     while (first < ordered.size()) {
         std::optional<piece> best;
-        size_t best_reproduced = 0;
+        int64_t best_saving = 0;
         const size_t starts = std::min(max_starts_, ordered.size() - first);
         for (size_t degree = 0; degree <= max_degree_; ++degree) {
             for (size_t start = first; start < first + starts; ++start) {
@@ -156,10 +166,12 @@ POLY_SPLIT_HYPOTHESES_TEMPLATE std::vector<typename POLY_SPLIT_HYPOTHESES::piece
                 const run reached = find_run(ordered, position, first, interpolant.value().polynomial);
                 if (reached.reproduced <= interpolant.value().unknowns)
                     continue;
-                if (reached.reproduced <= best_reproduced)
+                const size_t size = get_cost_.cost(render_.render(interpolant.value().polynomial));
+                const int64_t saving = static_cast<int64_t>(reached.reproduced) * branch_size - static_cast<int64_t>(size);
+                if (best.has_value() && saving <= best_saving)
                     continue;
                 best = piece{.first = first, .end = reached.end, .polynomial = interpolant.value().polynomial};
-                best_reproduced = reached.reproduced;
+                best_saving = saving;
             }
             const bool complete = best.has_value() && best.value().end == ordered.size();
             if (complete)

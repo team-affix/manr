@@ -92,11 +92,12 @@ is `lt(a, b)`.
 `poly_split_hypotheses` proposes a piecewise polynomial, `pw(when(lt(x, k1), P1), ..., Q)`, for each input variable:
 
 - It orders the data by that variable and cuts it greedily into pieces. From the first unexplained point, the next
-  piece is the lowest-degree interpolant that runs furthest.
+  piece is the interpolant that saves the most nodes: the branches of the points it reproduces, less its own size
+  (expanded). Ties go to the lower degree. So a higher degree that reaches further by skipping a step, or reproduces
+  one more point, wins only if it pays for its size.
 - Interpolants are tried from several of the next points, so an outlier near the start of a piece does not hide it.
 - Within a run, one missed value of the variable is tolerated if the next fits. Missed points stay as `case`
   branches.
-- Greedy gives the fewest pieces.
 - It proposes only when there are two pieces or more.
 
 Limits are in `poly_fit_limits` (`k_poly_fit_default_limits`): max degree 6, at most 84 unknowns (degree 6 in 3

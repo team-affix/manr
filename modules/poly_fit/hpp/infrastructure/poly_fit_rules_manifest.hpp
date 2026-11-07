@@ -62,9 +62,9 @@ struct poly_fit_rules_manifest {
             poly_interpolation_hypotheses;
     };
     struct splits_t : poly_split_hypotheses<converter_t, poly_interpolator, poly_interpolator, kernel_t::renderer_t,
-                                            kernel_t::literals_t, expr_pool> {
+                                            expr_size, kernel_t::literals_t, expr_pool> {
         using poly_split_hypotheses<converter_t, poly_interpolator, poly_interpolator, kernel_t::renderer_t,
-                                    kernel_t::literals_t, expr_pool>::poly_split_hypotheses;
+                                    expr_size, kernel_t::literals_t, expr_pool>::poly_split_hypotheses;
     };
     struct constants_t : pw_constant_hypotheses<expr_size> {
         using pw_constant_hypotheses<expr_size>::pw_constant_hypotheses;

@@ -64,3 +64,11 @@ TEST_F(PolySplitHypothesesIntegrationTest, OnePolynomialIsNotSplit) {
         propose({"x"}, sample_line(-5, 5, [](integer x) { return integer(x * x * x - x); }, {}));
     EXPECT_TRUE(hypotheses.empty());
 }
+
+TEST_F(PolySplitHypothesesIntegrationTest, AHigherDegreeThatSkipsAStepDoesNotBeatTheSimplePiece) {
+    // x(x + 3)(x + y) + 3x + y is x - y at x = -2, -1 and x + y at x = 0, and reaches further than x - y
+    const std::vector<std::string> hypotheses = propose({"x", "y"}, sample_grid(-3, 3, [](integer x, integer y) {
+        return x < 0 ? integer(x - y) : integer(x + y);
+    }));
+    EXPECT_THAT(hypotheses, Contains("pw(when(lt(x, 0), x - y), x + y)"));
+}
