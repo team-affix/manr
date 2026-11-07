@@ -23,7 +23,14 @@ struct ArithAlgebraIntegrationTest : ::testing::Test {
     arith_evaluator<decltype(literals), decltype(literals)> evaluator{literals, literals, vocabulary};
     arith_simplifier<decltype(literals), decltype(literals)> simplifier{literals, literals, vocabulary};
     const expr* x = pool.make_functor(vocabulary.input, {});
-    std::vector<const expr*> out{};
+    std::vector<rewrite> out{};
+
+    std::vector<const expr*> perform() {
+        std::vector<const expr*> results;
+        for (const rewrite& detected : out)
+            results.push_back(detected());
+        return results;
+    }
 
     const expr* lit(int64_t value) { return literals.make_literal(value); }
     const expr* add(const expr* l, const expr* r) { return pool.make_functor(vocabulary.add, {l, r}); }
@@ -48,19 +55,19 @@ TEST_F(ArithAlgebraIntegrationTest, AnExpressionHoldingAnExtensionTermHasNoValue
 }
 
 TEST_F(ArithAlgebraIntegrationTest, TwoLiteralsAreFolded) {
-    simplifier.propose(mul(lit(6), lit(7)), out);
-    EXPECT_EQ(out, std::vector<const expr*>{lit(42)});
+    simplifier.detect(mul(lit(6), lit(7)), out);
+    EXPECT_EQ(perform(), std::vector<const expr*>{lit(42)});
 }
 
 TEST_F(ArithAlgebraIntegrationTest, IdentitiesDropTheNeutralOperand) {
-    simplifier.propose(add(x, lit(0)), out);
-    simplifier.propose(mul(lit(1), x), out);
-    simplifier.propose(mul(x, lit(0)), out);
-    simplifier.propose(sub(x, x), out);
-    EXPECT_EQ(out, (std::vector<const expr*>{x, x, lit(0), lit(0)}));
+    simplifier.detect(add(x, lit(0)), out);
+    simplifier.detect(mul(lit(1), x), out);
+    simplifier.detect(mul(x, lit(0)), out);
+    simplifier.detect(sub(x, x), out);
+    EXPECT_EQ(perform(), (std::vector<const expr*>{x, x, lit(0), lit(0)}));
 }
 
 TEST_F(ArithAlgebraIntegrationTest, FoldingPast64BitsIsExact) {
-    simplifier.propose(mul(literals.make_literal(integer("9223372036854775807")), lit(2)), out);
-    EXPECT_EQ(out, std::vector<const expr*>{literals.make_literal(integer("18446744073709551614"))});
+    simplifier.detect(mul(literals.make_literal(integer("9223372036854775807")), lit(2)), out);
+    EXPECT_EQ(perform(), std::vector<const expr*>{literals.make_literal(integer("18446744073709551614"))});
 }

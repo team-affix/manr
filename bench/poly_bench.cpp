@@ -11,6 +11,7 @@
 #include "infrastructure/poly_baseline_mcts_manifest.hpp"
 #include "infrastructure/poly_reduce_manifest.hpp"
 #include "infrastructure/poly_reduce_mcts_manifest.hpp"
+#include "value_objects/poly_default_limits.hpp"
 
 namespace {
 
@@ -27,10 +28,10 @@ struct outcome {
     bool sound;
 };
 
-constexpr size_t k_expansions = 3000;
+constexpr size_t k_rewrites = 5000;
 constexpr size_t k_frontier = 20000;
 constexpr size_t k_probing_depth = 12;
-constexpr size_t k_simulations = 250;
+constexpr size_t k_simulations = 150;
 constexpr double k_exploration = 0.4;
 
 std::string print(poly_kernel_manifest& kernel, const expr* e) {
@@ -49,15 +50,15 @@ outcome finish(Manifest& m, const expr* best, std::chrono::steady_clock::time_po
 template<typename Manifest>
 outcome run_best_first(const std::string& text) {
     const auto start = std::chrono::steady_clock::now();
-    Manifest m{text, k_frontier};
-    for (size_t step = 0; step < k_expansions && m.search_.next(); ++step) {}
+    Manifest m{text, k_poly_default_limits, k_frontier};
+    for (size_t step = 0; step < k_rewrites && m.search_.next(); ++step) {}
     return finish(m, m.search_.best(), start);
 }
 
 template<typename Manifest>
 outcome run_mcts(const std::string& text) {
     const auto start = std::chrono::steady_clock::now();
-    Manifest m{text, k_probing_depth, k_simulations, k_exploration, 1};
+    Manifest m{text, k_poly_default_limits, k_probing_depth, k_simulations, k_exploration, 1};
     while (m.search_.next()) {}
     return finish(m, m.search_.best(), start);
 }
@@ -79,9 +80,11 @@ std::string random_linear(std::mt19937& rng, const std::vector<std::string>& var
 }
 
 // A compact target built from linear forms, and the same polynomial fully expanded as the problem.
-problem random_problem(std::mt19937& rng, int index, poly_kernel_manifest& kernel) {
-    const std::vector<std::string> pool{"x", "y", "z"};
-    std::vector<std::string> variables(pool.begin(), pool.begin() + 1 + rng() % 3);
+// Uses between `fewest` and all of `pool`'s variables.
+problem random_problem(std::mt19937& rng, const std::string& name, const std::vector<std::string>& pool, size_t fewest,
+                       poly_kernel_manifest& kernel) {
+    const size_t count = fewest + rng() % (pool.size() - fewest + 1);
+    std::vector<std::string> variables(pool.begin(), pool.begin() + count);
     std::string target;
     switch (rng() % 4) {
         case 0: target = random_linear(rng, variables) + "^" + std::to_string(2 + rng() % 3); break;
@@ -91,7 +94,7 @@ problem random_problem(std::mt19937& rng, int index, poly_kernel_manifest& kerne
         default: target = random_linear(rng, {variables.front()}) + "^3 + " + random_linear(rng, {"w"}) + "^2"; break;
     }
     const expr* expanded = kernel.renderer_.render(kernel.expander_.find_polynomial(kernel.parser_.parse(target)).value());
-    return problem{.name = "random " + std::to_string(index), .text = print(kernel, expanded), .target = target};
+    return problem{.name = name, .text = print(kernel, expanded), .target = target};
 }
 
 std::string cell(const outcome& o, size_t target) {
@@ -128,12 +131,15 @@ int main() {
         {"nested", "((x+1)^2 - x^2 - 1)^3", "8*x^3"},
         {"completed square", "x^2 + 6*x + 10", "(x+3)^2 + 1"},
     };
-    poly_kernel_manifest generator{256};
+    poly_kernel_manifest generator{k_poly_default_limits};
     std::mt19937 rng{42};
     for (int index = 1; index <= 12; ++index)
-        problems.push_back(random_problem(rng, index, generator));
+        problems.push_back(random_problem(rng, "random " + std::to_string(index), {"x", "y", "z"}, 1, generator));
+    for (int index = 1; index <= 8; ++index)
+        problems.push_back(random_problem(
+            rng, "wide " + std::to_string(index), {"a", "b", "c", "d", "e", "f", "g", "h"}, 5, generator));
 
-    std::printf("budgets: best-first %zu expansions; mcts %zu simulations x depth %zu\n", k_expansions, k_simulations,
+    std::printf("budgets: best-first %zu rewrites; mcts %zu simulations x depth %zu\n", k_rewrites, k_simulations,
                 k_probing_depth);
     std::printf("cost  *: no larger than target   !: UNSOUND\n\n");
     std::printf("%-28s %5s %6s | %-13s | %-13s | %-13s | %-13s\n", "problem", "input", "target", "full best-1st",
@@ -141,7 +147,7 @@ int main() {
     size_t solved[4] = {0, 0, 0, 0};
     std::vector<std::string> notes;
     for (const problem& p : problems) {
-        poly_kernel_manifest sizing{256};
+        poly_kernel_manifest sizing{k_poly_default_limits};
         const size_t input = sizing.sizes_.cost(sizing.parser_.parse(p.text));
         const size_t target = sizing.sizes_.cost(sizing.parser_.parse(p.target));
         const outcome results[4] = {
@@ -155,6 +161,7 @@ int main() {
         std::printf("%-28s %5zu %6zu | %s | %s | %s | %s\n", p.name.c_str(), input, target,
                     cell(results[0], target).c_str(), cell(results[1], target).c_str(),
                     cell(results[2], target).c_str(), cell(results[3], target).c_str());
+        std::fflush(stdout);
         notes.push_back(p.name + "\n    input:     " + p.text + "\n    target:    " + p.target
                         + "\n    best-1st:  " + results[0].best + "\n    mcts:      " + results[1].best
                         + "\n    base mcts: " + results[3].best);

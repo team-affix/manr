@@ -54,6 +54,52 @@ answered "definitely not" with arithmetic modulo a prime that fits in a machine 
 
 Use several primes or several points when one gives too many false passes. Their failures are independent.
 
+## 3. Time budgets: cheap detection, bounded rewrite
+
+There will be many rules, and every one is asked at every position, so one slow rule slows the whole system.
+
+- **Detection** (does this rule apply here?) must take **under 1 second**, and should usually take a small fraction
+  of that.
+- **Rewrite** (compute the result, done only once search chooses to take that step) may take up to **10–20 seconds**.
+
+Detection and rewrite are separate steps, curried. A rule's `detect(e, out)` appends one `rewrite` per rewrite that
+applies (`core/hpp/value_objects/rewrite.hpp`): a thunk capturing what detection found. Nothing appended means the
+rule does not apply. A search performs only the rewrites it takes.
+
+**Detection is certain.** It resolves every uncertainty: by the time a rewrite is appended, the rule is sure it
+applies and meets all its conditions (e.g. "the result is no larger"). Performing it always succeeds and never
+returns nullptr. The searches assert this, and `poly_soundness.cpp` checks it for every polynomial rule. The thunk
+holds the remaining work that cannot change the answer, such as building the result, and as much work as possible
+should go there. Cheap filters (section 1) are how detection stays fast while being certain: they reject most
+candidates before the exact check that settles the rest.
+
+**Who keeps the budgets.** Core and the rules enforce nothing. Every limit is a parameter, and a caller may set any
+value, including one that breaks the budgets. Keeping within them is the job of whoever composes and runs the rules
+(a solver manifest, the benchmark, a test). To make that easy, each rule's limit parameters have default arguments:
+known reasonable values, named `k_<module>_default_<limit>` in the rule's header, chosen to stay within the budgets
+at typical sizes. `k_poly_default_limits` gathers them for configuring a whole solver at once.
+
+## 4. Terms too large to expand
+
+Rules that work on the expanded form only reach subterms under the term limit. Larger terms need rules that never
+expand them fully:
+
+- **Structure instead of expansion.** Flatten sums and products into cached n-ary views. Then merge identical terms
+  (by pointer) and pull out factors that every summand shares, all without expanding.
+- **Split, then analyze the pieces.** Partition a large sum by the variables its summands use (computed bottom-up,
+  no expansion). Each piece small enough is handed to the expansion-based detectors.
+- **Regroup by one variable.** Write a sum as `sum_k v^k * C_k` from its summands' structure. The coefficients
+  `C_k` are smaller and may be analyzable.
+- **Bottom-up invariants.** Degree, leading term, variable set, and a modular fingerprint can each be computed from
+  the children's values, without expanding. They act as filters, e.g. q^n requires a degree divisible by n.
+- **Truncated expansion.** Compute only the few highest terms of an expansion (enough to guess a root or factor),
+  never the whole thing.
+
+Open question: exactly verifying that two huge polynomials are equal may itself need full expansion. Such rewrites
+must be correct by construction (built only from identities), or else accepted on a probabilistic check (several
+primes, with error probability set by configuration). The second option weakens the "never wrong" guarantee, so it
+needs an explicit decision.
+
 ## Where the current polynomial rules stand
 
 None of this has been applied yet. These are the most promising opportunities, with the biggest expected wins first:

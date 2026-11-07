@@ -1,13 +1,15 @@
 #include "infrastructure/poly_rules_manifest.hpp"
 
 poly_rules_manifest::poly_rules_manifest(kernel_t& kernel)
-    : local_(kernel.literals_, kernel.literals_, kernel.exprs_, kernel.poly_symbols_)
-    , collector_(kernel.expander_, kernel.renderer_, kernel.sizes_)
+    : local_(kernel.literals_, kernel.literals_, kernel.exprs_, kernel.poly_symbols_, kernel.limits_.max_exponent)
+    , collector_(kernel.expander_, kernel.renderer_, kernel.renderer_, kernel.sizes_)
     , horner_(kernel.expander_, kernel.horner_, kernel.sizes_)
-    , factor_(kernel.expander_, kernel.arithmetic_, kernel.linear_factors_, kernel.renderer_, kernel.exprs_, kernel.sizes_,
-              kernel.poly_symbols_, 6)
-    , power_(kernel.expander_, kernel.roots_, kernel.renderer_, kernel.exprs_, kernel.literals_, kernel.sizes_,
-             kernel.poly_symbols_, 8)
+    , factor_(kernel.expander_, kernel.divisibility_, kernel.arithmetic_, kernel.linear_factors_, kernel.renderer_,
+              kernel.renderer_, kernel.exprs_, kernel.sizes_,
+              kernel.poly_symbols_, kernel.limits_.max_factor_candidates, kernel.limits_.max_constant_divisors,
+              kernel.limits_.max_constant_divisor)
+    , power_(kernel.expander_, kernel.roots_, kernel.renderer_, kernel.renderer_, kernel.exprs_, kernel.literals_, kernel.sizes_,
+             kernel.poly_symbols_, kernel.limits_.max_power_degree)
     , splitter_(kernel.expander_, kernel.renderer_, kernel.exprs_, kernel.literals_, kernel.poly_symbols_)
     , like_terms_(kernel.expander_, kernel.literals_, kernel.exprs_, kernel.literals_, kernel.sizes_,
                   kernel.poly_symbols_)

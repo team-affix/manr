@@ -10,7 +10,7 @@ MANR is a domain-specific symbolic expression reduction engine in C++20, the mos
 - **Data as a piecewise.** A data set is turned mechanically into `pw(case(in, out), ..., ?0)`: one branch per point,
   and an extension term as the catch-all for every unseen input. Reduction then tries to make the piecewise disappear.
 - **Objective.** Smallest node count (`expr_size`) for the fixed functor set.
-- **Rules come in two kinds**, both behind the same `propose(e, out)` capability:
+- **Rules come in two kinds**, both behind the same `detect(e, out)` capability:
   low-level local rewrites (e.g. `arith_simplifier`), and high-level *detectors* that read the expression or data
   and propose a far-away result in one step (e.g. `arith_linear_hypotheses` feeding `pw_extension_binder`).
   Detectors are the point of the project: search should not have to stumble into a reducible form.
@@ -47,14 +47,16 @@ A module depends on core and on other modules' headers; core never depends on a 
     mcts_search           probing simulations (UCT in-tree, random past it), rewarded by smallest cost reached
     | best_first_search   or: bounded cost-ordered frontier, interned dedup
       subterm_proposer    lifts a local rule set to every position of the expression
-        proposer_union    fans propose() out to the rules of several modules
+        proposer_union    fans detect() out to the rules of several modules
           rules           pw_extension_binder, pw_branch_absorber, arith_simplifier, ...
 ```
 
 - Expressions are hash-consed by `expr_pool`: pointer equality is structural equality. Search dedup, the
   derivation map and rules all rely on this.
-- A proposer appends whole candidate expressions to `out`; it never mutates. Local proposers only look at the node
-  they are handed; `subterm_proposer` rebuilds the path to the root.
+- Rules detect, then rewrite: `detect(e, out)` does cheap checks and appends `rewrite` thunks
+  (`std::function<const expr*()>`); performing one returns the whole result or nullptr. Searches perform only the
+  rewrites they take. Local rules only look at the node they are handed; `subterm_proposer` wraps their rewrites to
+  rebuild the path to the root. See `docs/rule-design.md`.
 - Domains plug into the piecewise module through capabilities: `IEvaluateAt` (value of an expression at an input,
   as an interned expression, or nullopt) and `IProposeHypotheses` (candidate resolutions of an extension term given
   the data points).
@@ -78,8 +80,8 @@ A module depends on core and on other modules' headers; core never depends on a 
 
 Carried over from Atlas unchanged. The rules live in `.claude/rules/*.md` and load automatically.
 Core of it: simplest thing that works. `struct` only. Collaborators are injected by reference as template params
-named per invoked capability. No lambdas or `std::function` (tests excepted), no overloads, no default args, no
-default member initializers. Paired operations are mirror images.
+named per invoked capability. No lambdas or `std::function` (except rewrite thunks and tests), no overloads, no
+default args (except rules' limit parameters), no default member initializers. Paired operations are mirror images.
 
 Conventions from Atlas that MANR keeps:
 - Out-of-line template definitions use a `#define X_TEMPLATE` / `#define X` macro pair, `#undef`'d at the end.

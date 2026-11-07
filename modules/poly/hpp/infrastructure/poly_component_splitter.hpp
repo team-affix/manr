@@ -7,6 +7,7 @@
 #include <variant>
 #include <vector>
 #include "value_objects/expr.hpp"
+#include "value_objects/rewrite.hpp"
 #include "value_objects/integer.hpp"
 #include "value_objects/poly_polynomial.hpp"
 #include "value_objects/poly_symbols.hpp"
@@ -22,8 +23,9 @@ struct poly_component_splitter {
                             IMakeFunctor& make_functor,
                             IMakeLiteral& make_literal,
                             poly_symbols symbols);
-    void propose(const expr* e, std::vector<const expr*>& out);
+    void detect(const expr* e, std::vector<rewrite>& out);
 private:
+    const expr* regroup(const expr* e, const std::map<uint32_t, poly_polynomial>& parts, const integer& constant);
     static uint32_t find_representative(std::map<uint32_t, uint32_t>& parents, uint32_t variable);
 
     IFindPolynomial& find_polynomial_;
@@ -46,7 +48,7 @@ POLY_COMPONENT_SPLITTER_TEMPLATE POLY_COMPONENT_SPLITTER::poly_component_splitte
     , make_literal_(make_literal)
     , symbols_(symbols) {}
 
-POLY_COMPONENT_SPLITTER_TEMPLATE void POLY_COMPONENT_SPLITTER::propose(const expr* e, std::vector<const expr*>& out) {
+POLY_COMPONENT_SPLITTER_TEMPLATE void POLY_COMPONENT_SPLITTER::detect(const expr* e, std::vector<rewrite>& out) {
     const expr::functor* f = std::get_if<expr::functor>(&e->content);
     if (f == nullptr || (f->id != symbols_.add && f->id != symbols_.sub))
         return;
@@ -68,6 +70,14 @@ POLY_COMPONENT_SPLITTER_TEMPLATE void POLY_COMPONENT_SPLITTER::propose(const exp
     }
     if (parts.size() < 2)
         return;
+    const expr* regrouped = regroup(e, parts, constant);
+    if (regrouped == nullptr)
+        return;
+    out.push_back(ready(regrouped));
+}
+
+POLY_COMPONENT_SPLITTER_TEMPLATE const expr* POLY_COMPONENT_SPLITTER::regroup(
+    const expr* e, const std::map<uint32_t, poly_polynomial>& parts, const integer& constant) {
     const expr* sum = nullptr;
     for (const auto& [representative, part] : parts) {
         const bool negative = sum != nullptr && part.terms.rbegin()->second < 0;
@@ -82,8 +92,8 @@ POLY_COMPONENT_SPLITTER_TEMPLATE void POLY_COMPONENT_SPLITTER::propose(const exp
         sum = make_functor_.make_functor(
             constant < 0 ? symbols_.sub : symbols_.add, {sum, make_literal_.make_literal(constant < 0 ? integer(-constant) : constant)});
     if (sum == e)
-        return;
-    out.push_back(sum);
+        return nullptr;
+    return sum;
 }
 
 POLY_COMPONENT_SPLITTER_TEMPLATE uint32_t POLY_COMPONENT_SPLITTER::find_representative(

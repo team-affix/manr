@@ -21,7 +21,9 @@ description: Struct and member design conventions for C++ types
 - Prefer a single constructor and single destructor. Do not overload them.
 - No function overloading. Two functions with distinct purposes get distinct
   names (e.g. `reduce_nullary` / `reduce_unary`, not two `reduce`).
-- No default parameters, ever. The caller must specify every argument.
+- No default parameters, with one exception: a rule's limit parameters (term caps, candidate counts, degree bounds)
+  take a default argument, its known reasonable value, named `k_<module>_default_<limit>` in the rule's header. A
+  caller can still pass any value. Everything else: the caller specifies every argument.
 - No optional arguments and no optional template arguments.
 - Remove `explicit` on constructors; we don't keep it (it's usually unnecessary).
 

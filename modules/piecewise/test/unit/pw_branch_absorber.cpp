@@ -28,28 +28,29 @@ struct PwBranchAbsorberTest : ::testing::Test {
     const expr* branch1 = pool.make_functor(8, {pool.make_functor(2, {}), pool.make_functor(4, {})});
     const expr* otherwise = pool.make_functor(5, {});
     const expr* piecewise = pool.make_functor(7, {branch0, branch1, otherwise});
-    std::vector<const expr*> out{};
+    std::vector<rewrite> out{};
 };
 
 }
 
-TEST_F(PwBranchAbsorberTest, EveryCoveredBranchIsDroppedInOneProposal) {
+TEST_F(PwBranchAbsorberTest, EveryCoveredBranchIsDroppedInOneRewrite) {
     const expr* absorbed = pool.make_functor(7, {branch1, otherwise});
     EXPECT_CALL(find_uncovered, find_uncovered(std::vector<const expr*>{branch0, branch1}, otherwise))
         .WillOnce(Return(std::vector<const expr*>{branch1}));
     EXPECT_CALL(assemble, assemble(std::vector<const expr*>{branch1}, otherwise)).WillOnce(Return(absorbed));
-    absorber.propose(piecewise, out);
-    EXPECT_EQ(out, std::vector<const expr*>{absorbed});
+    absorber.detect(piecewise, out);
+    ASSERT_EQ(out.size(), 1u);
+    EXPECT_EQ(out[0](), absorbed);
 }
 
-TEST_F(PwBranchAbsorberTest, NothingIsProposedWhenNoBranchIsCovered) {
+TEST_F(PwBranchAbsorberTest, NothingIsDetectedWhenNoBranchIsCovered) {
     EXPECT_CALL(find_uncovered, find_uncovered(_, otherwise))
         .WillOnce(Return(std::vector<const expr*>{branch0, branch1}));
-    absorber.propose(piecewise, out);
+    absorber.detect(piecewise, out);
     EXPECT_TRUE(out.empty());
 }
 
 TEST_F(PwBranchAbsorberTest, AnythingButAPiecewiseIsIgnored) {
-    absorber.propose(otherwise, out);
+    absorber.detect(otherwise, out);
     EXPECT_TRUE(out.empty());
 }

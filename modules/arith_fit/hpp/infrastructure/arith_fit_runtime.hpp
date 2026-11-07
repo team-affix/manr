@@ -14,7 +14,7 @@ struct arith_fit_runtime {
     std::string initial() const;
     std::string best() const;
     size_t best_cost() const;
-    size_t expansions() const;
+    size_t rewrites() const;
     std::vector<std::string> derivation() const;
 private:
     std::string print(const expr* e) const;

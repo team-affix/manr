@@ -8,11 +8,12 @@ using ::testing::_;
 using ::testing::AnyNumber;
 using ::testing::NiceMock;
 using ::testing::Return;
+using ::testing::StrictMock;
 
 namespace {
 
-struct MockProposeLocal {
-    MOCK_METHOD(void, propose, (const expr*, (std::vector<const expr*>&)));
+struct MockDetectLocal {
+    MOCK_METHOD(void, detect, (const expr*, (std::vector<rewrite>&)));
 };
 
 struct MockMakeFunctor {
@@ -20,35 +21,41 @@ struct MockMakeFunctor {
 };
 
 struct SubtermProposerTest : ::testing::Test {
-    NiceMock<MockProposeLocal> propose_local;
-    MockMakeFunctor make_functor;
-    subterm_proposer<MockProposeLocal, MockMakeFunctor> proposer{propose_local, make_functor};
+    NiceMock<MockDetectLocal> detect_local;
+    StrictMock<MockMakeFunctor> make_functor;
+    subterm_proposer<MockDetectLocal, MockMakeFunctor> proposer{detect_local, make_functor};
     expr_pool pool{};
     const expr* a = pool.make_functor(1, {});
     const expr* b = pool.make_functor(2, {});
     const expr* c = pool.make_functor(3, {});
     const expr* root = pool.make_functor(0, {a, b});
-    std::vector<const expr*> out{};
+    std::vector<rewrite> out{};
 
     void SetUp() override {
-        EXPECT_CALL(propose_local, propose(_, _)).Times(AnyNumber());
+        EXPECT_CALL(detect_local, detect(_, _)).Times(AnyNumber());
+    }
+
+    void detect_at(const expr* site, rewrite detected) {
+        EXPECT_CALL(detect_local, detect(site, _)).WillOnce([detected](const expr*, std::vector<rewrite>& o) {
+            o.push_back(detected);
+        });
     }
 };
 
 }
 
-TEST_F(SubtermProposerTest, ARewriteOfTheWholeExpressionIsProposedAsIs) {
-    EXPECT_CALL(propose_local, propose(root, _)).WillOnce((
-        [this](const expr*, std::vector<const expr*>& o) { o.push_back(c); }));
-    proposer.propose(root, out);
-    EXPECT_EQ(out, std::vector<const expr*>{c});
+TEST_F(SubtermProposerTest, ARewriteOfTheWholeExpressionComesThroughAsIs) {
+    detect_at(root, ready(c));
+    proposer.detect(root, out);
+    ASSERT_EQ(out.size(), 1u);
+    EXPECT_EQ(out[0](), c);
 }
 
-TEST_F(SubtermProposerTest, ARewriteOfAnArgumentIsRebuiltIntoItsParent) {
+TEST_F(SubtermProposerTest, ARewriteOfAnArgumentIsRebuiltIntoItsParentOnlyWhenPerformed) {
     const expr* rebuilt = pool.make_functor(0, {a, c});
-    EXPECT_CALL(propose_local, propose(b, _)).WillOnce((
-        [this](const expr*, std::vector<const expr*>& o) { o.push_back(c); }));
+    detect_at(b, ready(c));
+    proposer.detect(root, out);
+    ASSERT_EQ(out.size(), 1u);
     EXPECT_CALL(make_functor, make_functor(0, std::vector<const expr*>{a, c})).WillOnce(Return(rebuilt));
-    proposer.propose(root, out);
-    EXPECT_EQ(out, std::vector<const expr*>{rebuilt});
+    EXPECT_EQ(out[0](), rebuilt);
 }

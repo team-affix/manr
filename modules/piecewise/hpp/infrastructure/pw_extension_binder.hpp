@@ -4,13 +4,14 @@
 #include <variant>
 #include <vector>
 #include "value_objects/expr.hpp"
+#include "value_objects/rewrite.hpp"
 #include "value_objects/pw_data_point.hpp"
 #include "value_objects/pw_symbols.hpp"
 
 // Local rule, and the macro step of the piecewise algebra: when a piecewise's otherwise is an extension term, it
 // asks the injected hypothesis sources what that term could be resolved to, given the branches as data. For each
-// hypothesis that reproduces at least one branch, it proposes the piecewise with the term resolved to it and every
-// reproduced branch dropped, in one step.
+// hypothesis that reproduces at least one branch (checked in detection), it detects one rewrite: resolve the term to
+// that hypothesis and drop every branch it reproduces, in one step. The rewrite only assembles the result.
 //
 // The extension term is resolved where it stands, so this assumes it occurs nowhere else (the builder makes
 // exactly one occurrence).
@@ -20,7 +21,7 @@ struct pw_extension_binder {
                         IFindUncovered& find_uncovered,
                         IAssemble& assemble,
                         pw_symbols symbols);
-    void propose(const expr* e, std::vector<const expr*>& out);
+    void detect(const expr* e, std::vector<rewrite>& out);
 private:
     IProposeHypotheses& propose_hypotheses_;
     IFindUncovered& find_uncovered_;
@@ -40,7 +41,7 @@ PW_EXTENSION_BINDER_TEMPLATE PW_EXTENSION_BINDER::pw_extension_binder(
     , symbols_(symbols)
     , hypotheses_() {}
 
-PW_EXTENSION_BINDER_TEMPLATE void PW_EXTENSION_BINDER::propose(const expr* e, std::vector<const expr*>& out) {
+PW_EXTENSION_BINDER_TEMPLATE void PW_EXTENSION_BINDER::detect(const expr* e, std::vector<rewrite>& out) {
     const expr::functor* f = std::get_if<expr::functor>(&e->content);
     if (f == nullptr || f->id != symbols_.piecewise)
         return;
@@ -60,7 +61,7 @@ PW_EXTENSION_BINDER_TEMPLATE void PW_EXTENSION_BINDER::propose(const expr* e, st
         const std::vector<const expr*> uncovered = find_uncovered_.find_uncovered(branches, hypothesis);
         if (uncovered.size() == branches.size())
             continue;
-        out.push_back(assemble_.assemble(uncovered, hypothesis));
+        out.push_back([this, uncovered, hypothesis]() { return assemble_.assemble(uncovered, hypothesis); });
     }
 }
 

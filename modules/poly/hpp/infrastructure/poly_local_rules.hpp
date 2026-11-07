@@ -6,7 +6,9 @@
 #include <variant>
 #include <vector>
 #include "value_objects/expr.hpp"
+#include "value_objects/rewrite.hpp"
 #include "value_objects/integer.hpp"
+#include "infrastructure/poly_expander.hpp"
 #include "value_objects/poly_symbols.hpp"
 
 // The low-level rules of a commutative ring, each looking only at the node it is handed and its children:
@@ -26,32 +28,39 @@ struct poly_local_rules {
     poly_local_rules(IFindLiteralValue& find_literal_value,
                      IMakeLiteral& make_literal,
                      IMakeFunctor& make_functor,
-                     poly_symbols symbols);
-    void propose(const expr* e, std::vector<const expr*>& out);
+                     poly_symbols symbols,
+                     uint32_t max_exponent = k_poly_default_max_exponent);
+    void detect(const expr* e, std::vector<rewrite>& out);
 private:
     const expr* make(uint32_t id, const expr* lhs, const expr* rhs);
     const expr* find_operand(const expr* e, uint32_t id, size_t index) const;
     std::optional<integer> find_exponent(const expr* e) const;
-    void propose_factor(uint32_t sum, const expr* lhs, const expr* rhs, std::vector<const expr*>& out);
+    void propose_factor(uint32_t sum, const expr* lhs, const expr* rhs, std::vector<rewrite>& out);
     static bool holds(const std::optional<integer>& value, int expected);
 
     IFindLiteralValue& find_literal_value_;
     IMakeLiteral& make_literal_;
     IMakeFunctor& make_functor_;
     poly_symbols symbols_;
+    uint32_t max_exponent_;
 };
 
 #define POLY_LOCAL_RULES_TEMPLATE template<typename IFindLiteralValue, typename IMakeLiteral, typename IMakeFunctor>
 #define POLY_LOCAL_RULES          poly_local_rules<IFindLiteralValue, IMakeLiteral, IMakeFunctor>
 
 POLY_LOCAL_RULES_TEMPLATE POLY_LOCAL_RULES::poly_local_rules(
-    IFindLiteralValue& find_literal_value, IMakeLiteral& make_literal, IMakeFunctor& make_functor, poly_symbols symbols)
+    IFindLiteralValue& find_literal_value,
+    IMakeLiteral& make_literal,
+    IMakeFunctor& make_functor,
+    poly_symbols symbols,
+    uint32_t max_exponent)
     : find_literal_value_(find_literal_value)
     , make_literal_(make_literal)
     , make_functor_(make_functor)
-    , symbols_(symbols) {}
+    , symbols_(symbols)
+    , max_exponent_(max_exponent) {}
 
-POLY_LOCAL_RULES_TEMPLATE void POLY_LOCAL_RULES::propose(const expr* e, std::vector<const expr*>& out) {
+POLY_LOCAL_RULES_TEMPLATE void POLY_LOCAL_RULES::detect(const expr* e, std::vector<rewrite>& out) {
     const expr::functor* f = std::get_if<expr::functor>(&e->content);
     if (f == nullptr || f->args.size() != 2)
         return;
@@ -71,24 +80,24 @@ POLY_LOCAL_RULES_TEMPLATE void POLY_LOCAL_RULES::propose(const expr* e, std::vec
     if (lhs_value.has_value() && rhs_value.has_value()) {
         const integer& l = lhs_value.value();
         const integer& r = rhs_value.value();
-        // A power folds only for exponents the rest of the vocabulary accepts (0..64).
-        const bool foldable = !pow || (r >= 0 && r <= 64);
-        if (add) out.push_back(make_literal_.make_literal(integer(l + r)));
-        if (sub) out.push_back(make_literal_.make_literal(integer(l - r)));
-        if (mul) out.push_back(make_literal_.make_literal(integer(l * r)));
-        if (pow && foldable) out.push_back(make_literal_.make_literal(integer(boost::multiprecision::pow(l, r.convert_to<uint32_t>()))));
+        // A power folds only for exponents the expander also accepts.
+        const bool foldable = !pow || (r >= 0 && r <= max_exponent_);
+        if (add) out.push_back(ready(make_literal_.make_literal(integer(l + r))));
+        if (sub) out.push_back(ready(make_literal_.make_literal(integer(l - r))));
+        if (mul) out.push_back(ready(make_literal_.make_literal(integer(l * r))));
+        if (pow && foldable) out.push_back(ready(make_literal_.make_literal(integer(boost::multiprecision::pow(l, r.convert_to<uint32_t>())))));
         return;
     }
 
     // identity
-    if ((add || sub) && holds(rhs_value, 0)) out.push_back(lhs);
-    if (add && holds(lhs_value, 0)) out.push_back(rhs);
-    if (sub && lhs == rhs) out.push_back(make_literal_.make_literal(0));
-    if (mul && holds(rhs_value, 1)) out.push_back(lhs);
-    if (mul && holds(lhs_value, 1)) out.push_back(rhs);
-    if (mul && (holds(lhs_value, 0) || holds(rhs_value, 0))) out.push_back(make_literal_.make_literal(0));
-    if (pow && holds(rhs_value, 1)) out.push_back(lhs);
-    if (pow && holds(rhs_value, 0)) out.push_back(make_literal_.make_literal(1));
+    if ((add || sub) && holds(rhs_value, 0)) out.push_back(ready(lhs));
+    if (add && holds(lhs_value, 0)) out.push_back(ready(rhs));
+    if (sub && lhs == rhs) out.push_back(ready(make_literal_.make_literal(0)));
+    if (mul && holds(rhs_value, 1)) out.push_back(ready(lhs));
+    if (mul && holds(lhs_value, 1)) out.push_back(ready(rhs));
+    if (mul && (holds(lhs_value, 0) || holds(rhs_value, 0))) out.push_back(ready(make_literal_.make_literal(0)));
+    if (pow && holds(rhs_value, 1)) out.push_back(ready(lhs));
+    if (pow && holds(rhs_value, 0)) out.push_back(ready(make_literal_.make_literal(1)));
 
     // power
     const std::optional<integer> lhs_exponent = find_exponent(lhs);
@@ -96,15 +105,15 @@ POLY_LOCAL_RULES_TEMPLATE void POLY_LOCAL_RULES::propose(const expr* e, std::vec
     const expr* lhs_base = find_operand(lhs, symbols_.pow, 0);
     const expr* rhs_base = find_operand(rhs, symbols_.pow, 0);
     if (mul && lhs == rhs)
-        out.push_back(make(symbols_.pow, lhs, make_literal_.make_literal(2)));
+        out.push_back(ready(make(symbols_.pow, lhs, make_literal_.make_literal(2))));
     if (mul && lhs_base != nullptr && lhs_base == rhs && lhs_exponent.has_value())
-        out.push_back(make(symbols_.pow, rhs, make_literal_.make_literal(integer(lhs_exponent.value() + 1))));
+        out.push_back(ready(make(symbols_.pow, rhs, make_literal_.make_literal(integer(lhs_exponent.value() + 1)))));
     if (mul && rhs_base != nullptr && rhs_base == lhs && rhs_exponent.has_value())
-        out.push_back(make(symbols_.pow, lhs, make_literal_.make_literal(integer(rhs_exponent.value() + 1))));
+        out.push_back(ready(make(symbols_.pow, lhs, make_literal_.make_literal(integer(rhs_exponent.value() + 1)))));
     if (mul && lhs_base != nullptr && lhs_base == rhs_base && lhs_exponent.has_value() && rhs_exponent.has_value())
-        out.push_back(make(symbols_.pow, lhs_base, make_literal_.make_literal(integer(lhs_exponent.value() + rhs_exponent.value()))));
+        out.push_back(ready(make(symbols_.pow, lhs_base, make_literal_.make_literal(integer(lhs_exponent.value() + rhs_exponent.value())))));
     if (pow && lhs_base != nullptr && lhs_exponent.has_value() && rhs_value.has_value())
-        out.push_back(make(symbols_.pow, lhs_base, make_literal_.make_literal(integer(lhs_exponent.value() * rhs_value.value()))));
+        out.push_back(ready(make(symbols_.pow, lhs_base, make_literal_.make_literal(integer(lhs_exponent.value() * rhs_value.value())))));
 
     // like terms
     const std::optional<integer> lhs_scale = find_operand(lhs, symbols_.mul, 0) != nullptr
@@ -112,11 +121,11 @@ POLY_LOCAL_RULES_TEMPLATE void POLY_LOCAL_RULES::propose(const expr* e, std::vec
     const std::optional<integer> rhs_scale = find_operand(rhs, symbols_.mul, 0) != nullptr
         ? find_literal_value_.find_value(find_operand(rhs, symbols_.mul, 0)) : std::nullopt;
     if (add && lhs == rhs)
-        out.push_back(make(symbols_.mul, make_literal_.make_literal(2), lhs));
+        out.push_back(ready(make(symbols_.mul, make_literal_.make_literal(2), lhs)));
     if ((add || sub) && lhs_scale.has_value() && find_operand(lhs, symbols_.mul, 1) == rhs)
-        out.push_back(make(symbols_.mul, make_literal_.make_literal(integer(lhs_scale.value() + (add ? 1 : -1))), rhs));
+        out.push_back(ready(make(symbols_.mul, make_literal_.make_literal(integer(lhs_scale.value() + (add ? 1 : -1))), rhs)));
     if (add && rhs_scale.has_value() && find_operand(rhs, symbols_.mul, 1) == lhs)
-        out.push_back(make(symbols_.mul, make_literal_.make_literal(integer(rhs_scale.value() + 1)), lhs));
+        out.push_back(ready(make(symbols_.mul, make_literal_.make_literal(integer(rhs_scale.value() + 1)), lhs)));
 
     // factor
     if (add || sub)
@@ -127,41 +136,41 @@ POLY_LOCAL_RULES_TEMPLATE void POLY_LOCAL_RULES::propose(const expr* e, std::vec
     const bool lhs_sum = find_operand(lhs, symbols_.add, 0) != nullptr || find_operand(lhs, symbols_.sub, 0) != nullptr;
     if (mul && rhs_sum) {
         const expr::functor& inner = std::get<expr::functor>(rhs->content);
-        out.push_back(make(inner.id, make(symbols_.mul, lhs, inner.args[0]), make(symbols_.mul, lhs, inner.args[1])));
+        out.push_back(ready(make(inner.id, make(symbols_.mul, lhs, inner.args[0]), make(symbols_.mul, lhs, inner.args[1]))));
     }
     if (mul && lhs_sum) {
         const expr::functor& inner = std::get<expr::functor>(lhs->content);
-        out.push_back(make(inner.id, make(symbols_.mul, inner.args[0], rhs), make(symbols_.mul, inner.args[1], rhs)));
+        out.push_back(ready(make(inner.id, make(symbols_.mul, inner.args[0], rhs), make(symbols_.mul, inner.args[1], rhs))));
     }
 
     // expand
     if (pow && rhs_value.has_value() && rhs_value.value() >= 2) {
         const expr* rest = rhs_value.value() == 2 ? lhs : make(symbols_.pow, lhs, make_literal_.make_literal(integer(rhs_value.value() - 1)));
-        out.push_back(make(symbols_.mul, lhs, rest));
+        out.push_back(ready(make(symbols_.mul, lhs, rest)));
     }
 
     // commute
     if (add || mul)
-        out.push_back(make(id, rhs, lhs));
+        out.push_back(ready(make(id, rhs, lhs)));
 
     // associate
     for (const uint32_t op : {symbols_.add, symbols_.mul}) {
         if (id != op) continue;
         if (find_operand(lhs, op, 0) != nullptr)
-            out.push_back(make(op, find_operand(lhs, op, 0), make(op, find_operand(lhs, op, 1), rhs)));
+            out.push_back(ready(make(op, find_operand(lhs, op, 0), make(op, find_operand(lhs, op, 1), rhs))));
         if (find_operand(rhs, op, 0) != nullptr)
-            out.push_back(make(op, make(op, lhs, find_operand(rhs, op, 0)), find_operand(rhs, op, 1)));
+            out.push_back(ready(make(op, make(op, lhs, find_operand(rhs, op, 0)), find_operand(rhs, op, 1))));
     }
     if (add && find_operand(rhs, symbols_.sub, 0) != nullptr)
-        out.push_back(make(symbols_.sub, make(symbols_.add, lhs, find_operand(rhs, symbols_.sub, 0)), find_operand(rhs, symbols_.sub, 1)));
+        out.push_back(ready(make(symbols_.sub, make(symbols_.add, lhs, find_operand(rhs, symbols_.sub, 0)), find_operand(rhs, symbols_.sub, 1))));
     if (sub && find_operand(lhs, symbols_.add, 0) != nullptr)
-        out.push_back(make(symbols_.add, find_operand(lhs, symbols_.add, 0), make(symbols_.sub, find_operand(lhs, symbols_.add, 1), rhs)));
+        out.push_back(ready(make(symbols_.add, find_operand(lhs, symbols_.add, 0), make(symbols_.sub, find_operand(lhs, symbols_.add, 1), rhs))));
     if (sub && find_operand(rhs, symbols_.add, 0) != nullptr)
-        out.push_back(make(symbols_.sub, make(symbols_.sub, lhs, find_operand(rhs, symbols_.add, 0)), find_operand(rhs, symbols_.add, 1)));
+        out.push_back(ready(make(symbols_.sub, make(symbols_.sub, lhs, find_operand(rhs, symbols_.add, 0)), find_operand(rhs, symbols_.add, 1))));
     if (sub && find_operand(lhs, symbols_.sub, 0) != nullptr)
-        out.push_back(make(symbols_.sub, find_operand(lhs, symbols_.sub, 0), make(symbols_.add, find_operand(lhs, symbols_.sub, 1), rhs)));
+        out.push_back(ready(make(symbols_.sub, find_operand(lhs, symbols_.sub, 0), make(symbols_.add, find_operand(lhs, symbols_.sub, 1), rhs))));
     if (sub && find_operand(rhs, symbols_.sub, 0) != nullptr)
-        out.push_back(make(symbols_.add, make(symbols_.sub, lhs, find_operand(rhs, symbols_.sub, 0)), find_operand(rhs, symbols_.sub, 1)));
+        out.push_back(ready(make(symbols_.add, make(symbols_.sub, lhs, find_operand(rhs, symbols_.sub, 0)), find_operand(rhs, symbols_.sub, 1))));
 }
 
 POLY_LOCAL_RULES_TEMPLATE const expr* POLY_LOCAL_RULES::make(uint32_t id, const expr* lhs, const expr* rhs) {
@@ -188,17 +197,17 @@ POLY_LOCAL_RULES_TEMPLATE bool POLY_LOCAL_RULES::holds(const std::optional<integ
 }
 
 POLY_LOCAL_RULES_TEMPLATE void POLY_LOCAL_RULES::propose_factor(
-    uint32_t sum, const expr* lhs, const expr* rhs, std::vector<const expr*>& out) {
+    uint32_t sum, const expr* lhs, const expr* rhs, std::vector<rewrite>& out) {
     const expr* a0 = find_operand(lhs, symbols_.mul, 0);
     const expr* a1 = find_operand(lhs, symbols_.mul, 1);
     const expr* b0 = find_operand(rhs, symbols_.mul, 0);
     const expr* b1 = find_operand(rhs, symbols_.mul, 1);
     if (a0 == nullptr || b0 == nullptr)
         return;
-    if (a0 == b0) out.push_back(make(symbols_.mul, a0, make(sum, a1, b1)));
-    if (a1 == b1) out.push_back(make(symbols_.mul, make(sum, a0, b0), a1));
-    if (a0 == b1) out.push_back(make(symbols_.mul, a0, make(sum, a1, b0)));
-    if (a1 == b0) out.push_back(make(symbols_.mul, a1, make(sum, a0, b1)));
+    if (a0 == b0) out.push_back(ready(make(symbols_.mul, a0, make(sum, a1, b1))));
+    if (a1 == b1) out.push_back(ready(make(symbols_.mul, make(sum, a0, b0), a1)));
+    if (a0 == b1) out.push_back(ready(make(symbols_.mul, a0, make(sum, a1, b0))));
+    if (a1 == b0) out.push_back(ready(make(symbols_.mul, a1, make(sum, a0, b1))));
 }
 
 #undef POLY_LOCAL_RULES

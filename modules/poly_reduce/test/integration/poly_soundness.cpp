@@ -5,8 +5,8 @@
 #include "infrastructure/poly_rules_manifest.hpp"
 #include "poly_kernel_fixture.hpp"
 
-// Every proposal of every rule, at every position, must be the same polynomial as what it rewrites. Checked over
-// random expressions against the normal form oracle.
+// Every rewrite every rule detects, at every position, must succeed when performed and give the same polynomial as
+// what it rewrites. Checked over random expressions against the normal form oracle.
 namespace {
 
 struct PolySoundnessIntegrationTest : PolyKernelFixture {
@@ -35,9 +35,11 @@ TEST_F(PolySoundnessIntegrationTest, EveryProposalPreservesThePolynomial) {
         const expr* e = parse(random_text(4));
         const std::optional<poly_polynomial> before = kernel.expander_.find_polynomial(e);
         ASSERT_TRUE(before.has_value());
-        std::vector<const expr*> out;
-        rules.rules_.propose(e, out);
-        for (const expr* proposal : out) {
+        std::vector<rewrite> out;
+        rules.rules_.detect(e, out);
+        for (const rewrite& detected : out) {
+            const expr* proposal = detected();
+            ASSERT_NE(proposal, nullptr) << "a detected rewrite failed on " << print(e);
             ASSERT_EQ(kernel.expander_.find_polynomial(proposal), before) << print(e) << "  ->  " << print(proposal);
             ++checked;
         }

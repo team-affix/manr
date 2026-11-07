@@ -4,21 +4,24 @@
 #include <cstddef>
 #include <vector>
 #include "value_objects/expr.hpp"
+#include "value_objects/rewrite.hpp"
+#include "debug_assert.hpp"
 
 // Monte Carlo tree search over rewrites, for reductions that only pay off several rewrites later.
 //
-// Each `next()` is one simulation from the initial expression: up to `probing_depth` rewrites, each chosen by the
-// injected chooser (UCT inside the tree, uniformly at random past its frontier), stopping early at an expression
-// with no proposals. The simulation is rewarded by the smallest cost it reached anywhere along the way, not the
+// Each `next()` is one simulation from the initial expression: up to `probing_depth` steps. At each step the rewrites
+// of the current expression are detected, the injected chooser picks one by index (UCT inside the tree, uniformly at
+// random past its frontier), and only that one is performed. A simulation stops early at an expression with no
+// rewrites. The simulation is rewarded by the smallest cost it reached anywhere along the way, not the
 // cost it ended on, because any prefix of a derivation is itself a derivation:
 //
 //     reward = (initial cost - smallest cost reached) / initial cost
 //
 // so an expansion that leads to a big collapse within the probing depth is credited with the collapse.
 // The cheapest expression any simulation reached is kept, with the rewrites that led to it.
-template<typename IPropose, typename IGetCost, typename IChoose, typename ISetReward, typename ITerminate>
+template<typename IDetect, typename IGetCost, typename IChoose, typename ISetReward, typename ITerminate>
 struct mcts_search {
-    mcts_search(IPropose& propose,
+    mcts_search(IDetect& detect,
                 IGetCost& get_cost,
                 IChoose& choose,
                 ISetReward& set_reward,
@@ -32,7 +35,7 @@ struct mcts_search {
     size_t simulations() const;
     const std::vector<const expr*>& derivation() const;
 private:
-    IPropose& propose_;
+    IDetect& detect_;
     IGetCost& get_cost_;
     IChoose& choose_;
     ISetReward& set_reward_;
@@ -41,7 +44,8 @@ private:
     size_t initial_cost_;
     size_t probing_depth_;
     size_t max_simulations_;
-    std::vector<const expr*> candidates_;
+    std::vector<rewrite> detected_;
+    std::vector<size_t> choices_;
     std::vector<const expr*> path_;
     std::vector<const expr*> derivation_;
     size_t best_cost_;
@@ -49,11 +53,11 @@ private:
 };
 
 #define MCTS_SEARCH_TEMPLATE \
-    template<typename IPropose, typename IGetCost, typename IChoose, typename ISetReward, typename ITerminate>
-#define MCTS_SEARCH mcts_search<IPropose, IGetCost, IChoose, ISetReward, ITerminate>
+    template<typename IDetect, typename IGetCost, typename IChoose, typename ISetReward, typename ITerminate>
+#define MCTS_SEARCH mcts_search<IDetect, IGetCost, IChoose, ISetReward, ITerminate>
 
 MCTS_SEARCH_TEMPLATE MCTS_SEARCH::mcts_search(
-    IPropose& propose,
+    IDetect& detect,
     IGetCost& get_cost,
     IChoose& choose,
     ISetReward& set_reward,
@@ -61,7 +65,7 @@ MCTS_SEARCH_TEMPLATE MCTS_SEARCH::mcts_search(
     const expr* initial,
     size_t probing_depth,
     size_t max_simulations)
-    : propose_(propose)
+    : detect_(detect)
     , get_cost_(get_cost)
     , choose_(choose)
     , set_reward_(set_reward)
@@ -70,7 +74,8 @@ MCTS_SEARCH_TEMPLATE MCTS_SEARCH::mcts_search(
     , initial_cost_(get_cost.cost(initial))
     , probing_depth_(probing_depth)
     , max_simulations_(max_simulations)
-    , candidates_()
+    , detected_()
+    , choices_()
     , path_()
     , derivation_{initial}
     , best_cost_(initial_cost_)
@@ -82,12 +87,17 @@ MCTS_SEARCH_TEMPLATE bool MCTS_SEARCH::next() {
     path_.assign(1, initial_);
     size_t smallest_cost = initial_cost_;
     for (size_t step = 0; step < probing_depth_; ++step) {
-        candidates_.clear();
-        propose_.propose(path_.back(), candidates_);
-        if (candidates_.empty())
+        detected_.clear();
+        detect_.detect(path_.back(), detected_);
+        if (detected_.empty())
             break;
-        path_.push_back(choose_.choose(candidates_, candidates_));
-        const size_t cost = get_cost_.cost(path_.back());
+        choices_.resize(detected_.size());
+        for (size_t index = 0; index < choices_.size(); ++index)
+            choices_[index] = index;
+        const expr* result = detected_[choose_.choose(choices_, choices_)]();
+        DEBUG_ASSERT(result != nullptr);
+        path_.push_back(result);
+        const size_t cost = get_cost_.cost(result);
         if (cost < smallest_cost)
             smallest_cost = cost;
         if (cost >= best_cost_)

@@ -11,8 +11,11 @@
 // Exact arithmetic on normal forms, with arbitrary-precision coefficients. An operation has no result (nullopt) only
 // when the result would have more than `max_terms` terms, so a caller can always fall back to leaving an expression
 // unexpanded.
+// A normal form of this many terms takes well under a second to compute and divide.
+constexpr size_t k_poly_default_max_terms = 4096;
+
 struct poly_arithmetic {
-    poly_arithmetic(size_t max_terms);
+    poly_arithmetic(size_t max_terms = k_poly_default_max_terms);
     std::optional<poly_polynomial> add(const poly_polynomial& lhs, const poly_polynomial& rhs) const;
     std::optional<poly_polynomial> subtract(const poly_polynomial& lhs, const poly_polynomial& rhs) const;
     std::optional<poly_polynomial> multiply(const poly_polynomial& lhs, const poly_polynomial& rhs) const;

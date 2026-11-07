@@ -6,6 +6,7 @@
 #include <vector>
 #include "value_objects/arith_symbols.hpp"
 #include "value_objects/expr.hpp"
+#include "value_objects/rewrite.hpp"
 #include "value_objects/integer.hpp"
 
 // Local rules of integer arithmetic: constant folding of a binary node over two literals, and the identities
@@ -13,7 +14,7 @@
 template<typename IFindLiteralValue, typename IMakeLiteral>
 struct arith_simplifier {
     arith_simplifier(IFindLiteralValue& find_literal_value, IMakeLiteral& make_literal, arith_symbols symbols);
-    void propose(const expr* e, std::vector<const expr*>& out);
+    void detect(const expr* e, std::vector<rewrite>& out);
 private:
     IFindLiteralValue& find_literal_value_;
     IMakeLiteral& make_literal_;
@@ -29,7 +30,7 @@ ARITH_SIMPLIFIER_TEMPLATE ARITH_SIMPLIFIER::arith_simplifier(
     , make_literal_(make_literal)
     , symbols_(symbols) {}
 
-ARITH_SIMPLIFIER_TEMPLATE void ARITH_SIMPLIFIER::propose(const expr* e, std::vector<const expr*>& out) {
+ARITH_SIMPLIFIER_TEMPLATE void ARITH_SIMPLIFIER::detect(const expr* e, std::vector<rewrite>& out) {
     const expr::functor* f = std::get_if<expr::functor>(&e->content);
     if (f == nullptr || f->args.size() != 2)
         return;
@@ -47,18 +48,18 @@ ARITH_SIMPLIFIER_TEMPLATE void ARITH_SIMPLIFIER::propose(const expr* e, std::vec
     const bool lhs_one = lhs_value.has_value() && lhs_value.value() == 1;
     const bool rhs_one = rhs_value.has_value() && rhs_value.value() == 1;
     if (lhs_value.has_value() && rhs_value.has_value()) {
-        if (add) out.push_back(make_literal_.make_literal(integer(lhs_value.value() + rhs_value.value())));
-        if (sub) out.push_back(make_literal_.make_literal(integer(lhs_value.value() - rhs_value.value())));
-        if (mul) out.push_back(make_literal_.make_literal(integer(lhs_value.value() * rhs_value.value())));
+        if (add) out.push_back(ready(make_literal_.make_literal(integer(lhs_value.value() + rhs_value.value()))));
+        if (sub) out.push_back(ready(make_literal_.make_literal(integer(lhs_value.value() - rhs_value.value()))));
+        if (mul) out.push_back(ready(make_literal_.make_literal(integer(lhs_value.value() * rhs_value.value()))));
         return;
     }
-    if (add && rhs_zero) out.push_back(lhs);
-    if (add && lhs_zero) out.push_back(rhs);
-    if (sub && rhs_zero) out.push_back(lhs);
-    if (sub && lhs == rhs) out.push_back(make_literal_.make_literal(0));
-    if (mul && rhs_one) out.push_back(lhs);
-    if (mul && lhs_one) out.push_back(rhs);
-    if (mul && (lhs_zero || rhs_zero)) out.push_back(make_literal_.make_literal(0));
+    if (add && rhs_zero) out.push_back(ready(lhs));
+    if (add && lhs_zero) out.push_back(ready(rhs));
+    if (sub && rhs_zero) out.push_back(ready(lhs));
+    if (sub && lhs == rhs) out.push_back(ready(make_literal_.make_literal(0)));
+    if (mul && rhs_one) out.push_back(ready(lhs));
+    if (mul && lhs_one) out.push_back(ready(rhs));
+    if (mul && (lhs_zero || rhs_zero)) out.push_back(ready(make_literal_.make_literal(0)));
 }
 
 #undef ARITH_SIMPLIFIER

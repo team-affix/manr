@@ -6,16 +6,18 @@ expression larger, or no smaller. A search that scores each rewrite by the expre
 the collapse coming. What matters is the size of the expression many rewrites later. That is future reward, and it
 is why MANR has Monte Carlo tree search.
 
-Both searches take the same capabilities (`IPropose`, `IGetCost`, an initial expression) and expose the same pull
-loop (`next()`, `best()`, `best_cost()`, a derivation). A manifest picks one.
+Both searches take the same capabilities (`IDetect`, `IGetCost`, an initial expression) and expose the same pull
+loop (`next()`, `best()`, `best_cost()`, a derivation). A manifest picks one. Both are lazy: rules only detect, and a
+search performs only the rewrites it takes.
 
 ## `mcts_search`: probing simulations
 
 Each `next()` is one simulation from the initial expression:
 
-1. Inside the MCTS tree, UCT (`team-affix/mcts`, `uct_value_manifest`) picks the next rewrite. Past the tree's
-   frontier, rewrites are picked uniformly at random.
-2. The simulation continues for up to `probing_depth` rewrites, and stops early at an expression with no proposals.
+1. The current expression's rewrites are detected. Inside the MCTS tree, UCT (`team-affix/mcts`,
+   `uct_value_manifest`) picks one by index; past the tree's frontier, one is picked uniformly at random. Only the
+   picked rewrite is performed. One that returns nullptr leaves the expression in place and uses up the step.
+2. The simulation continues for up to `probing_depth` rewrites, and stops early at an expression with no rewrites.
 3. The reward is the smallest cost the simulation reached at any step,
    `(initial cost - smallest cost reached) / initial cost`, and it is backed up the tree path.
 
@@ -30,7 +32,7 @@ Expansions are therefore credited with whatever collapse lies within `probing_de
 - **Memory** is one visits entry and one value entry per tree node, and a simulation adds at most one node. A
   probe adds nothing beyond its own path.
 - **Every step proposes on the whole expression,** including detectors. Deep probes (around 1000 rewrites) cost
-  `probing_depth` calls to `propose` per simulation, so detector cost matters here.
+  `probing_depth` calls to `detect` per simulation, so detection cost matters here.
 - `core/test/integration/mcts_valley.cpp` shows the motivating case. The collapse sits behind three cost-increasing
   rewrites, and every depth has a 10 000-wide plateau of equal-cost rewrites. MCTS finds it in 200 simulations of
   depth 20. Best-first, given the same 4000 expansions, is still clearing the first plateaus.
@@ -43,8 +45,9 @@ Not built yet:
 
 ## `best_first_search`: cost-ordered frontier
 
-This search expands the cheapest expression on a frontier, one per `next()`. Expressions are interned, so one
-reached twice is expanded once.
+The frontier holds detected rewrites keyed by the cost of the expression they came from. Each `next()` performs the
+one with the cheapest source; a new result has its own rewrites detected. Expressions are interned, so one reached
+twice has its rewrites detected once.
 
 - Rewrites are scored only by the expression they produce, so a climb toward a collapse competes with every
   cheaper or equal-cost alternative. It survives only while it fits in the frontier and nothing cheaper is left.

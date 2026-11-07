@@ -21,21 +21,23 @@ struct poly_rules_manifest {
     struct local_t : poly_local_rules<kernel_t::literals_t, kernel_t::literals_t, expr_pool> {
         using poly_local_rules<kernel_t::literals_t, kernel_t::literals_t, expr_pool>::poly_local_rules;
     };
-    struct collector_t : poly_collector<kernel_t::expander_t, kernel_t::renderer_t, expr_size> {
-        using poly_collector<kernel_t::expander_t, kernel_t::renderer_t, expr_size>::poly_collector;
+    using collector_base_t = poly_collector<kernel_t::expander_t, kernel_t::renderer_t, kernel_t::renderer_t, expr_size>;
+    struct collector_t : collector_base_t {
+        using collector_base_t::collector_base_t;
     };
     struct horner_t : poly_horner_detector<kernel_t::expander_t, kernel_t::horner_t, expr_size> {
         using poly_horner_detector<kernel_t::expander_t, kernel_t::horner_t, expr_size>::poly_horner_detector;
     };
-    struct factor_t : poly_factor_detector<kernel_t::expander_t, poly_arithmetic, poly_linear_factor_finder,
-                                           kernel_t::renderer_t, expr_pool, expr_size> {
-        using poly_factor_detector<kernel_t::expander_t, poly_arithmetic, poly_linear_factor_finder,
-                                   kernel_t::renderer_t, expr_pool, expr_size>::poly_factor_detector;
+    using factor_base_t = poly_factor_detector<kernel_t::expander_t, poly_divisibility_filter, poly_arithmetic,
+                                               kernel_t::linear_factors_t, kernel_t::renderer_t, kernel_t::renderer_t,
+                                               expr_pool, expr_size>;
+    struct factor_t : factor_base_t {
+        using factor_base_t::factor_base_t;
     };
-    struct power_t : poly_power_detector<kernel_t::expander_t, kernel_t::roots_t, kernel_t::renderer_t, expr_pool,
-                                         kernel_t::literals_t, expr_size> {
-        using poly_power_detector<kernel_t::expander_t, kernel_t::roots_t, kernel_t::renderer_t, expr_pool,
-                                  kernel_t::literals_t, expr_size>::poly_power_detector;
+    using power_base_t = poly_power_detector<kernel_t::expander_t, kernel_t::roots_t, kernel_t::renderer_t,
+                                             kernel_t::renderer_t, expr_pool, kernel_t::literals_t, expr_size>;
+    struct power_t : power_base_t {
+        using power_base_t::power_base_t;
     };
     struct splitter_t
         : poly_component_splitter<kernel_t::expander_t, kernel_t::renderer_t, expr_pool, kernel_t::literals_t> {

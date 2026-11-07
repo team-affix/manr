@@ -4,38 +4,41 @@
 #include <variant>
 #include <vector>
 #include "value_objects/expr.hpp"
+#include "value_objects/rewrite.hpp"
 
-// Lifts a local proposer (one that only looks at the expression it is handed) to every position of an
-// expression: each local rewrite of a subterm becomes a rewrite of the whole expression, with the path from the
-// root to that subterm rebuilt through the pool. One rewrite is applied per proposal.
-template<typename IProposeLocal, typename IMakeFunctor>
+// Lifts a local rule set (rules that only look at the expression they are handed) to every position of an
+// expression. Each rewrite detected at a subterm is wrapped so that, when invoked, it performs the local rewrite and
+// rebuilds the path from that subterm to the root through the pool. Nothing is rebuilt until a rewrite is taken.
+template<typename IDetectLocal, typename IMakeFunctor>
 struct subterm_proposer {
-    subterm_proposer(IProposeLocal& propose_local, IMakeFunctor& make_functor);
-    void propose(const expr* e, std::vector<const expr*>& out);
+    subterm_proposer(IDetectLocal& detect_local, IMakeFunctor& make_functor);
+    void detect(const expr* e, std::vector<rewrite>& out);
 private:
-    IProposeLocal& propose_local_;
+    IDetectLocal& detect_local_;
     IMakeFunctor& make_functor_;
 };
 
-#define SUBTERM_PROPOSER_TEMPLATE template<typename IProposeLocal, typename IMakeFunctor>
-#define SUBTERM_PROPOSER          subterm_proposer<IProposeLocal, IMakeFunctor>
+#define SUBTERM_PROPOSER_TEMPLATE template<typename IDetectLocal, typename IMakeFunctor>
+#define SUBTERM_PROPOSER          subterm_proposer<IDetectLocal, IMakeFunctor>
 
-SUBTERM_PROPOSER_TEMPLATE SUBTERM_PROPOSER::subterm_proposer(IProposeLocal& propose_local, IMakeFunctor& make_functor)
-    : propose_local_(propose_local)
+SUBTERM_PROPOSER_TEMPLATE SUBTERM_PROPOSER::subterm_proposer(IDetectLocal& detect_local, IMakeFunctor& make_functor)
+    : detect_local_(detect_local)
     , make_functor_(make_functor) {}
 
-SUBTERM_PROPOSER_TEMPLATE void SUBTERM_PROPOSER::propose(const expr* e, std::vector<const expr*>& out) {
-    propose_local_.propose(e, out);
+SUBTERM_PROPOSER_TEMPLATE void SUBTERM_PROPOSER::detect(const expr* e, std::vector<rewrite>& out) {
+    detect_local_.detect(e, out);
     const expr::functor* f = std::get_if<expr::functor>(&e->content);
     if (f == nullptr)
         return;
     for (size_t i = 0; i < f->args.size(); ++i) {
-        std::vector<const expr*> arg_rewrites;
-        propose(f->args[i], arg_rewrites);
-        for (const expr* arg_rewrite : arg_rewrites) {
-            std::vector<const expr*> args = f->args;
-            args[i] = arg_rewrite;
-            out.push_back(make_functor_.make_functor(f->id, args));
+        std::vector<rewrite> arg_rewrites;
+        detect(f->args[i], arg_rewrites);
+        for (rewrite& arg_rewrite : arg_rewrites) {
+            out.push_back([this, f, i, inner = std::move(arg_rewrite)]() -> const expr* {
+                std::vector<const expr*> args = f->args;
+                args[i] = inner();
+                return make_functor_.make_functor(f->id, args);
+            });
         }
     }
 }

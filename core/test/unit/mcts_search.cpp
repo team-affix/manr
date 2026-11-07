@@ -1,3 +1,4 @@
+#include <stdexcept>
 #include <vector>
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
@@ -9,12 +10,11 @@ using ::testing::DoubleEq;
 using ::testing::InSequence;
 using ::testing::NiceMock;
 using ::testing::Return;
-using ::testing::SetArgReferee;
 
 namespace {
 
-struct MockPropose {
-    MOCK_METHOD(void, propose, (const expr*, (std::vector<const expr*>&)));
+struct MockDetect {
+    MOCK_METHOD(void, detect, (const expr*, (std::vector<rewrite>&)));
 };
 
 struct MockGetCost {
@@ -22,7 +22,7 @@ struct MockGetCost {
 };
 
 struct MockChoose {
-    MOCK_METHOD(const expr*, choose, ((const std::vector<const expr*>&), (const std::vector<const expr*>&)));
+    MOCK_METHOD(size_t, choose, ((const std::vector<size_t>&), (const std::vector<size_t>&)));
 };
 
 struct MockSetReward {
@@ -33,12 +33,16 @@ struct MockTerminate {
     MOCK_METHOD(void, terminate, ());
 };
 
+struct MockRewrite {
+    MOCK_METHOD(const expr*, apply, ());
+};
+
 struct MctsSearchTest : ::testing::Test {
     expr_pool pool{};
     const expr* start = pool.make_functor(0, {});
     const expr* small = pool.make_functor(1, {});
     const expr* large = pool.make_functor(2, {});
-    NiceMock<MockPropose> propose;
+    NiceMock<MockDetect> detect;
     NiceMock<MockGetCost> get_cost;
     NiceMock<MockChoose> choose;
     NiceMock<MockSetReward> set_reward;
@@ -50,42 +54,56 @@ struct MctsSearchTest : ::testing::Test {
         ON_CALL(get_cost, cost(large)).WillByDefault(Return(8));
     }
 
-    mcts_search<MockPropose, MockGetCost, MockChoose, MockSetReward, MockTerminate> make_search(
+    void detect_from(const expr* from, std::vector<rewrite> rewrites) {
+        ON_CALL(detect, detect(from, _)).WillByDefault([rewrites](const expr*, std::vector<rewrite>& o) {
+            o.insert(o.end(), rewrites.begin(), rewrites.end());
+        });
+    }
+
+    mcts_search<MockDetect, MockGetCost, MockChoose, MockSetReward, MockTerminate> make_search(
         size_t probing_depth, size_t max_simulations) {
-        return {propose, get_cost, choose, set_reward, terminate, start, probing_depth, max_simulations};
+        return {detect, get_cost, choose, set_reward, terminate, start, probing_depth, max_simulations};
     }
 };
 
 }
 
 TEST_F(MctsSearchTest, ASimulationIsRewardedByTheSmallestCostItReachedNotTheOneItEndedOn) {
-    ON_CALL(propose, propose(start, _)).WillByDefault(SetArgReferee<1>(std::vector<const expr*>{small}));
-    ON_CALL(propose, propose(small, _)).WillByDefault(SetArgReferee<1>(std::vector<const expr*>{large}));
-    EXPECT_CALL(choose, choose(_, _)).WillOnce(Return(small)).WillOnce(Return(large));
+    detect_from(start, {ready(small)});
+    detect_from(small, {ready(large)});
+    ON_CALL(choose, choose(_, _)).WillByDefault(Return(0));
     auto search = make_search(100, 1);
     InSequence order;
     EXPECT_CALL(set_reward, set_value(DoubleEq(0.6)));
     EXPECT_CALL(terminate, terminate());
     ASSERT_TRUE(search.next());
     EXPECT_EQ(search.best(), small);
-    EXPECT_EQ(search.best_cost(), 4u);
     EXPECT_EQ(search.derivation(), (std::vector<const expr*>{start, small}));
 }
 
-TEST_F(MctsSearchTest, ASimulationStopsAtTheProbingDepth) {
-    ON_CALL(propose, propose(_, _)).WillByDefault(SetArgReferee<1>(std::vector<const expr*>{large}));
-    ON_CALL(choose, choose(_, _)).WillByDefault(Return(large));
-    auto search = make_search(3, 1);
-    EXPECT_CALL(choose, choose(_, _)).Times(3);
+TEST_F(MctsSearchTest, OnlyTheChosenRewriteIsPerformed) {
+    MockRewrite skipped;
+    MockRewrite chosen;
+    detect_from(start, {[&skipped]() { return skipped.apply(); }, [&chosen]() { return chosen.apply(); }});
+    EXPECT_CALL(choose, choose(std::vector<size_t>{0, 1}, std::vector<size_t>{0, 1})).WillOnce(Return(1));
+    EXPECT_CALL(chosen, apply()).WillOnce(Return(small));
+    EXPECT_CALL(skipped, apply()).Times(0);
+    auto search = make_search(1, 1);
     ASSERT_TRUE(search.next());
+    EXPECT_EQ(search.best(), small);
 }
 
-TEST_F(MctsSearchTest, NothingBetterThanTheInitialExpressionKeepsItBestWithNoReward) {
+TEST_F(MctsSearchTest, ARewriteThatFailsBreaksTheContract) {
+    detect_from(start, {ready(nullptr)});
+    ON_CALL(choose, choose(_, _)).WillByDefault(Return(0));
     auto search = make_search(3, 1);
-    EXPECT_CALL(set_reward, set_value(DoubleEq(0.0)));
+    EXPECT_THROW(search.next(), std::logic_error);
+}
+
+TEST_F(MctsSearchTest, ASimulationStopsAtAnExpressionWithNoRewrites) {
+    auto search = make_search(3, 1);
+    EXPECT_CALL(choose, choose(_, _)).Times(0);
     ASSERT_TRUE(search.next());
-    EXPECT_EQ(search.best(), start);
-    EXPECT_EQ(search.derivation(), std::vector<const expr*>{start});
 }
 
 TEST_F(MctsSearchTest, TheSearchEndsOnceItsSimulationsAreSpent) {

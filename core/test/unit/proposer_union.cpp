@@ -9,24 +9,24 @@ using ::testing::InSequence;
 
 namespace {
 
-struct MockProposer {
-    MOCK_METHOD(void, propose, (const expr*, (std::vector<const expr*>&)));
+struct MockDetector {
+    MOCK_METHOD(void, detect, (const expr*, (std::vector<rewrite>&)));
 };
 
 struct ProposerUnionTest : ::testing::Test {
-    MockProposer first;
-    MockProposer second;
-    proposer_union<MockProposer, MockProposer> proposers{first, second};
+    MockDetector first;
+    MockDetector second;
+    proposer_union<MockDetector, MockDetector> detectors{first, second};
     expr_pool pool{};
-    std::vector<const expr*> out{};
+    std::vector<rewrite> out{};
 };
 
 }
 
-TEST_F(ProposerUnionTest, EveryProposerIsAskedInOrderWithTheSameOutput) {
+TEST_F(ProposerUnionTest, EveryDetectorIsAskedInOrderWithTheSameOutput) {
     const expr* e = pool.make_var(0);
     InSequence order;
-    EXPECT_CALL(first, propose(e, _));
-    EXPECT_CALL(second, propose(e, _));
-    proposers.propose(e, out);
+    EXPECT_CALL(first, detect(e, _));
+    EXPECT_CALL(second, detect(e, _));
+    detectors.detect(e, out);
 }

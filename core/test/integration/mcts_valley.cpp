@@ -28,7 +28,7 @@ struct valley_rules {
     valley_rules(expr_pool& pool, uint32_t plateau, size_t collapse_depth)
         : pool_(pool), plateau_(plateau), collapse_depth_(collapse_depth) {}
 
-    void propose(const expr* e, std::vector<const expr*>& out) {
+    void detect(const expr* e, std::vector<rewrite>& out) {
         size_t depth = 0;
         const expr* leaf = e;
         while (std::get<expr::functor>(leaf->content).id == k_g) {
@@ -39,12 +39,12 @@ struct valley_rules {
         if (leaf_id == k_w)
             return;
         if (depth == collapse_depth_)
-            out.push_back(pool_.make_functor(k_w, {}));
-        out.push_back(pool_.make_functor(k_g, {e}));
+            out.push_back(ready(pool_.make_functor(k_w, {})));
+        out.push_back(ready(pool_.make_functor(k_g, {e})));
         const expr* stepped = pool_.make_functor(k_first_leaf + (leaf_id - k_first_leaf + 1) % plateau_, {});
         for (size_t level = 0; level < depth; ++level)
             stepped = pool_.make_functor(k_g, {stepped});
-        out.push_back(stepped);
+        out.push_back(ready(stepped));
     }
 
     expr_pool& pool_;
@@ -55,8 +55,8 @@ struct valley_rules {
 using visits_t = monte_carlo::visits_table<uint64_t, std::unordered_map>;
 using values_t = monte_carlo::value_table<uint64_t, double, std::unordered_map>;
 using uct_t = monte_carlo::uct_value_manifest<
-    uint64_t, const expr*, double, visits_t, visits_t, values_t, values_t, mcts_path_walker,
-    std::vector<const expr*>, std::vector<const expr*>, std::mt19937>;
+    uint64_t, size_t, double, visits_t, visits_t, values_t, values_t, mcts_path_walker,
+    std::vector<size_t>, std::vector<size_t>, std::mt19937>;
 using mcts_t = mcts_search<valley_rules, expr_size, uct_t::chooser_t, uct_t::delta_t, uct_t::terminator_t>;
 
 struct MctsValleyIntegrationTest : ::testing::Test {
@@ -80,7 +80,7 @@ TEST_F(MctsValleyIntegrationTest, ProbingSimulationsFindTheCollapseBehindTheExpa
     EXPECT_EQ(search.derivation().back(), search.best());
 }
 
-// 200 simulations of at most 20 rewrites ask for at most 4000 proposals; best-first gets as many expansions.
+// 200 simulations of at most 20 rewrites perform at most 4000 rewrites; best-first gets as many.
 TEST_F(MctsValleyIntegrationTest, BestFirstSpendsTheSameBudgetOnThePlateau) {
     best_first_search<valley_rules, expr_size> search{rules, sizes, initial, 1000000};
     for (size_t expansion = 0; expansion < 200 * 20; ++expansion)

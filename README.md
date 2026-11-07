@@ -44,7 +44,7 @@ fit.derivation();  // every expression from the data to the best
 ```
 
 To add a domain, write a module under `modules/` with rules that implement
-`void propose(const expr*, std::vector<const expr*>&)`, and compose them in a new manifest. See `CLAUDE.md` for
+`void detect(const expr*, std::vector<rewrite>&)`, and compose them in a new manifest. See `CLAUDE.md` for
 the layout and conventions.
 
 `arith_fit_mcts_runtime` runs the same rules under Monte Carlo tree search, for reductions that only pay off

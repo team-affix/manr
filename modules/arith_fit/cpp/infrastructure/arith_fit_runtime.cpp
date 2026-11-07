@@ -20,8 +20,8 @@ size_t arith_fit_runtime::best_cost() const {
     return manifest_.search_.best_cost();
 }
 
-size_t arith_fit_runtime::expansions() const {
-    return manifest_.search_.expansions();
+size_t arith_fit_runtime::rewrites() const {
+    return manifest_.search_.rewrites();
 }
 
 std::vector<std::string> arith_fit_runtime::derivation() const {

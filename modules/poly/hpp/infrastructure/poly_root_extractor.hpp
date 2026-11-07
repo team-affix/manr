@@ -13,6 +13,8 @@
 // largest term t of the remainder that n * s^(n-1) divides into a monomial smaller than q's last term, appends that
 // quotient to q, and recomputes r = p - q^n. Terms that don't fit the pattern are skipped, not fatal, so
 // `x^2 + 2x + y^2 + 2y + 2` gives `(x + 1)^2 + (y^2 + 2y + 1)`. When r = 0, p is an exact power.
+constexpr size_t k_poly_default_max_root_starts = 4;
+
 template<typename IAddPolynomials,
          typename ISubtractPolynomials,
          typename IMultiplyPolynomials,
@@ -24,7 +26,7 @@ struct poly_root_extractor {
                         IMultiplyPolynomials& multiply_polynomials,
                         IPowerPolynomial& power_polynomial,
                         IFindQuotient& find_quotient,
-                        size_t max_starts);
+                        size_t max_starts = k_poly_default_max_root_starts);
     std::vector<poly_root> find_roots(const poly_polynomial& polynomial, uint32_t degree);
 private:
     std::optional<poly_root> find_root_from(const poly_polynomial& polynomial, uint32_t degree, const poly_polynomial& start);

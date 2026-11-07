@@ -38,25 +38,26 @@ struct PwExtensionBinderTest : ::testing::Test {
     const expr* branch1 = pool.make_functor(8, {key1, value1});
     const expr* hypothesis = pool.make_functor(5, {});
     const expr* useless = pool.make_functor(6, {});
-    std::vector<const expr*> out{};
+    std::vector<rewrite> out{};
     std::vector<const expr*> branches{branch0, branch1};
     std::vector<pw_data_point> points{{.input = key0, .output = value0}, {.input = key1, .output = value1}};
 };
 
 }
 
-TEST_F(PwExtensionBinderTest, AnOpenCatchAllIsResolvedToEachUsefulHypothesisWithItsBranchesDropped) {
+TEST_F(PwExtensionBinderTest, EachUsefulHypothesisIsARewriteThatResolvesTheCatchAllAndDropsItsBranches) {
     const expr* bound = pool.make_functor(9, {});
     EXPECT_CALL(propose_hypotheses, propose_hypotheses(points, _))
         .WillOnce(SetArgReferee<1>(std::vector<const expr*>{hypothesis, useless}));
     EXPECT_CALL(find_uncovered, find_uncovered(branches, hypothesis)).WillOnce(Return(std::vector<const expr*>{branch1}));
     EXPECT_CALL(find_uncovered, find_uncovered(branches, useless)).WillOnce(Return(branches));
     EXPECT_CALL(assemble, assemble(std::vector<const expr*>{branch1}, hypothesis)).WillOnce(Return(bound));
-    binder.propose(pool.make_functor(7, {branch0, branch1, pool.make_var(0)}), out);
-    EXPECT_EQ(out, std::vector<const expr*>{bound});
+    binder.detect(pool.make_functor(7, {branch0, branch1, pool.make_var(0)}), out);
+    ASSERT_EQ(out.size(), 1u);
+    EXPECT_EQ(out[0](), bound);
 }
 
 TEST_F(PwExtensionBinderTest, AClosedCatchAllIsNotRebound) {
-    binder.propose(pool.make_functor(7, {branch0, branch1, hypothesis}), out);
+    binder.detect(pool.make_functor(7, {branch0, branch1, hypothesis}), out);
     EXPECT_TRUE(out.empty());
 }

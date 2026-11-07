@@ -6,35 +6,36 @@
 #include <utility>
 #include <vector>
 #include "value_objects/expr.hpp"
+#include "value_objects/rewrite.hpp"
 
-// Fans `propose` out to every injected proposer in order. Every proposer shares the one capability, so they are
-// indexed rather than named (the `IEater0, IEater1` rule); a variadic pack is that rule for any arity.
-// This is how a manifest assembles a rule set from rules that live in different modules.
-template<typename... IProposers>
+// Fans `detect` out to every injected rule in order. Every rule shares the one capability, so they are indexed rather
+// than named (the `IEater0, IEater1` rule); a variadic pack is that rule for any arity. This is how a manifest
+// assembles a rule set from rules that live in different modules.
+template<typename... IDetectors>
 struct proposer_union {
-    proposer_union(IProposers&... proposers);
-    void propose(const expr* e, std::vector<const expr*>& out);
+    proposer_union(IDetectors&... detectors);
+    void detect(const expr* e, std::vector<rewrite>& out);
 private:
     template<size_t... Indices>
-    void propose_each(std::index_sequence<Indices...>, const expr* e, std::vector<const expr*>& out);
+    void detect_each(std::index_sequence<Indices...>, const expr* e, std::vector<rewrite>& out);
 
-    std::tuple<IProposers&...> proposers_;
+    std::tuple<IDetectors&...> detectors_;
 };
 
-#define PROPOSER_UNION_TEMPLATE template<typename... IProposers>
-#define PROPOSER_UNION          proposer_union<IProposers...>
+#define PROPOSER_UNION_TEMPLATE template<typename... IDetectors>
+#define PROPOSER_UNION          proposer_union<IDetectors...>
 
-PROPOSER_UNION_TEMPLATE PROPOSER_UNION::proposer_union(IProposers&... proposers)
-    : proposers_(proposers...) {}
+PROPOSER_UNION_TEMPLATE PROPOSER_UNION::proposer_union(IDetectors&... detectors)
+    : detectors_(detectors...) {}
 
-PROPOSER_UNION_TEMPLATE void PROPOSER_UNION::propose(const expr* e, std::vector<const expr*>& out) {
-    propose_each(std::index_sequence_for<IProposers...>{}, e, out);
+PROPOSER_UNION_TEMPLATE void PROPOSER_UNION::detect(const expr* e, std::vector<rewrite>& out) {
+    detect_each(std::index_sequence_for<IDetectors...>{}, e, out);
 }
 
 PROPOSER_UNION_TEMPLATE
 template<size_t... Indices>
-void PROPOSER_UNION::propose_each(std::index_sequence<Indices...>, const expr* e, std::vector<const expr*>& out) {
-    (std::get<Indices>(proposers_).propose(e, out), ...);
+void PROPOSER_UNION::detect_each(std::index_sequence<Indices...>, const expr* e, std::vector<rewrite>& out) {
+    (std::get<Indices>(detectors_).detect(e, out), ...);
 }
 
 #undef PROPOSER_UNION

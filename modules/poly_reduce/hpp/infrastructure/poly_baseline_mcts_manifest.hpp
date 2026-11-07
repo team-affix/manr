@@ -16,6 +16,7 @@
 #include "infrastructure/poly_kernel_manifest.hpp"
 #include "infrastructure/poly_local_rules_manifest.hpp"
 #include "value_objects/expr.hpp"
+#include "value_objects/poly_limits.hpp"
 
 // Baseline: low-level rules only, under Monte Carlo tree search. The problem is infix polynomial text.
 struct poly_baseline_mcts_manifest {
@@ -23,8 +24,8 @@ struct poly_baseline_mcts_manifest {
     struct visits_t : monte_carlo::visits_table<uint64_t, std::unordered_map> {};
     struct values_t : monte_carlo::value_table<uint64_t, double, std::unordered_map> {};
     using uct_base_t = monte_carlo::uct_value_manifest<
-        uint64_t, const expr*, double, visits_t, visits_t, values_t, values_t, mcts_path_walker,
-        std::vector<const expr*>, std::vector<const expr*>, std::mt19937>;
+        uint64_t, size_t, double, visits_t, visits_t, values_t, values_t, mcts_path_walker,
+        std::vector<size_t>, std::vector<size_t>, std::mt19937>;
     struct uct_t : uct_base_t {
         using uct_base_t::uct_base_t;
     };
@@ -35,6 +36,7 @@ struct poly_baseline_mcts_manifest {
     };
 
     poly_baseline_mcts_manifest(const std::string& problem,
+        const poly_limits& limits,
         size_t probing_depth,
         size_t max_simulations,
         double exploration_constant,

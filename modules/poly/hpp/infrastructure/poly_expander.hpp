@@ -11,7 +11,9 @@
 #include "value_objects/poly_symbols.hpp"
 
 // The normal form of an expression, memoized per interned address. No normal form for an extension term, a functor
-// outside the vocabulary, a non-literal exponent or one above 64, or a result with too many terms.
+// outside the vocabulary, a non-literal exponent or one above `max_exponent`, or a result with too many terms.
+constexpr uint32_t k_poly_default_max_exponent = 64;
+
 template<typename IFindLiteralValue,
          typename IAddPolynomials,
          typename ISubtractPolynomials,
@@ -23,7 +25,8 @@ struct poly_expander {
                   ISubtractPolynomials& subtract_polynomials,
                   IMultiplyPolynomials& multiply_polynomials,
                   IPowerPolynomial& power_polynomial,
-                  poly_symbols symbols);
+                  poly_symbols symbols,
+                  uint32_t max_exponent = k_poly_default_max_exponent);
     std::optional<poly_polynomial> find_polynomial(const expr* e);
 private:
     std::optional<poly_polynomial> expand(const expr* e);
@@ -34,6 +37,7 @@ private:
     IMultiplyPolynomials& multiply_polynomials_;
     IPowerPolynomial& power_polynomial_;
     poly_symbols symbols_;
+    uint32_t max_exponent_;
     std::unordered_map<const expr*, std::optional<poly_polynomial>> polynomials_;
 };
 
@@ -49,13 +53,15 @@ POLY_EXPANDER_TEMPLATE POLY_EXPANDER::poly_expander(
     ISubtractPolynomials& subtract_polynomials,
     IMultiplyPolynomials& multiply_polynomials,
     IPowerPolynomial& power_polynomial,
-    poly_symbols symbols)
+    poly_symbols symbols,
+    uint32_t max_exponent)
     : find_literal_value_(find_literal_value)
     , add_polynomials_(add_polynomials)
     , subtract_polynomials_(subtract_polynomials)
     , multiply_polynomials_(multiply_polynomials)
     , power_polynomial_(power_polynomial)
     , symbols_(symbols)
+    , max_exponent_(max_exponent)
     , polynomials_() {}
 
 POLY_EXPANDER_TEMPLATE std::optional<poly_polynomial> POLY_EXPANDER::find_polynomial(const expr* e) {
@@ -87,7 +93,7 @@ POLY_EXPANDER_TEMPLATE std::optional<poly_polynomial> POLY_EXPANDER::expand(cons
         return std::nullopt;
     if (f->id == symbols_.pow) {
         const std::optional<integer> exponent = find_literal_value_.find_value(f->args[1]);
-        const bool usable = exponent.has_value() && exponent.value() >= 0 && exponent.value() <= 64;
+        const bool usable = exponent.has_value() && exponent.value() >= 0 && exponent.value() <= max_exponent_;
         if (!usable)
             return std::nullopt;
         return power_polynomial_.power(lhs.value(), exponent.value().convert_to<uint32_t>());

@@ -4,10 +4,17 @@ description: Ban std::function and lambdas except a genuinely generic std::visit
 
 # No std::function / Lambdas
 
-Never use `std::function` or lambdas when it can be avoided. Prefer named
+Never use `std::function` or lambdas when it can be avoided, except as below. Prefer named
 functions, template parameters, and injected collaborators.
 
-## Only allowed exception
+## Allowed exceptions
+
+A rewrite thunk (`rewrite`, `core/hpp/value_objects/rewrite.hpp`): a rule's detection returns lambdas that capture
+what detection found and perform the rewrite when invoked. Deferring work is the point, so a lambda is the right tool.
+
+A `std::visit()` visitor, under the condition below.
+
+### `std::visit`
 
 A `std::visit()` whose visitor is ACTUALLY GENERIC — it treats every
 alternative uniformly and does not need to know the concrete argument type.

@@ -1,4 +1,5 @@
 #include <optional>
+#include "infrastructure/poly_divisibility_filter.hpp"
 #include "poly_kernel_fixture.hpp"
 
 namespace {
@@ -59,4 +60,28 @@ TEST_F(PolyNormalFormIntegrationTest, RootExtractionFindsExactPowersAndCompletes
     ASSERT_FALSE(completed.empty());
     EXPECT_EQ(completed.front().root, normal_form("x + 1"));
     EXPECT_EQ(completed.front().remainder, normal_form("y^2 + 2*y + 1"));
+}
+
+TEST_F(PolyNormalFormIntegrationTest, TheRenderCostIsTheSizeOfWhatRenderBuilds) {
+    for (const std::string text : {"0", "1", "-1", "x", "-x", "3*x^2*y - x*y + 7", "-2*x^3 + y^5 - 1", "x*y*z",
+                                   "(x - y)^4", "(2*a - 3*b + 1)^3", "-(x^2)"}) {
+        const poly_polynomial polynomial = normal_form(text);
+        EXPECT_EQ(kernel.renderer_.find_cost(polynomial), kernel.sizes_.cost(kernel.renderer_.render(polynomial)))
+            << text;
+    }
+}
+
+TEST_F(PolyNormalFormIntegrationTest, TheDivisibilityFilterNeverRejectsATrueDivisor) {
+    const poly_divisibility_filter filter{};
+    EXPECT_TRUE(filter.may_divide(normal_form("(x - 3*z + 2) * (2*x + y - 1)^2"), normal_form("x - 3*z + 2")));
+    EXPECT_TRUE(filter.may_divide(normal_form("(x^2 + y^2 + 1) * (x - y)"), normal_form("x^2 + y^2 + 1")));
+}
+
+TEST_F(PolyNormalFormIntegrationTest, TheDivisibilityFilterRejectsMostWrongDivisors) {
+    const poly_divisibility_filter filter{};
+    const poly_polynomial product = normal_form("(x - 3*z + 2) * (2*x + y - 1)");
+    size_t rejected = 0;
+    for (const std::string wrong : {"x + 1", "x - 1", "y + 2", "x + y", "x - y", "2*x + 3", "z - 1", "x + z"})
+        rejected += filter.may_divide(product, normal_form(wrong)) ? 0 : 1;
+    EXPECT_EQ(rejected, 8u);
 }

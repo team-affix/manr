@@ -7,6 +7,7 @@
 #include <variant>
 #include <vector>
 #include "value_objects/expr.hpp"
+#include "value_objects/rewrite.hpp"
 #include "value_objects/integer.hpp"
 #include "value_objects/poly_polynomial.hpp"
 #include "value_objects/poly_symbols.hpp"
@@ -25,8 +26,9 @@ struct poly_like_terms {
                     IMakeLiteral& make_literal,
                     IGetCost& get_cost,
                     poly_symbols symbols);
-    void propose(const expr* e, std::vector<const expr*>& out);
+    void detect(const expr* e, std::vector<rewrite>& out);
 private:
+    const expr* collect(const expr* e);
     struct group {
         integer coefficient;
         const expr* representative;
@@ -62,10 +64,18 @@ POLY_LIKE_TERMS_TEMPLATE POLY_LIKE_TERMS::poly_like_terms(
     , get_cost_(get_cost)
     , symbols_(symbols) {}
 
-POLY_LIKE_TERMS_TEMPLATE void POLY_LIKE_TERMS::propose(const expr* e, std::vector<const expr*>& out) {
+POLY_LIKE_TERMS_TEMPLATE void POLY_LIKE_TERMS::detect(const expr* e, std::vector<rewrite>& out) {
     const expr::functor* f = std::get_if<expr::functor>(&e->content);
     if (f == nullptr || (f->id != symbols_.add && f->id != symbols_.sub))
         return;
+    const expr* collected = collect(e);
+    if (collected == nullptr)
+        return;
+    out.push_back(ready(collected));
+}
+
+// The sum with like terms merged, or nullptr if nothing merges or the result is not smaller.
+POLY_LIKE_TERMS_TEMPLATE const expr* POLY_LIKE_TERMS::collect(const expr* e) {
     std::vector<std::pair<int, const expr*>> summands;
     flatten(e, 1, summands);
     std::vector<group> groups;
@@ -103,7 +113,7 @@ POLY_LIKE_TERMS_TEMPLATE void POLY_LIKE_TERMS::propose(const expr* e, std::vecto
     }
     const bool merged = groups.size() + literals < summands.size() || literals > 1 || (literals == 1 && constant == 0);
     if (!merged)
-        return;
+        return nullptr;
     const expr* sum = nullptr;
     for (const group& g : groups) {
         if (g.coefficient == 0)
@@ -121,8 +131,8 @@ POLY_LIKE_TERMS_TEMPLATE void POLY_LIKE_TERMS::propose(const expr* e, std::vecto
         sum = make_functor_.make_functor(
             constant < 0 ? symbols_.sub : symbols_.add, {sum, make_literal_.make_literal(constant < 0 ? integer(-constant) : constant)});
     if (get_cost_.cost(sum) >= get_cost_.cost(e))
-        return;
-    out.push_back(sum);
+        return nullptr;
+    return sum;
 }
 
 POLY_LIKE_TERMS_TEMPLATE void POLY_LIKE_TERMS::flatten(

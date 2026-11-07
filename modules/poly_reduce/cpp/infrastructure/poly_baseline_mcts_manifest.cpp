@@ -2,11 +2,12 @@
 
 poly_baseline_mcts_manifest::poly_baseline_mcts_manifest(
     const std::string& problem,
+    const poly_limits& limits,
     size_t probing_depth,
     size_t max_simulations,
     double exploration_constant,
     uint32_t seed)
-    : kernel_(256)
+    : kernel_(limits)
     , rule_set_(kernel_)
     , initial_(kernel_.parser_.parse(problem))
     , visits_()
