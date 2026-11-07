@@ -9,13 +9,15 @@ arith_fit_manifest::arith_fit_manifest(const std::vector<arith_sample>& samples,
           .add = symbols_.intern_symbol("add"),
           .sub = symbols_.intern_symbol("sub"),
           .mul = symbols_.intern_symbol("mul")}
-    , pw_symbols_{.piecewise = symbols_.intern_symbol("pw"), .branch = symbols_.intern_symbol("case")}
+    , pw_symbols_{.piecewise = symbols_.intern_symbol("pw"),
+                  .branch = symbols_.intern_symbol("case"),
+                  .region = symbols_.intern_symbol("when")}
     , literals_(symbols_, exprs_)
     , converter_(literals_)
     , evaluator_(literals_, literals_, arith_symbols_)
     , assembler_(exprs_, pw_symbols_)
     , builder_(exprs_, exprs_, assembler_, pw_symbols_)
-    , filter_(evaluator_)
+    , filter_(evaluator_, pw_symbols_)
     , constants_()
     , lines_(literals_, literals_, exprs_, arith_symbols_)
     , hypotheses_(constants_, lines_)

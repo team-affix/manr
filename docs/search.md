@@ -7,8 +7,9 @@ the collapse coming. What matters is the size of the expression many rewrites la
 is why MANR has Monte Carlo tree search.
 
 Both searches take the same capabilities (`IDetect`, `IGetCost`, an initial expression) and expose the same pull
-loop (`next()`, `best()`, `best_cost()`, a derivation). A manifest picks one. Both are lazy: rules only detect, and a
-search performs only the rewrites it takes.
+loop (`next()`, `best()`, `best_cost()`, a derivation). A manifest picks one. Rules only detect; performing a rewrite is
+the search's choice. MCTS performs only the rewrite it takes. Best-first performs every rewrite of the expression it
+expands, so each result is costed before anything is ordered by it.
 
 ## `mcts_search`: probing simulations
 
@@ -45,9 +46,14 @@ Not built yet:
 
 ## `best_first_search`: cost-ordered frontier
 
-The frontier holds detected rewrites keyed by the cost of the expression they came from. Each `next()` performs the
-one with the cheapest source; a new result has its own rewrites detected. Expressions are interned, so one reached
-twice has its rewrites detected once.
+The frontier holds reached expressions not yet expanded, keyed by their own cost. Each `next()` expands the cheapest:
+it detects that expression's rewrites and performs all of them, queuing each new result. Expressions are interned,
+so one reached twice is queued and detected once. Detection, the expensive part, runs only on expanded expressions.
+
+An earlier version queued the rewrites themselves, keyed by their source's cost, and performed one per step. That
+starved siblings: once one rewrite produced something cheaper than its source, that result's own rewrites outranked
+every untried sibling, so a far better sibling (a data fit binding the whole piecewise to `x^3 - x`) was never
+performed.
 
 - Rewrites are scored only by the expression they produce, so a climb toward a collapse competes with every
   cheaper or equal-cost alternative. It survives only while it fits in the frontier and nothing cheaper is left.

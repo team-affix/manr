@@ -51,7 +51,7 @@ template<typename Manifest>
 outcome run_best_first(const std::string& text) {
     const auto start = std::chrono::steady_clock::now();
     Manifest m{text, k_poly_default_limits, k_frontier};
-    for (size_t step = 0; step < k_rewrites && m.search_.next(); ++step) {}
+    while (m.search_.rewrites() < k_rewrites && m.search_.next()) {}
     return finish(m, m.search_.best(), start);
 }
 

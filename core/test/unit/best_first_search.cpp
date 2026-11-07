@@ -6,6 +6,7 @@
 #include "infrastructure/expr_pool.hpp"
 
 using ::testing::_;
+using ::testing::AnyNumber;
 using ::testing::NiceMock;
 using ::testing::Return;
 
@@ -17,10 +18,6 @@ struct MockDetect {
 
 struct MockGetCost {
     MOCK_METHOD(size_t, cost, (const expr*));
-};
-
-struct MockRewrite {
-    MOCK_METHOD(const expr*, apply, ());
 };
 
 struct BestFirstSearchTest : ::testing::Test {
@@ -54,33 +51,37 @@ TEST_F(BestFirstSearchTest, TheInitialExpressionIsTheBestUntilSomethingCheaperIs
     best_first_search<MockDetect, MockGetCost> search{detect, get_cost, start, 8};
     EXPECT_EQ(search.best(), start);
     EXPECT_EQ(search.best_cost(), 10u);
+    EXPECT_TRUE(search.next());
     EXPECT_FALSE(search.next());
+    EXPECT_EQ(search.best(), start);
 }
 
-TEST_F(BestFirstSearchTest, RewritesOfTheCheapestSourceAreTakenFirst) {
+TEST_F(BestFirstSearchTest, EveryRewriteOfTheExpandedExpressionIsCostedInOneStep) {
+    detect_from(start, {ready(dear), ready(cheap)});
+    best_first_search<MockDetect, MockGetCost> search{detect, get_cost, start, 8};
+    ASSERT_TRUE(search.next());
+    EXPECT_EQ(search.best(), cheap);
+    EXPECT_EQ(search.rewrites(), 2u);
+}
+
+TEST_F(BestFirstSearchTest, TheCheapestReachedExpressionIsExpandedFirst) {
     detect_from(start, {ready(dear), ready(cheap)});
     detect_from(dear, {ready(after_dear)});
     detect_from(cheap, {ready(after_cheap)});
     best_first_search<MockDetect, MockGetCost> search{detect, get_cost, start, 8};
-    for (int step = 0; step < 3; ++step)
+    EXPECT_CALL(detect, detect(start, _));
+    EXPECT_CALL(detect, detect(cheap, _));
+    EXPECT_CALL(detect, detect(dear, _)).Times(0);
+    for (int step = 0; step < 2; ++step)
         ASSERT_TRUE(search.next());
     EXPECT_EQ(search.best(), after_cheap);
     EXPECT_EQ(search.derivation(after_cheap), (std::vector<const expr*>{start, cheap, after_cheap}));
 }
 
-TEST_F(BestFirstSearchTest, OnlyTakenRewritesArePerformed) {
-    MockRewrite taken;
-    MockRewrite left;
-    detect_from(start, {[&taken]() { return taken.apply(); }, [&left]() { return left.apply(); }});
-    best_first_search<MockDetect, MockGetCost> search{detect, get_cost, start, 8};
-    EXPECT_CALL(taken, apply()).WillOnce(Return(cheap));
-    EXPECT_CALL(left, apply()).Times(0);
-    ASSERT_TRUE(search.next());
-}
-
 TEST_F(BestFirstSearchTest, AnExpressionReachedTwiceHasItsRewritesDetectedOnce) {
     detect_from(start, {ready(cheap), ready(cheap), ready(start)});
     best_first_search<MockDetect, MockGetCost> search{detect, get_cost, start, 8};
+    EXPECT_CALL(detect, detect(_, _)).Times(AnyNumber());
     EXPECT_CALL(detect, detect(cheap, _)).Times(1);
     while (search.next()) {}
     EXPECT_EQ(search.rewrites(), 3u);
@@ -92,12 +93,10 @@ TEST_F(BestFirstSearchTest, ARewriteThatFailsBreaksTheContract) {
     EXPECT_THROW(search.next(), std::logic_error);
 }
 
-TEST_F(BestFirstSearchTest, OverCapacityTheMostExpensiveRewriteIsEvicted) {
-    MockRewrite kept;
-    MockRewrite evicted;
-    detect_from(start, {[&kept]() { return kept.apply(); }, [&evicted]() { return evicted.apply(); }});
+TEST_F(BestFirstSearchTest, OverCapacityTheMostExpensiveExpressionIsEvicted) {
+    detect_from(start, {ready(dear), ready(cheap)});
     best_first_search<MockDetect, MockGetCost> search{detect, get_cost, start, 1};
-    EXPECT_CALL(kept, apply()).WillOnce(Return(cheap));
-    EXPECT_CALL(evicted, apply()).Times(0);
+    EXPECT_CALL(detect, detect(_, _)).Times(AnyNumber());
+    EXPECT_CALL(detect, detect(dear, _)).Times(0);
     while (search.next()) {}
 }

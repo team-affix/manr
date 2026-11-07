@@ -58,3 +58,74 @@ Known gaps:
   `(x^2+y^2+1)*(x^2-y^2+x*y+2)`, stays expanded; that needs full multivariate factoring (Zassenhaus and Hensel
   lifting).
 - Detectors run at every position on every expansion. The factor detector dominates the run time.
+
+## Fitting data (`modules/poly_fit`)
+
+`poly_fit_runtime` (best-first) and `poly_fit_mcts_manifest` fit integer samples over any number of input
+variables. The samples become `pw(case(point(x1, ..., xk), y), ..., ?0)`. Three kinds of rule then work on it at
+every position:
+
+- `pw_extension_binder` resolves `?0` to a hypothesis and drops every branch it reproduces.
+- `pw_branch_absorber` drops `case` branches that what follows them (the regions and the catch-all) already
+  reproduces.
+- The full polynomial rule set compresses whatever polynomial results.
+
+`poly_point_evaluator` evaluates a candidate at a point through its normal form, so every shape of a polynomial
+covers the same branches. `pw_evaluator` evaluates through piecewises, and `poly_condition_evaluator` decides their
+region conditions.
+
+A piecewise branch is either `case(point, value)`, which applies at exactly that input, or `when(condition, value)`,
+which applies wherever the condition holds. The first branch that applies gives the value. The only condition so far
+is `lt(a, b)`.
+
+`poly_interpolator` solves for the polynomial through the data. Two detectors use it.
+
+`poly_interpolation_hypotheses` proposes one polynomial through all the data:
+
+- For each total degree, lowest first, the unknowns are the coefficients of every monomial up to that degree.
+- It solves them exactly (Gauss–Jordan over rationals) from points taken in order from several starting indices,
+  so a fit can start past an outlier.
+- It proposes the result only when the coefficients are integers and the polynomial reproduces at least one point
+  beyond those that fixed it.
+- It stops at the first degree that reproduces every point.
+
+`poly_split_hypotheses` proposes a piecewise polynomial, `pw(when(lt(x, k1), P1), ..., Q)`, for each input variable:
+
+- It orders the data by that variable and cuts it greedily into pieces. From the first unexplained point, the next
+  piece is the lowest-degree interpolant that runs furthest.
+- Interpolants are tried from several of the next points, so an outlier near the start of a piece does not hide it.
+- Within a run, one missed value of the variable is tolerated if the next fits. Missed points stay as `case`
+  branches.
+- Greedy gives the fewest pieces.
+- It proposes only when there are two pieces or more.
+
+Limits are in `poly_fit_limits` (`k_poly_fit_default_limits`): max degree 6, at most 84 unknowns (degree 6 in 3
+variables), 8 starting points spread evenly over the data.
+
+On grids of 7–1000 points, it recovers:
+
+- `x^3 - x`
+- the Horner form of a degree-5 polynomial
+- `(2*x - 1)^3`
+- `(x + y)^2`
+- `(x + y + z)^3`
+- `(x + y*z)*x - z`
+- `(x - y + 2)*(x + 2*y)` with one outlier left as a branch
+
+Each takes under 1.3 s.
+
+Piecewise polynomials:
+
+- `x^2` for x < 0, `3x + 1` otherwise: `pw(when(lt(x, 0), x^2), 3 * x + 1)` from 20 or 400 points (0.07 s).
+- Three pieces: `pw(when(lt(x, 10), 5), when(lt(x, 20), x^2 - 7), (x - 1)^3)`, each piece compressed.
+- With an outlier: `pw(case(point(-6), 39), when(lt(x, 0), x^2), 3 * x + 1)`.
+- Two variables, split on either one: `pw(when(lt(y, 0), x - y), (x + y)^2)`.
+
+Gaps:
+
+- Integer coefficients only: `x*(x+1)/2` has no polynomial over Z, so it is not found.
+- Up to 8 starts: when outliers are dense enough that every start's window holds one, no fit is found.
+- Regions are intervals of one variable, nested in order. Regions bounded by a curve or by two variables at once,
+  such as quadrants, are not found.
+- A bound is placed where the next piece's run starts. Where two pieces agree at a point near the bound, that point
+  can go to the wrong piece and leave one extra `case`.

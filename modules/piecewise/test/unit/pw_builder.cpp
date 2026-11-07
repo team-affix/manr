@@ -25,7 +25,7 @@ struct PwBuilderTest : ::testing::Test {
     MockMakeVar make_var;
     MockAssemble assemble;
     pw_builder<MockMakeFunctor, MockMakeVar, MockAssemble> builder{
-        make_functor, make_var, assemble, pw_symbols{.piecewise = 7, .branch = 8}};
+        make_functor, make_var, assemble, pw_symbols{.piecewise = 7, .branch = 8, .region = 9}};
     expr_pool pool{};
     const expr* in0 = pool.make_functor(1, {});
     const expr* out0 = pool.make_functor(2, {});
@@ -39,7 +39,7 @@ TEST_F(PwBuilderTest, EveryPointBecomesABranchAndTheCatchAllIsTheExtensionTerm) 
     const expr* branch0 = pool.make_functor(8, {in0, out0});
     const expr* branch1 = pool.make_functor(8, {in1, out1});
     const expr* extension = pool.make_var(5);
-    const expr* piecewise = pool.make_functor(9, {});
+    const expr* piecewise = pool.make_functor(12, {});
     EXPECT_CALL(make_functor, make_functor(8, std::vector<const expr*>{in0, out0})).WillOnce(Return(branch0));
     EXPECT_CALL(make_functor, make_functor(8, std::vector<const expr*>{in1, out1})).WillOnce(Return(branch1));
     EXPECT_CALL(make_var, make_var(5)).WillOnce(Return(extension));

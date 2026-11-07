@@ -28,7 +28,7 @@ struct PwExtensionBinderTest : ::testing::Test {
     StrictMock<MockFindUncovered> find_uncovered;
     StrictMock<MockAssemble> assemble;
     pw_extension_binder<MockProposeHypotheses, MockFindUncovered, MockAssemble> binder{
-        propose_hypotheses, find_uncovered, assemble, pw_symbols{.piecewise = 7, .branch = 8}};
+        propose_hypotheses, find_uncovered, assemble, pw_symbols{.piecewise = 7, .branch = 8, .region = 9}};
     expr_pool pool{};
     const expr* key0 = pool.make_functor(1, {});
     const expr* key1 = pool.make_functor(2, {});
@@ -46,7 +46,7 @@ struct PwExtensionBinderTest : ::testing::Test {
 }
 
 TEST_F(PwExtensionBinderTest, EachUsefulHypothesisIsARewriteThatResolvesTheCatchAllAndDropsItsBranches) {
-    const expr* bound = pool.make_functor(9, {});
+    const expr* bound = pool.make_functor(12, {});
     EXPECT_CALL(propose_hypotheses, propose_hypotheses(points, _))
         .WillOnce(SetArgReferee<1>(std::vector<const expr*>{hypothesis, useless}));
     EXPECT_CALL(find_uncovered, find_uncovered(branches, hypothesis)).WillOnce(Return(std::vector<const expr*>{branch1}));
@@ -59,5 +59,11 @@ TEST_F(PwExtensionBinderTest, EachUsefulHypothesisIsARewriteThatResolvesTheCatch
 
 TEST_F(PwExtensionBinderTest, AClosedCatchAllIsNotRebound) {
     binder.detect(pool.make_functor(7, {branch0, branch1, hypothesis}), out);
+    EXPECT_TRUE(out.empty());
+}
+
+TEST_F(PwExtensionBinderTest, APiecewiseWithARegionBranchIsNotBound) {
+    const expr* region = pool.make_functor(9, {key0, value0});
+    binder.detect(pool.make_functor(7, {branch0, region, pool.make_var(0)}), out);
     EXPECT_TRUE(out.empty());
 }

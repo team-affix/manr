@@ -8,7 +8,8 @@ MANR is a domain-specific symbolic expression reduction engine in C++20, the mos
 - **Extension algebra.** Any algebra plus *extension terms*: free variables (`expr::var`, printed `?n`) that may be
   resolved to any expression content.
 - **Data as a piecewise.** A data set is turned mechanically into `pw(case(in, out), ..., ?0)`: one branch per point,
-  and an extension term as the catch-all for every unseen input. Reduction then tries to make the piecewise disappear.
+  and an extension term as the catch-all for every unseen input. Reduction then tries to make the piecewise disappear,
+  or to shrink it into regions (`when(condition, value)` branches) with one compact expression each.
 - **Objective.** Smallest node count (`expr_size`) for the fixed functor set.
 - **Rules come in two kinds**, both behind the same `detect(e, out)` capability:
   low-level local rewrites (e.g. `arith_simplifier`), and high-level *detectors* that read the expression or data
@@ -29,6 +30,8 @@ modules/<name>/{hpp,cpp,test}/...             one directory per rule module; pre
   arith_fit/  (arith_)                        composition: linear-fit detector, manifest, runtime
   poly/       (poly_)                         polynomial algebra over Z: normal form oracle, rules, detectors
   poly_reduce/ (poly_)                        composition: kernel, rule sets, four solver manifests
+  poly_fit/   (poly_)                         composition: polynomial data fitting over piecewises (interpolation
+                                              detector, point evaluator, rule set, solver manifests, runtime)
 bench/                                        release benchmarks (`make poly_bench`), not tests
 modules/test_main.cpp                         GTest entry for the modules binary
 googletest/ mcts/                             git submodules (github), not ours to edit; mcts/core/cpp is built into core
@@ -45,7 +48,7 @@ A module depends on core and on other modules' headers; core never depends on a 
 <name>_runtime            non-templated facade: next() pull loop, best(), derivation(). Owns one manifest_.
   <name>_manifest         composition root: names component types, owns every component by value
     mcts_search           probing simulations (UCT in-tree, random past it), rewarded by smallest cost reached
-    | best_first_search   or: bounded cost-ordered frontier, interned dedup
+    | best_first_search   or: expands the cheapest reached expression; bounded frontier, interned dedup
       subterm_proposer    lifts a local rule set to every position of the expression
         proposer_union    fans detect() out to the rules of several modules
           rules           pw_extension_binder, pw_branch_absorber, arith_simplifier, ...
@@ -54,8 +57,8 @@ A module depends on core and on other modules' headers; core never depends on a 
 - Expressions are hash-consed by `expr_pool`: pointer equality is structural equality. Search dedup, the
   derivation map and rules all rely on this.
 - Rules detect, then rewrite: `detect(e, out)` does cheap checks and appends `rewrite` thunks
-  (`std::function<const expr*()>`); performing one returns the whole result or nullptr. Searches perform only the
-  rewrites they take. Local rules only look at the node they are handed; `subterm_proposer` wraps their rewrites to
+  (`std::function<const expr*()>`). Detection is certain: performing one always returns the whole result, never
+  nullptr. MCTS performs only the rewrite it takes; best-first performs all rewrites of the expression it expands. Local rules only look at the node they are handed; `subterm_proposer` wraps their rewrites to
   rebuild the path to the root. See `docs/rule-design.md`.
 - Domains plug into the piecewise module through capabilities: `IEvaluateAt` (value of an expression at an input,
   as an interned expression, or nullopt) and `IProposeHypotheses` (candidate resolutions of an extension term given

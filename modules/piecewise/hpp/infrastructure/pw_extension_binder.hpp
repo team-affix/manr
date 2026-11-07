@@ -14,7 +14,7 @@
 // that hypothesis and drop every branch it reproduces, in one step. The rewrite only assembles the result.
 //
 // The extension term is resolved where it stands, so this assumes it occurs nowhere else (the builder makes
-// exactly one occurrence).
+// exactly one occurrence). Only a piecewise whose branches are all data points (`case`) is bound.
 template<typename IProposeHypotheses, typename IFindUncovered, typename IAssemble>
 struct pw_extension_binder {
     pw_extension_binder(IProposeHypotheses& propose_hypotheses,
@@ -53,6 +53,8 @@ PW_EXTENSION_BINDER_TEMPLATE void PW_EXTENSION_BINDER::detect(const expr* e, std
     points.reserve(branches.size());
     for (const expr* branch : branches) {
         const expr::functor& b = std::get<expr::functor>(branch->content);
+        if (b.id != symbols_.branch)
+            return;
         points.push_back(pw_data_point{.input = b.args[0], .output = b.args[1]});
     }
     hypotheses_.clear();

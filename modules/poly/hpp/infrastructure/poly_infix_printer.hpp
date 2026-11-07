@@ -1,6 +1,7 @@
 #ifndef POLY_INFIX_PRINTER_HPP
 #define POLY_INFIX_PRINTER_HPP
 
+#include <cstddef>
 #include <ostream>
 #include <string>
 #include <variant>
@@ -45,6 +46,18 @@ POLY_INFIX_PRINTER_TEMPLATE void POLY_INFIX_PRINTER::print_at(
         const bool negative = name.size() > 1 && name[0] == '-';
         const bool wrap = negative && !(leading && context <= 2);
         os << (wrap ? "(" : "") << name << (wrap ? ")" : "");
+        return;
+    }
+    const bool algebra = f.args.size() == 2
+                      && (f.id == symbols_.add || f.id == symbols_.sub || f.id == symbols_.mul || f.id == symbols_.pow);
+    if (!algebra) {
+        // any other functor (a piecewise, a data point) prints in prefix form
+        os << get_symbol_name_.name(f.id) << '(';
+        for (size_t index = 0; index < f.args.size(); ++index) {
+            os << (index == 0 ? "" : ", ");
+            print_at(os, f.args[index], 0, true);
+        }
+        os << ')';
         return;
     }
     const bool sum = f.id == symbols_.add || f.id == symbols_.sub;

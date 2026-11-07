@@ -1,12 +1,14 @@
 #ifndef PW_ASSEMBLER_HPP
 #define PW_ASSEMBLER_HPP
 
+#include <variant>
 #include <vector>
 #include "value_objects/expr.hpp"
 #include "value_objects/pw_symbols.hpp"
 
 // Builds `pw(branch, ..., otherwise)`. A piecewise with no branches left is just its otherwise, so that is
-// returned instead: this is the step that makes the piecewise disappear.
+// returned instead: this is the step that makes the piecewise disappear. An otherwise that is itself a piecewise is
+// spliced in (its branches follow the given ones), which keeps the first-match meaning and saves a node.
 template<typename IMakeFunctor>
 struct pw_assembler {
     pw_assembler(IMakeFunctor& make_functor, pw_symbols symbols);
@@ -28,7 +30,12 @@ PW_ASSEMBLER_TEMPLATE const expr* PW_ASSEMBLER::assemble(
     if (branches.empty())
         return otherwise;
     std::vector<const expr*> args = branches;
-    args.push_back(otherwise);
+    const expr::functor* nested = std::get_if<expr::functor>(&otherwise->content);
+    const bool nested_piecewise = nested != nullptr && nested->id == symbols_.piecewise;
+    if (nested_piecewise)
+        args.insert(args.end(), nested->args.begin(), nested->args.end());
+    else
+        args.push_back(otherwise);
     return make_functor_.make_functor(symbols_.piecewise, args);
 }
 

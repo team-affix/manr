@@ -47,5 +47,16 @@ To add a domain, write a module under `modules/` with rules that implement
 `void detect(const expr*, std::vector<rewrite>&)`, and compose them in a new manifest. See `CLAUDE.md` for
 the layout and conventions.
 
+Polynomial data, over any number of inputs:
+
+```cpp
+#include "infrastructure/poly_fit_runtime.hpp"
+
+poly_fit_runtime fit{{"x"}, samples, k_poly_default_limits, k_poly_fit_default_limits, 20000};
+while (fit.rewrites() < 3000 && fit.next()) {}
+fit.best();        // e.g. "(2 * x - 1)^3", "pw(case(point(3), 17), x^2 + 1)" with an outlier,
+                   // or "pw(when(lt(x, 0), x^2), 3 * x + 1)" for data from two polynomials
+```
+
 `arith_fit_mcts_runtime` runs the same rules under Monte Carlo tree search, for reductions that only pay off
 several rewrites later. See `docs/search.md`.

@@ -5,8 +5,8 @@
 #include <cstddef>
 #include <cstdint>
 
-// The key of a pending rewrite on a best-first frontier: the cost of the expression it was detected on, then
-// detection order, so rewrites of equally cheap expressions are taken first in, first out.
+// The key of a reached expression on a best-first frontier: its cost, then the order it was reached in, so equally
+// cheap expressions are expanded first in, first out.
 struct frontier_entry {
     size_t cost;
     uint64_t order;
