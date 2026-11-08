@@ -7,8 +7,8 @@
 #include "infrastructure/expr_size.hpp"
 #include "infrastructure/list_evaluator.hpp"
 #include "infrastructure/list_filter_hypotheses.hpp"
-#include "infrastructure/list_fold_hypotheses.hpp"
-#include "infrastructure/list_map_hypotheses.hpp"
+#include "infrastructure/list_integer_fold_hypotheses.hpp"
+#include "infrastructure/list_integer_map_hypotheses.hpp"
 #include "infrastructure/list_sample_converter.hpp"
 #include "infrastructure/list_values.hpp"
 #include "infrastructure/poly_fit_hypotheses_manifest.hpp"
@@ -30,9 +30,11 @@
 #include "value_objects/poly_fit_limits.hpp"
 #include "value_objects/pw_symbols.hpp"
 
-// The rules for fitting list programs, over a polynomial kernel: the samples become a piecewise with an open
-// catch-all; the piecewise rules bind it to constants and to the programs the list detectors read off the data
-// (`map`, `fold`, `filter`), and drop the branches they reproduce. The list detectors hand the element-level part of
+// The rules for fitting list programs over integer elements, on a polynomial kernel: the samples become a piecewise
+// with an open catch-all; the piecewise rules bind it to constants and to the programs the list detectors read off
+// the data (`map`, `fold`, `filter`), and drop the branches they reproduce. The detectors are the integer cases
+// (`list_integer_map_hypotheses`, `list_integer_fold_hypotheses`, the threshold filter): on integer data the generic
+// `list_map_hypotheses` and `list_fold_hypotheses` find the same programs, and adding them only doubles detection. The list detectors hand the element-level part of
 // the problem to polynomial fitting: `element_fit_` over `e` for map bodies, `step_fit_` over `h` and `acc` for fold
 // steps. The full polynomial rule set then compresses the bodies, all at every position. `rules_` is what a search
 // injects and `initial_` is where it starts.
@@ -65,22 +67,23 @@ struct list_fit_rules_manifest {
     struct constants_t : pw_constant_hypotheses<expr_size> {
         using pw_constant_hypotheses<expr_size>::pw_constant_hypotheses;
     };
-    struct maps_t : list_map_hypotheses<values_t, kernel_t::literals_t, fit_t::converter_t, fit_t::hypotheses_t,
-                                        expr_pool> {
-        using list_map_hypotheses<values_t, kernel_t::literals_t, fit_t::converter_t, fit_t::hypotheses_t,
-                                  expr_pool>::list_map_hypotheses;
+    struct integer_maps_t : list_integer_map_hypotheses<values_t, kernel_t::literals_t, fit_t::converter_t,
+                                                        fit_t::hypotheses_t, expr_pool> {
+        using list_integer_map_hypotheses<values_t, kernel_t::literals_t, fit_t::converter_t, fit_t::hypotheses_t,
+                                          expr_pool>::list_integer_map_hypotheses;
     };
-    struct folds_t : list_fold_hypotheses<kernel_t::literals_t, fit_t::converter_t, fit_t::hypotheses_t, expr_pool> {
-        using list_fold_hypotheses<kernel_t::literals_t, fit_t::converter_t, fit_t::hypotheses_t,
-                                   expr_pool>::list_fold_hypotheses;
+    struct integer_folds_t
+        : list_integer_fold_hypotheses<kernel_t::literals_t, fit_t::converter_t, fit_t::hypotheses_t, expr_pool> {
+        using list_integer_fold_hypotheses<kernel_t::literals_t, fit_t::converter_t, fit_t::hypotheses_t,
+                                           expr_pool>::list_integer_fold_hypotheses;
     };
     struct filterings_t
         : list_filter_hypotheses<values_t, kernel_t::literals_t, kernel_t::literals_t, expr_pool> {
         using list_filter_hypotheses<values_t, kernel_t::literals_t, kernel_t::literals_t,
                                      expr_pool>::list_filter_hypotheses;
     };
-    struct hypotheses_t : pw_hypotheses_union<constants_t, maps_t, folds_t, filterings_t> {
-        using pw_hypotheses_union<constants_t, maps_t, folds_t, filterings_t>::pw_hypotheses_union;
+    struct hypotheses_t : pw_hypotheses_union<constants_t, integer_maps_t, integer_folds_t, filterings_t> {
+        using pw_hypotheses_union<constants_t, integer_maps_t, integer_folds_t, filterings_t>::pw_hypotheses_union;
     };
     struct binder_t : pw_extension_binder<hypotheses_t, filter_t, assembler_t> {
         using pw_extension_binder<hypotheses_t, filter_t, assembler_t>::pw_extension_binder;
@@ -112,8 +115,8 @@ struct list_fit_rules_manifest {
     builder_t builder_;
     filter_t filter_;
     constants_t constants_;
-    maps_t maps_;
-    folds_t folds_;
+    integer_maps_t integer_maps_;
+    integer_folds_t integer_folds_;
     filterings_t filterings_;
     hypotheses_t hypotheses_;
     binder_t binder_;

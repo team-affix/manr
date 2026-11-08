@@ -10,6 +10,8 @@
 #include <cstdio>
 #include <functional>
 #include <optional>
+#include <random>
+#include <set>
 #include <sstream>
 #include <string>
 #include <utility>
@@ -27,10 +29,7 @@ using list_t = std::vector<integer>;
 
 struct list_problem {
     std::string name;
-    int low;
-    int high;
-    size_t max_length;
-    size_t exact_length;  // when nonzero, only lists of this length (no tails, no empty list)
+    std::vector<std::vector<integer>> inputs;
     bool output_is_list;
     std::function<list_t(const list_t&)> program;
     std::vector<std::pair<size_t, int>> wrong_labels;  // sample index, offset added to its first output
@@ -69,13 +68,46 @@ std::vector<list_t> all_lists(int low, int high, size_t max_length) {
     return lists;
 }
 
+// Every list of exactly `length` elements in [low, high]: no empty list and no tails.
+std::vector<list_t> exact_lists(int low, int high, size_t length) {
+    std::vector<list_t> lists;
+    for (const list_t& list : all_lists(low, high, length))
+        if (list.size() == length)
+            lists.push_back(list);
+    return lists;
+}
+
+// `count` lists with lengths in [min_length, max_length] and elements in [low, high], from a seeded generator.
+std::vector<list_t> random_lists(size_t count, size_t min_length, size_t max_length, int low, int high,
+                                 unsigned seed) {
+    std::mt19937 rng{seed};
+    std::vector<list_t> lists;
+    for (size_t index = 0; index < count; ++index) {
+        const size_t length = min_length + rng() % (max_length - min_length + 1);
+        list_t list;
+        for (size_t position = 0; position < length; ++position)
+            list.push_back(low + static_cast<int>(rng() % static_cast<unsigned>(high - low + 1)));
+        lists.push_back(list);
+    }
+    return lists;
+}
+
+// The lists and every suffix of each (down to the empty list), each once, shortest first.
+std::vector<list_t> with_tails(const std::vector<list_t>& lists) {
+    std::set<std::pair<size_t, list_t>> ordered;
+    for (const list_t& list : lists)
+        for (size_t start = 0; start <= list.size(); ++start)
+            ordered.emplace(list.size() - start, list_t(list.begin() + start, list.end()));
+    std::vector<list_t> suffixes;
+    for (const auto& [length, suffix] : ordered)
+        suffixes.push_back(suffix);
+    return suffixes;
+}
+
 std::vector<list_sample> sample(const list_problem& p) {
     std::vector<list_sample> samples;
-    for (const list_t& list : all_lists(p.low, p.high, p.max_length)) {
-        if (p.exact_length != 0 && list.size() != p.exact_length)
-            continue;
+    for (const list_t& list : p.inputs)
         samples.push_back(list_sample{.input = list, .output = p.program(list), .output_is_list = p.output_is_list});
-    }
     for (const auto& [index, offset] : p.wrong_labels)
         samples[index].output[0] += offset;
     return samples;
@@ -148,44 +180,67 @@ list_t sum(const list_t& list) {
 int main(int argc, char** argv) {
     const bench_options options = parse_bench_options(argc, argv);
     const std::vector<list_problem> problems{
-        {"sum", -2, 2, 3, 0, false, sum, {}, 6, "fold(h + acc, 0, xs)"},
-        {"length", -2, 2, 3, 0, false,
+        {"sum", all_lists(-2, 2, 3), false, sum, {}, 6, "fold(h + acc, 0, xs)"},
+        {"length", all_lists(-2, 2, 3), false,
          [](const list_t& l) { return fold_right(l, 0, [](integer, integer acc) { return acc + 1; }); }, {}, 6,
          "fold(acc + 1, 0, xs)"},
-        {"product", -2, 2, 3, 0, false,
+        {"product", all_lists(-2, 2, 3), false,
          [](const list_t& l) { return fold_right(l, 1, [](integer h, integer acc) { return h * acc; }); }, {}, 6,
          "fold(h * acc, 1, xs)"},
-        {"sum of squares", -2, 2, 3, 0, false,
+        {"sum of squares", all_lists(-2, 2, 3), false,
          [](const list_t& l) { return fold_right(l, 0, [](integer h, integer acc) { return h * h + acc; }); }, {}, 8,
          "fold(h^2 + acc, 0, xs)"},
-        {"alternating sum", -2, 2, 3, 0, false,
+        {"alternating sum", all_lists(-2, 2, 3), false,
          [](const list_t& l) { return fold_right(l, 0, [](integer h, integer acc) { return h - acc; }); }, {}, 6,
          "fold(h - acc, 0, xs)"},
-        {"digits", 0, 3, 3, 0, false,
+        {"digits", all_lists(0, 3, 3), false,
          [](const list_t& l) { return fold_right(l, 0, [](integer h, integer acc) { return 10 * acc + h; }); }, {}, 8,
          "fold(10 * acc + h, 0, xs)"},
-        {"sum with wrong label", -2, 2, 3, 0, false, sum, {{7, 10}}, 14, "pw(case(cons(-1, cons(-2, nil)), 7), fold(h + acc, 0, xs))"},
-        {"sum 781", -2, 2, 4, 0, false, sum, {}, 6, "fold(h + acc, 0, xs)"},
-        {"map square", -2, 2, 3, 0, true, [](const list_t& l) { return map_each(l, [](integer e) { return e * e; }); },
+        {"sum with wrong label", all_lists(-2, 2, 3), false, sum, {{7, 10}}, 14, "pw(case(cons(-1, cons(-2, nil)), 7), fold(h + acc, 0, xs))"},
+        {"sum 781", all_lists(-2, 2, 4), false, sum, {}, 6, "fold(h + acc, 0, xs)"},
+        {"map square", all_lists(-2, 2, 3), true, [](const list_t& l) { return map_each(l, [](integer e) { return e * e; }); },
          {}, 5, "map(e^2, xs)"},
-        {"map affine", -2, 2, 3, 0, true,
+        {"map affine", all_lists(-2, 2, 3), true,
          [](const list_t& l) { return map_each(l, [](integer e) { return 2 * e + 1; }); }, {}, 7, "map(2 * e + 1, xs)"},
-        {"map absolute value", -3, 3, 2, 0, true,
+        {"map absolute value", all_lists(-3, 3, 2), true,
          [](const list_t& l) { return map_each(l, [](integer e) { return e < 0 ? integer(-e) : e; }); }, {}, 11,
          "map(pw(when(lt(e, 1), -1 * e), e), xs)"},
-        {"map with wrong label", -2, 2, 3, 0, true,
+        {"map with wrong label", all_lists(-2, 2, 3), true,
          [](const list_t& l) { return map_each(l, [](integer e) { return e * e; }); }, {{3, 5}}, 13,
          "pw(case(cons(0, nil), cons(5, nil)), map(e^2, xs))"},
-        {"filter positives", -2, 2, 3, 0, true, [](const list_t& l) { return keep(l, [](integer e) { return e > 0; }); },
+        {"filter positives", all_lists(-2, 2, 3), true, [](const list_t& l) { return keep(l, [](integer e) { return e > 0; }); },
          {}, 5, "filter(lt(0, e), xs)"},
-        {"filter below one", -2, 2, 3, 0, true, [](const list_t& l) { return keep(l, [](integer e) { return e < 1; }); },
+        {"filter below one", all_lists(-2, 2, 3), true, [](const list_t& l) { return keep(l, [](integer e) { return e < 1; }); },
          {}, 5, "filter(lt(e, 1), xs)"},
+        // long lists: 20 to 40 elements, values up to 50 in size; folds get every list's tails, maps and filters none
+        {"long sum", with_tails(random_lists(12, 20, 40, -50, 50, 1)), false, sum, {}, 6, "fold(h + acc, 0, xs)"},
+        {"long length", with_tails(random_lists(12, 20, 40, -50, 50, 6)), false,
+         [](const list_t& l) { return fold_right(l, 0, [](integer, integer acc) { return acc + 1; }); }, {}, 6,
+         "fold(acc + 1, 0, xs)"},
+        {"long sum of squares", with_tails(random_lists(12, 20, 40, -50, 50, 5)), false,
+         [](const list_t& l) { return fold_right(l, 0, [](integer h, integer acc) { return h * h + acc; }); }, {}, 8,
+         "fold(h^2 + acc, 0, xs)"},
+        {"long product", with_tails(random_lists(12, 20, 40, -9, 9, 2)), false,
+         [](const list_t& l) { return fold_right(l, 1, [](integer h, integer acc) { return h * acc; }); }, {}, 6,
+         "fold(h * acc, 1, xs)"},
+        {"long sum with wrong label", with_tails(random_lists(12, 20, 40, -50, 50, 1)), false, sum, {{3, 100}}, 12,
+         "pw(case(cons(v, nil), v + 100), fold(h + acc, 0, xs))"},
+        {"long map", random_lists(30, 20, 40, -50, 50, 3), true,
+         [](const list_t& l) { return map_each(l, [](integer e) { return 2 * e * e - 3; }); }, {}, 9,
+         "map(2 * e^2 - 3, xs)"},
+        {"long map absolute value", random_lists(30, 20, 40, -50, 50, 7), true,
+         [](const list_t& l) { return map_each(l, [](integer e) { return e < 0 ? integer(-e) : e; }); }, {}, 11,
+         "map(pw(when(lt(e, 1), -1 * e), e), xs)"},
+        {"long filter", random_lists(30, 20, 40, -50, 50, 4), true,
+         [](const list_t& l) { return keep(l, [](integer e) { return e < 17; }); }, {}, 5, "filter(lt(e, 17), xs)"},
         // open: no solver reaches the target yet; kept so the gate reports when one does
-        {"maximum (open)", 0, 3, 3, 0, false,
+        {"maximum (open)", all_lists(0, 3, 3), false,
          [](const list_t& l) { return fold_right(l, 0, [](integer h, integer acc) { return h < acc ? acc : h; }); },
          {}, 10, "fold(pw(when(lt(acc, h), h), acc), 0, xs)"},
-        {"sum without tails (open)", -2, 2, 3, 3, false, sum, {}, 6, "fold(h + acc, 0, xs)"},
-        {"squares of positives (open)", -2, 2, 3, 0, true,
+        {"sum without tails (open)", exact_lists(-2, 2, 3), false, sum, {}, 6, "fold(h + acc, 0, xs)"},
+        {"long sum without tails (open)", random_lists(40, 20, 40, -50, 50, 8), false, sum, {}, 6,
+         "fold(h + acc, 0, xs)"},
+        {"squares of positives (open)", all_lists(-2, 2, 3), true,
          [](const list_t& l) { return map_each(keep(l, [](integer e) { return e > 0; }), [](integer e) { return e * e; }); },
          {}, 9, "map(e^2, filter(lt(0, e), xs))"},
     };

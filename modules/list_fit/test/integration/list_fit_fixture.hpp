@@ -3,6 +3,9 @@
 
 #include <cstddef>
 #include <functional>
+#include <random>
+#include <set>
+#include <utility>
 #include <vector>
 #include "value_objects/integer.hpp"
 #include "value_objects/list_sample.hpp"
@@ -23,6 +26,33 @@ inline std::vector<std::vector<integer>> all_lists(int low, int high, size_t max
         begin = end;
     }
     return lists;
+}
+
+// `count` lists with lengths in [min_length, max_length] and elements in [low, high], drawn from a seeded generator.
+inline std::vector<std::vector<integer>> random_lists(size_t count, size_t min_length, size_t max_length, int low,
+                                                      int high, unsigned seed) {
+    std::mt19937 rng{seed};
+    std::vector<std::vector<integer>> lists;
+    for (size_t index = 0; index < count; ++index) {
+        const size_t length = min_length + rng() % (max_length - min_length + 1);
+        std::vector<integer> list;
+        for (size_t position = 0; position < length; ++position)
+            list.push_back(low + static_cast<int>(rng() % static_cast<unsigned>(high - low + 1)));
+        lists.push_back(list);
+    }
+    return lists;
+}
+
+// The lists and every suffix of each (down to the empty list), each once, shortest first.
+inline std::vector<std::vector<integer>> with_tails(const std::vector<std::vector<integer>>& lists) {
+    std::set<std::pair<size_t, std::vector<integer>>> ordered;
+    for (const std::vector<integer>& list : lists)
+        for (size_t start = 0; start <= list.size(); ++start)
+            ordered.emplace(list.size() - start, std::vector<integer>(list.begin() + start, list.end()));
+    std::vector<std::vector<integer>> suffixes;
+    for (const auto& [length, suffix] : ordered)
+        suffixes.push_back(suffix);
+    return suffixes;
 }
 
 // Samples of a list-to-integer function at every list.

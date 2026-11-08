@@ -37,8 +37,8 @@ and MCTS is seeded. So a cost that changes is a real change, not noise.
   under best-first and MCTS).
 - `bench/fit_bench.cpp`: 20 data-fitting problems (one of them open): polynomials, outliers, piecewise polynomials, up to three variables
   and 1000 points. Two solvers (best-first and MCTS).
-- `bench/list_bench.cpp`: 17 list-program problems (three of them open): folds, maps and filters, some with a wrong
-  label. Two solvers (best-first and MCTS).
+- `bench/list_bench.cpp`: 26 list-program problems (four of them open): folds, maps and filters, some with a wrong
+  label, on short lists and on lists of 20 to 40 elements. Two solvers (best-first and MCTS).
 
 Each problem has a target cost: the cost of a known compact form. A problem is solved when a solver reaches a cost no
 larger than the target. Problems marked `(open)` have a target no solver reaches yet. They are kept so the gate reports
@@ -94,15 +94,23 @@ change, change it in its own commit with a fresh baseline, so its effect is visi
 2. **Prefer one-step detectors to chains.** A detector that proposes the final form adds one sibling. A chain of
    enabling local steps adds a level at each step where search can be diverted, and the steps that make the expression
    larger are the ones best-first ranks last.
-3. **Local rules should not make things larger.** A local rule proposes only rewrites that keep the expression the
-   same size or smaller. When a larger intermediate step is needed, write a detector that proposes the step's payoff
-   directly.
+3. **Rules should strictly shrink the expression.** The number of rules trades against the speed of reduction:
+   every rule costs detection at every position and adds siblings to the search. A rule whose rewrites are strictly
+   smaller always pays for that with progress. The best rules are the ones that, whenever they can fire, should
+   fire: the search barely has to choose, so they cost little beyond their detection. A same-size rewrite (a reordering, a normalization) pays only if a
+   later rule needs it, so keep those few and deliberate. A rule never makes the expression larger: when a larger
+   intermediate step is needed, write a detector that proposes the step's payoff directly.
 4. **Earn the detection cost.** A rule that runs at every position must reject a non-match in a few operations,
    ideally from cached signatures, before any exact work.
 5. **Composition decides, not the rule.** Rules are opt-in per manifest. A capability that hurts one solver can ship
    in a separate manifest, and be compared against the current one in the benchmark, until it is fixed.
 6. **Keep searches deterministic.** Seed all randomness. Never let the iteration order of a pointer-keyed unordered
    container decide anything the search does. The gate's exact comparisons depend on this.
+7. **Generalize beside, not instead of.** Overlapping rules are expected. A detector for a common specific case (a
+   numeric threshold, a polynomial body) finds its answer faster than a generic one would, and generic search alone
+   is bad at common problems. So a generic rule is added next to the specific ones it overlaps, and the specific ones
+   stay by default. Retiring one is a judgment call. Weigh the direction of the change (slower or faster, harder or
+   easier to solve) more than its size, since sizes measured on today's small rule set won't hold for a large one.
 
 ## Worked example: removing dilution
 

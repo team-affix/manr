@@ -38,25 +38,41 @@ domain. The element domain proposes bodies (constants, interpolated polynomials,
 detector wraps each one as a program. As with every hypothesis, the binder keeps the data points the program does
 not reproduce as branches.
 
-- `list_map_hypotheses`: every list-to-list point whose lists have the same length gives one element sample per
-  position, `e -> output element`. Proposes `map(f, xs)`.
-- `list_fold_hypotheses`: the base is the output for `nil`. Every point `cons(h, t)` whose tail `t` is also in the data
-  gives a step sample `(h, output of t) -> output`. Proposes `fold(s, b, xs)`.
-- `list_filter_hypotheses`: a point is a filtering when its output is its input with every occurrence of some values
-  removed. When every kept value is above every removed one, proposes `filter(lt(d, e), xs)`; when below,
-  `filter(lt(e, d), xs)`.
+There are two kinds, following design rule 7 in `docs/extending.md` (generalize beside, not instead of):
+
+- **Generic, for elements of any domain.** They hand the element domain data points of expressions.
+  - `list_map_hypotheses`: every list-to-list point whose lists have the same length gives one element data point
+    per position, `point(e) -> output element`. Proposes `map(f, xs)`.
+  - `list_fold_hypotheses`: the base is the output for `nil`. Every point `cons(h, t)` whose tail `t` is also in the
+    data gives a step data point `point(h, output of t) -> output`, whatever the outputs are (numbers, lists).
+    Proposes `fold(s, b, xs)`.
+- **Integer, used by `list_fit_rules_manifest`.** The same reading for integer elements, with the samples ordered by
+  value, plus the threshold filter.
+  - `list_integer_map_hypotheses`, `list_integer_fold_hypotheses`.
+  - `list_filter_hypotheses`: a point is a filtering when its output is its input with every occurrence of some
+    values removed. When every kept value is above every removed one, proposes `filter(lt(d, e), xs)`; when below,
+    `filter(lt(e, d), xs)`.
 
 The polynomial rules then compress the bodies, at every position, as they do for polynomial fitting.
 
+On integer data the generic and integer map and fold detectors find the same programs (identical costs on every
+benchmark problem), but neither is faster everywhere. Generic was much faster on the long product (best-first
+37 s to 0.9 s) and slower with a wrong label in long data (MCTS 13 s to 31 s); the difference is the order the
+samples reach the element domain. Wiring both only doubled detection, since they propose the same programs. So the
+integer manifest keeps the integer detectors, and the generic ones wait for an element domain that is not integers.
+
 ## Benchmark
 
-`bench/list_bench.cpp`, gated by `make bench_check` with its baseline in `bench/baseline/list.tsv`. 17 problems, 14
-solved by best-first and by MCTS:
+`bench/list_bench.cpp`, gated by `make bench_check` with its baseline in `bench/baseline/list.tsv`. 26 problems, 22
+solved by best-first:
 
 - folds: sum, length, product, sum of squares, alternating sum, digits read as a number, sum over all 781 lists of
   length up to 4, and a sum with one wrong label (it stays as the only branch)
 - maps: square, `2e + 1`, absolute value (a piecewise body), and a map with one wrong label
 - filters: keep the positives, keep the values below one
+- long lists, 20 to 40 elements with values up to 50 in size: sum, length, sum of squares, product (values reach
+  about 9^40), a sum with one wrong label, two maps and a filter. Folds are given every list's tails; maps and
+  filters need none, so 30 random lists are enough.
 
 Every result is checked against every sample. The soundness fuzz (`list_fit_soundness.cpp`) performs every rewrite
 along random walks and checks the same.
@@ -72,6 +88,12 @@ along random walks and checks the same.
   polynomial fitting.
 - **Filters are thresholds.** No parity, membership or multi-interval conditions yet.
 - **No list-valued folds.** `reverse` or `append` need a fold whose accumulator is a list.
+- **Large expressions are slow to expand.** On the long product, best-first finds `fold(h * acc, 1, xs)` on its first
+  expansion (0.03 s), then spends 37 s using the rest of its budget, because every expansion detects at every
+  position of a piecewise of about 15000 nodes. A search that stops at a form it cannot improve, or detection that
+  skips the data's subterms, would remove it. The order of step samples also matters here (see above).
+- **No generic filter yet.** It would hand the element domain data points labelled true or false (kept or removed)
+  and take a condition back. It needs boolean values and a condition detector in the element domain.
 - **MCTS drag.** With a wrong label, the step samples have an outlier, the fold detector's fitting is slower, and MCTS
   repeats it at every step of every simulation (33 s against 0.3 s for best-first). Caching detection per expression
   (`docs/extending.md`) would remove it.

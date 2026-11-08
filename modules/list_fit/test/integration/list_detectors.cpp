@@ -40,21 +40,21 @@ std::vector<integer> doubled(const std::vector<integer>& list) {
 
 }
 
-TEST_F(ListDetectorsIntegrationTest, TheMapDetectorHandsElementPairsToTheElementDomain) {
-    rules.maps_.propose_hypotheses(points(sample_listed(all_lists(-2, 2, 2), doubled)), out);
+TEST_F(ListDetectorsIntegrationTest, TheIntegerMapDetectorHandsElementPairsToTheElementDomain) {
+    rules.integer_maps_.propose_hypotheses(points(sample_listed(all_lists(-2, 2, 2), doubled)), out);
     EXPECT_THAT(printed(), Contains("map(2 * e, xs)"));
 }
 
-TEST_F(ListDetectorsIntegrationTest, TheMapDetectorIgnoresOutputsOfAnotherLength) {
-    rules.maps_.propose_hypotheses(
+TEST_F(ListDetectorsIntegrationTest, TheIntegerMapDetectorIgnoresOutputsOfAnotherLength) {
+    rules.integer_maps_.propose_hypotheses(
         points({{.input = {1, 2}, .output = {5}, .output_is_list = true}, {.input = {3}, .output = {3, 3},
                                                                            .output_is_list = true}}),
         out);
     EXPECT_TRUE(out.empty());
 }
 
-TEST_F(ListDetectorsIntegrationTest, TheFoldDetectorReadsStepsOffListsAndTheirTails) {
-    rules.folds_.propose_hypotheses(points(sample_scalar(all_lists(0, 3, 2), [](const std::vector<integer>& list) {
+TEST_F(ListDetectorsIntegrationTest, TheIntegerFoldDetectorReadsStepsOffListsAndTheirTails) {
+    rules.integer_folds_.propose_hypotheses(points(sample_scalar(all_lists(0, 3, 2), [](const std::vector<integer>& list) {
                                         integer total = 0;
                                         for (const integer& value : list)
                                             total += value * value;
@@ -64,12 +64,12 @@ TEST_F(ListDetectorsIntegrationTest, TheFoldDetectorReadsStepsOffListsAndTheirTa
     EXPECT_THAT(printed(), Contains("fold(h^2 + acc, 0, xs)"));
 }
 
-TEST_F(ListDetectorsIntegrationTest, TheFoldDetectorNeedsTheEmptyList) {
+TEST_F(ListDetectorsIntegrationTest, TheIntegerFoldDetectorNeedsTheEmptyList) {
     std::vector<list_sample> samples = sample_scalar(all_lists(0, 3, 2), [](const std::vector<integer>& list) {
         return integer(list.size());
     });
     samples.erase(samples.begin());
-    rules.folds_.propose_hypotheses(points(samples), out);
+    rules.integer_folds_.propose_hypotheses(points(samples), out);
     EXPECT_TRUE(out.empty());
 }
 
