@@ -22,8 +22,6 @@ struct MockProposeHypotheses {
 };
 
 using rules_t = list_fit_rules_manifest;
-using poly_maps_t = list_map_hypotheses<rules_t::values_t, rules_t::fit_t::hypotheses_t, expr_pool>;
-using poly_folds_t = list_fold_hypotheses<rules_t::fit_t::hypotheses_t, expr_pool>;
 using mock_maps_t = list_map_hypotheses<rules_t::values_t, MockProposeHypotheses, expr_pool>;
 using mock_folds_t = list_fold_hypotheses<MockProposeHypotheses, expr_pool>;
 
@@ -53,9 +51,7 @@ struct ListGenericDetectorsIntegrationTest : ::testing::Test {
 }
 
 TEST_F(ListGenericDetectorsIntegrationTest, TheMapDetectorFindsPolynomialBodiesOnIntegerData) {
-    poly_maps_t maps{rules.values_, rules.element_fit_.hypotheses_, kernel.exprs_, rules.list_symbols_,
-                     rules.point_symbol_};
-    maps.propose_hypotheses(rules.converter_.convert(sample_listed(all_lists(-2, 2, 2), [](const std::vector<integer>& l) {
+    rules.maps_.propose_hypotheses(rules.converter_.convert(sample_listed(all_lists(-2, 2, 2), [](const std::vector<integer>& l) {
                                 std::vector<integer> result;
                                 for (const integer& value : l)
                                     result.push_back(3 * value - 1);
@@ -66,8 +62,7 @@ TEST_F(ListGenericDetectorsIntegrationTest, TheMapDetectorFindsPolynomialBodiesO
 }
 
 TEST_F(ListGenericDetectorsIntegrationTest, TheFoldDetectorFindsPolynomialStepsOnIntegerData) {
-    poly_folds_t folds{rules.step_fit_.hypotheses_, kernel.exprs_, rules.list_symbols_, rules.point_symbol_};
-    folds.propose_hypotheses(rules.converter_.convert(sample_scalar(all_lists(0, 3, 2), [](const std::vector<integer>& l) {
+    rules.folds_.propose_hypotheses(rules.converter_.convert(sample_scalar(all_lists(0, 3, 2), [](const std::vector<integer>& l) {
                                  integer total = 0;
                                  for (const integer& value : l)
                                      total += value * value;

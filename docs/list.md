@@ -38,7 +38,8 @@ domain. The element domain proposes bodies (constants, interpolated polynomials,
 detector wraps each one as a program. As with every hypothesis, the binder keeps the data points the program does
 not reproduce as branches.
 
-There are two kinds, following design rule 7 in `docs/extending.md` (generalize beside, not instead of):
+`list_fit_rules_manifest` uses both kinds, side by side, following design rule 7 in `docs/extending.md`
+(generalize beside, not instead of):
 
 - **Generic, for elements of any domain.** They hand the element domain data points of expressions.
   - `list_map_hypotheses`: every list-to-list point whose lists have the same length gives one element data point
@@ -46,7 +47,7 @@ There are two kinds, following design rule 7 in `docs/extending.md` (generalize 
   - `list_fold_hypotheses`: the base is the output for `nil`. Every point `cons(h, t)` whose tail `t` is also in the
     data gives a step data point `point(h, output of t) -> output`, whatever the outputs are (numbers, lists).
     Proposes `fold(s, b, xs)`.
-- **Integer, used by `list_fit_rules_manifest`.** The same reading for integer elements, with the samples ordered by
+- **Integer.** The same reading for integer elements, with the samples ordered by
   value, plus the threshold filter.
   - `list_integer_map_hypotheses`, `list_integer_fold_hypotheses`.
   - `list_filter_hypotheses`: a point is a filtering when its output is its input with every occurrence of some
@@ -56,10 +57,10 @@ There are two kinds, following design rule 7 in `docs/extending.md` (generalize 
 The polynomial rules then compress the bodies, at every position, as they do for polynomial fitting.
 
 On integer data the generic and integer map and fold detectors find the same programs (identical costs on every
-benchmark problem), but neither is faster everywhere. Generic was much faster on the long product (best-first
-37 s to 0.9 s) and slower with a wrong label in long data (MCTS 13 s to 31 s); the difference is the order the
-samples reach the element domain. Wiring both only doubled detection, since they propose the same programs. So the
-integer manifest keeps the integer detectors, and the generic ones wait for an element domain that is not integers.
+benchmark problem), so on integer data the pair proposes each program twice. Against the integer detectors alone,
+running both made MCTS slower on every problem it spends time on (it detects again at every simulation step), and
+made best-first faster on the long product (37 s to 0.9 s), where the generic order of samples suits the
+interpolation. The difference is the order the samples reach the element domain.
 
 ## Benchmark
 
