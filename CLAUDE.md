@@ -37,8 +37,8 @@ modules/<name>/{hpp,cpp,test}/...             one directory per rule module; pre
                                               `poly_fit_hypotheses_manifest` lends polynomial fitting to other domains)
   list/       (list_)                         lists and list programs (map, filter, fold): vocabulary, evaluator
   list_fit/   (list_)                         composition: program detectors over list data (generic, and integer
-                                              cases), delegating bodies to polynomial fitting; rule set, solver
-                                              manifests, runtime
+                                              cases, affine folds from whole lists), delegating bodies to polynomial
+                                              fitting; rule set, solver manifests, runtime
 bench/                                        release benchmarks and the regression gate (`make bench_check`), not
                                               tests; committed baselines in bench/baseline/
 modules/test_main.cpp                         GTest entry for the modules binary

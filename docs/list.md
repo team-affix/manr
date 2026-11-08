@@ -53,6 +53,14 @@ not reproduce as branches.
   - `list_filter_hypotheses`: a point is a filtering when its output is its input with every occurrence of some
     values removed. When every kept value is above every removed one, proposes `filter(lt(d, e), xs)`; when below,
     `filter(lt(e, d), xs)`.
+- **Affine folds, from whole lists.** `list_affine_fold_hypotheses` needs no tails and no empty list. It assumes the
+  step is affine in the accumulator, `p(h) + c * acc`. Then a list's output is `sum_i c^(i-1) p(x_i) + c^n b`, so
+  the value of every tail drops out: once `c` is fixed, the output is linear in `p`'s coefficients and the base `b`,
+  and `list_affine_fold_solver` solves for them exactly (Gauss-Jordan over the rationals). Multipliers are tried by
+  magnitude up to 10, from two starting lists so that one wrong label cannot spoil both. The fold that reproduces
+  the most lists (more than half, and more than its unknowns) is proposed. It covers sum, length, sum of squares,
+  alternating sums and digits; it does not cover steps where `acc` is multiplied by a function of `h` (product) or
+  steps in pieces (maximum).
 
 The polynomial rules then compress the bodies, at every position, as they do for polynomial fitting.
 
@@ -64,16 +72,17 @@ interpolation. The difference is the order the samples reach the element domain.
 
 ## Benchmark
 
-`bench/list_bench.cpp`, gated by `make bench_check` with its baseline in `bench/baseline/list.tsv`. 26 problems, 22
-solved by best-first:
+`bench/list_bench.cpp`, gated by `make bench_check` with its baseline in `bench/baseline/list.tsv`. 26 problems, 24
+solved by both solvers:
 
 - folds: sum, length, product, sum of squares, alternating sum, digits read as a number, sum over all 781 lists of
   length up to 4, and a sum with one wrong label (it stays as the only branch)
 - maps: square, `2e + 1`, absolute value (a piecewise body), and a map with one wrong label
 - filters: keep the positives, keep the values below one
 - long lists, 20 to 40 elements with values up to 50 in size: sum, length, sum of squares, product (values reach
-  about 9^40), a sum with one wrong label, two maps and a filter. Folds are given every list's tails; maps and
+  about 9^40), a sum with one wrong label, two maps and a filter. These folds are given every list's tails; maps and
   filters need none, so 30 random lists are enough.
+- sums without tails: every list of exactly three elements, and 40 random lists of 20 to 40 elements (affine fold)
 
 Every result is checked against every sample. The soundness fuzz (`list_fit_soundness.cpp`) performs every rewrite
 along random walks and checks the same.
@@ -82,8 +91,12 @@ along random walks and checks the same.
 
 - **Maximum.** Its step, `pw(when(lt(acc, h), h), acc)`, compares two variables. The split detector only cuts on
   one variable at a threshold.
-- **Data without tails.** The fold detector reads steps off lists whose tails are also in the data. On other data,
-  a fold has to be solved for (its step's unknown coefficients through the whole list), not read off.
+- **Data without tails, beyond affine steps.** Without tails only affine steps are found. A step like `h * acc` makes
+  the output nonlinear in the unknowns; it needs either tails or a solver for that shape.
+- **The affine detector's drag.** On data it cannot fit (product, maximum) it tries every multiplier from both starts
+  on every detection, and MCTS detects again at every step: product under MCTS went from 0.77 s to 1.65 s. A
+  necessary-condition filter (solving modulo a small prime before the exact solve) or caching detection per
+  expression would remove most of it.
 - **Composition.** `map(e^2, filter(lt(0, e), xs))` needs a detector that recognizes one program inside another.
 - **Enough element values.** A piece of a body needs more distinct element values than it has coefficients, as in
   polynomial fitting.

@@ -130,3 +130,36 @@ TEST_F(ListFitRuntimeIntegrationTest, FiltersOverLongListsReduceWithoutTails) {
               })),
               "filter(lt(e, 17), xs)");
 }
+
+TEST_F(ListFitRuntimeIntegrationTest, SumsOfLongListsReduceToAFoldWithoutTails) {
+    EXPECT_EQ(fit(sample_scalar(random_lists(40, 20, 40, -50, 50, 8), sum)), "fold(h + acc, 0, xs)");
+}
+
+TEST_F(ListFitRuntimeIntegrationTest, NumbersFromTheirDigitsReduceToAFoldWithoutTails) {
+    EXPECT_EQ(fit(sample_scalar(random_lists(30, 2, 6, 0, 9, 9), [](const std::vector<integer>& list) {
+                  integer number = 0;
+                  for (size_t index = list.size(); index-- > 0;)
+                      number = list[index] + 10 * number;
+                  return number;
+              })),
+              "fold(h + 10 * acc, 0, xs)");
+}
+
+TEST_F(ListFitRuntimeIntegrationTest, AlternatingSumsReduceToAFoldWithoutTails) {
+    EXPECT_EQ(fit(sample_scalar(random_lists(30, 5, 10, -20, 20, 10), [](const std::vector<integer>& list) {
+                  integer total = 0;
+                  for (size_t index = list.size(); index-- > 0;)
+                      total = list[index] - total;
+                  return total;
+              })),
+              "fold(h - acc, 0, xs)");
+}
+
+TEST_F(ListFitRuntimeIntegrationTest, AWrongLabelOnTheFirstListWithoutTailsStaysAsTheOnlyBranch) {
+    std::vector<list_sample> samples = sample_scalar(random_lists(30, 3, 6, -9, 9, 11), sum);
+    samples[0].output[0] += 100;
+    const std::string best = fit(samples);
+    EXPECT_TRUE(best.starts_with("pw(case(")) << best;
+    EXPECT_TRUE(best.ends_with("), fold(h + acc, 0, xs))")) << best;
+    EXPECT_EQ(best.find("case(", 8), std::string::npos) << best;
+}
