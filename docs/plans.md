@@ -64,10 +64,14 @@ A new module, `abstraction` (`abs_`), generic over the domain, as the piecewise 
 | `lam(b)` | a function whose body `b` refers to its parameters by de Bruijn index |
 | `#i` | the parameter `i` binders out (de Bruijn index; a nullary symbol, so a body's domain sees a variable) |
 | `app(f, a)` | `f` applied to `a`; several parameters by currying, or `app(f, a, b, ...)` |
-| `let(v, b)` | `b` with `v` bound as `#0`; how a helper is defined once and used many times |
+| `let(v, b)` | `b` with `v` bound as `#0`: exactly `app(lam(b), v)`, opening a scope. How a helper is defined once and used many times: `v` is the helper (a `lam`), and `b` calls it by its index, `app(#0, ...)` |
 
 Design points:
 
+- **Helpers are referenced by index too.** A helper has no name: `let(lam(#0^2 + 1), app(#0, app(#0, x)))` defines
+  `g(y) = y^2 + 1` and applies it twice, `#0` in the scope of the `let` being the helper itself. Inside the helper's
+  own `lam`, `#0` is its parameter instead; under each further binder, the helper is one index further out (`#1`
+  under one `lam`), as for any bound variable.
 - **De Bruijn indices, not names.** Inputs are numbered, never named, so there is no naming to manage, and interning
   makes two helpers with the same body the same pointer: equal helpers are recognized as one for free, and dedup in
   the search keeps working.
@@ -87,7 +91,7 @@ Paired operations mirror each other. Each introduction has an elimination, and e
 
 | introduce | eliminate | fires when |
 |---|---|---|
-| **abstract a fragment**: a fragment occurring k ≥ 2 times becomes `let(lam(body), ...)`, its body with `#i` at its cut edges, and each occurrence becomes `app(helper, its arguments)` | **inline**: replace each call by the body with its arguments substituted (beta-reduction), and drop the `let` when no call is left | the saving is positive (abstract) or negative (inline: a helper used once, or a body smaller than its call) |
+| **abstract a fragment**: a fragment occurring k ≥ 2 times becomes `let(lam(body), ...)`, its body with `#i` at its cut edges, and each occurrence becomes `app(#k, its arguments)`, with `#k` the index of the `let` at that occurrence | **inline**: replace each call by the body with its arguments substituted (beta-reduction), and drop the `let` when no call is left | the saving is positive (abstract) or negative (inline: a helper used once, or a body smaller than its call) |
 
 One general rule and several cheaper special cases of it, kept beside it (design rule 7):
 
