@@ -58,7 +58,7 @@ The piecewise module is already domain-free. A domain plugs in through capabilit
 
 - **Structured inputs and labels.** Lists, graphs and functions as data values, with evaluation over them.
 - **Models with structure.** Recursion, folds and higher-order functions, so a model can be a program and not only a
-  formula. Helper functions, composition and application are designed in `docs/abstraction.md`.
+  formula. Helper functions, composition and application are planned in `docs/plans.md`.
 - **Free variables anywhere.** Holes inside a partial model, not only the catch-all, with detectors that fill them.
 - **Composition across domains.** A model in one domain can use another: a graph invariant that is a polynomial, a
   list program whose step is arithmetic.

@@ -138,12 +138,11 @@ whole lists:
   single-threshold count steps are found. A factor that is not linear in `h` (`h^2 * acc`) needs the per-value
   factor reading in the table; a count on a condition other than one threshold needs the condition handed to the
   element domain.
-- **Detectors' drag.** The product and count detectors abandon a candidate at its first failure past what the best
-  allows, and add little; long sums under MCTS still went from about 3.3 s to 4 s across the extremum, product and
-  count detectors. **The affine detector's drag.** On data it cannot fit (product, maximum) it tries every multiplier from both starts
-  on every detection, and MCTS detects again at every step: product under MCTS went from 0.77 s to 1.65 s. A
-  necessary-condition filter (solving modulo a small prime before the exact solve) or caching detection per
-  expression would remove most of it.
+- **Detectors' drag.** MCTS no longer repeats detection on an expression it has seen (`detection_memo`), which
+  removed most of it: long sums, lengths and sums of squares under MCTS now take well under a second. What remains
+  is the first detection of each new expression; the affine detector still tries every multiplier from both starts
+  on data it cannot fit, and a necessary-condition filter (solving modulo a small prime before the exact solve)
+  would cut that.
 - **Composition, beyond a map over a filter.** `list_map_filter_hypotheses` reads `map(f, filter(c, xs))`, but it
   starts only from points that keep or remove all of their values, so long random lists (where every list mixes
   kept and removed values) give it nothing to start from. Other compositions (`filter` over `map`, a fold over a
@@ -158,6 +157,3 @@ whole lists:
   skips the data's subterms, would remove it. The order of step samples also matters here (see above).
 - **No generic filter yet.** It would hand the element domain data points labelled true or false (kept or removed)
   and take a condition back. It needs boolean values and a condition detector in the element domain.
-- **MCTS drag.** With a wrong label, the step samples have an outlier, the fold detector's fitting is slower, and MCTS
-  repeats it at every step of every simulation (33 s against 0.3 s for best-first). Caching detection per expression
-  (`docs/extending.md`) would remove it.

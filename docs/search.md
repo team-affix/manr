@@ -42,11 +42,7 @@ Expansions are therefore credited with whatever collapse lies within `probing_de
   rewrites, and every depth has a 10 000-wide plateau of equal-cost rewrites. MCTS finds it in 200 simulations of
   depth 20. Best-first, given the same 4000 expansions, is still clearing the first plateaus.
 
-Not built yet:
-
-- Root advancement: committing to the best first move and re-rooting, so a long horizon can be covered by many
-  shorter probes.
-- Rollout policies smarter than uniform, for example ones that prefer detector proposals.
+Not built yet: root advancement and smarter rollout policies (`plans.md`, search).
 
 ## `best_first_search`: cost-ordered frontier
 

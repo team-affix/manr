@@ -143,6 +143,4 @@ The gate was also checked against regressions it should catch:
 
 ## Planned defenses on the search side
 
-- **Per-rule counters in `proposer_union`:** calls, detection time, proposals, and proposals on the best derivation.
-  A rule that never appears on a best derivation in the corpus is costing the search and contributing nothing.
-- **A rollout policy that prefers detector proposals** (see `search.md`).
+Per-rule counters and a rollout policy that prefers detector proposals are planned in `plans.md` (search).

@@ -1,12 +1,20 @@
-# Abstraction: helper functions
+# Plans
+
+What we plan to implement, at the level of modules, rules and searches. `vision.md` says what MANR should eventually
+be able to do; this document says what we intend to build next and how. When something here is built, its design
+moves to its module's doc (`poly.md`, `list.md`, `search.md`, ...) and leaves this one.
+
+Fit requests (`fit-requests.md`) decide the order: a plan here is built when a request needs it, with that request's
+problems in the benchmark first.
+
+## Abstraction: helper functions, composition and application
 
 Occam's razor needs abstraction. A model that does the same computation in several places is shorter when the
-computation is named once and called by name: `g(g(x))` with `g(y) = y^2 + 1` instead of `(x^2 + 1)^2 + 1` expanded, or "fold both
-lists and add 1" defined once and applied to many pairs. Programs with helpers, composition and application (and,
-eventually, recursion) are what make MANR's models Turing complete. This document is the design for that, before
-any of it is built. Nothing here exists yet.
+computation is named once and called by name: `g(g(g(x)))` with `g(y) = y^2 + 1` instead of its degree-8 expansion,
+or "fold both lists and add 1" defined once and applied to many pairs. Helpers, composition and application (and,
+eventually, recursion) are what make MANR's models Turing complete. Nothing in this section exists yet.
 
-## A helper is a cut of the computation graph, not a subterm
+### A helper is a cut of the computation graph, not a subterm
 
 Think of an expression as a computation graph. **Any connected piece of it is a function**: pick a node as the output,
 take some of the nodes below it, and cut every edge that leaves the piece downward. Each cut edge is an input. The
@@ -35,7 +43,7 @@ it is better not cut (the argument belongs in the body). Choosing the cut is the
 Further out: a cut can have several outputs (a piece of the graph computing two results), which is a helper
 returning a tuple. Not needed first.
 
-## Why it fits MANR's objective as is
+### Why it fits MANR's objective as is
 
 `expr_size` counts tree size: a fragment occurring k times is paid k times. Naming it once and calling it is
 therefore a real cost reduction under the existing objective. No new measure is needed. For a fragment of size B
@@ -47,7 +55,7 @@ A rule that introduces a helper fires only when the saving is positive, so it st
 (`extending.md` design rule 3). The mirror rule, inlining, fires when the saving is negative, for example a helper
 used once.
 
-## Vocabulary (a domain-free module, like `piecewise`)
+### Vocabulary (a domain-free module, like `piecewise`)
 
 A new module, `abstraction` (`abs_`), generic over the domain, as the piecewise module is:
 
@@ -73,7 +81,7 @@ Design points:
   `acc`, are lambdas with named parameters. Later they can take any `lam`, so a helper defined once can be mapped,
   folded and called.
 
-## Rules, as pairs
+### Rules, as pairs
 
 Paired operations mirror each other. Each introduction has an elimination, and each fires only when it shrinks.
 
@@ -100,7 +108,7 @@ Abstraction is a **whole-expression detector**, not a local rule: it needs every
 are local rules that always shrink when they fire, so they are the cheap "should fire whenever they can" kind. They
 also undo abstractions the search tried that did not pay off.
 
-## Detectors that propose helpers from data
+### Detectors that propose helpers from data
 
 Syntactic factoring finds helpers that are already visible in an expression. Detectors can propose them from data,
 where no repetition is visible yet:
@@ -115,14 +123,14 @@ where no repetition is visible yet:
 - **A library across data sets.** Helpers found for one fit request can be offered to the next, as DreamCoder and
   Stitch do for program corpora. This is the furthest out, and the most powerful.
 
-## Searching with helpers
+### Searching with helpers
 
 - Abstraction and inlining are mirror images, so a search can cycle between them. Both fire only when they shrink the
   expression, which rules out a cycle at equal cost.
 - Abstraction usually pays only after a fit has made the model regular. So it is a late-stage reduction: the
   detectors find the model, then factoring compresses it. A first version can run abstraction at the root only.
 
-## Benchmark problems to start from (to write first, per `extending.md`)
+### Benchmark problems to start from (to write first, per `extending.md`)
 
 - **Polynomial:** data from `g(g(g(x)))` with `g(y) = y^2 + 1`. For `g(g(x))` the expanded `x^4 + 2x^2 + 2` (size 11)
   still beats the helper form `let(lam(arg(0)^2 + 1), app(arg(0), app(arg(0), x)))` (size 12); one more level of
@@ -131,7 +139,7 @@ where no repetition is visible yet:
 - **Lists:** "fold both lists and add 1", over pairs of lists, which needs inputs that are tuples of lists.
 - **Lists:** `map(g, xs)` and `fold(g(h) + acc, 0, xs)` sharing one `g`.
 
-## Order of work
+### Order of work
 
 1. The vocabulary, de Bruijn interning, and evaluation by substitution, with a soundness fuzz (an evaluator check
    that a rewrite kept the meaning).
@@ -142,3 +150,32 @@ where no repetition is visible yet:
 6. Detectors that propose helpers from data (iteration, shared branch structure).
 7. Recursion with a step budget, which is where Turing completeness arrives.
 8. A library of helpers carried across fit requests.
+
+## Search
+
+- **Root advancement.** Commit to the best first move and re-root, so a long horizon can be covered by many shorter
+  probes (`search.md`).
+- **Rollout policies smarter than uniform**, for example ones that prefer detector proposals over local rewrites.
+- **Per-rule counters in `proposer_union`:** calls, detection time, proposals, and proposals on the best derivation.
+  A rule that never appears on a best derivation in the corpus is costing the search and contributing nothing.
+- **Stopping at a form nothing can improve.** Best-first spends its whole budget after finding the long product's
+  fold on its first expansion (`list.md`, gaps).
+
+## Lists
+
+The open problems and their causes are in `list.md` (gaps, and the fold families table). What we plan to build:
+
+- **The generic outer-inner fold detectors** (`decomposing-detection.md`): `g(h) + acc`, `g(h) * acc`,
+  `max(g(h), acc)` and counts on any condition, each recovering `g`'s values per element value and handing them to
+  the element domain, beside the specific detectors that exist.
+- **A zero-alignment filter for the product detector**: a factor whose root is in a list must give 0 there, and only
+  there (`rule-design.md`, refuting is cheaper than confirming).
+- **Booleans** in the vocabulary, for `all` and `any`, generic filter conditions, and list-to-boolean data.
+- **List-valued folds** (`reverse`, `append`), which need a step whose accumulator is a list.
+- **More compositions**: `filter` over `map`, a fold over a map, and a start for the map-over-filter reading on long
+  lists, where no list keeps or removes all of its values.
+
+## Core vocabulary
+
+- **Tuples as inputs**, so a model can take several values or several lists (needed by "fold both lists and add 1").
+- **A text front end**: reading data and expressions from text, so a fit request can be run without writing C++.

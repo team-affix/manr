@@ -86,9 +86,11 @@ A module depends on core and on other modules' headers; core never depends on a 
 - The search strategy is a manifest choice: `arith_fit_manifest` (best-first) and `arith_fit_mcts_manifest` share
   every rule and differ only in search. Read `docs/search.md` before touching either search.
 
-- **Abstraction is designed, not built** (`docs/abstraction.md`): helper functions as a domain-free module
-  (de Bruijn `lam`/`arg`/`app`/`let`). A helper is any connected cut of the computation graph (its cut edges are its
-  inputs), not only a subterm; paired rules abstract a recurring fragment or inline it, firing only when they shrink. Read it before adding helpers, composition or recursion.
+- **Plans** (`docs/plans.md`): what we intend to build next, below the level of `docs/vision.md`. Its first section,
+  abstraction, is designed, not built: helper functions as a domain-free module (de Bruijn `lam`/`arg`/`app`/`let`).
+  A helper is any connected cut of the computation graph (its cut edges are its inputs), not only a subterm; paired
+  rules abstract a recurring fragment or inline it, firing only when they shrink. Read it before adding helpers,
+  composition or recursion.
 - **Fit requests drive the roadmap** (`docs/fit-requests.md`): a GitHub issue posts data and the model that produced
   it. The model is a guide, not expected output: success is a sound result no larger than it. Each issue becomes a
   benchmark problem, then detectors and rules until MANR recovers it.
