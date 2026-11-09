@@ -297,6 +297,22 @@ TEST_F(ListDetectorsIntegrationTest, TheSumFoldDetectorLeavesAPlainSumToTheAffin
     EXPECT_TRUE(out.empty());
 }
 
+TEST_F(ListDetectorsIntegrationTest, TheReverseDetectorProposesThePrimitive) {
+    rules.reversals_.propose_hypotheses(
+        points(sample_listed(random_lists(30, 0, 6, -9, 9, 35), [](const std::vector<integer>& list) {
+            return std::vector<integer>(list.rbegin(), list.rend());
+        })),
+        out);
+    EXPECT_EQ(printed(), std::vector<std::string>{"reverse(xs)"});
+}
+
+TEST_F(ListDetectorsIntegrationTest, TheReverseDetectorLeavesTheIdentityAlone) {
+    rules.reversals_.propose_hypotheses(
+        points(sample_listed(random_lists(30, 0, 6, -9, 9, 35), [](const std::vector<integer>& list) { return list; })),
+        out);
+    EXPECT_TRUE(out.empty());
+}
+
 TEST_F(ListDetectorsIntegrationTest, TheListedFoldDetectorReadsAReverse) {
     rules.listed_folds_.propose_hypotheses(
         points(sample_listed(random_lists(30, 0, 6, -9, 9, 35), [](const std::vector<integer>& list) {

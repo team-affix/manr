@@ -1,6 +1,7 @@
 #ifndef LIST_EVALUATOR_HPP
 #define LIST_EVALUATOR_HPP
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -17,7 +18,7 @@
 // and `point(head, accumulator)` for fold, which binds `#0` and `#1` in that order. A fold step the element domain
 // cannot evaluate, such as one building a list (`append(#1, cons(#0, nil))`), is evaluated here instead, with the head
 // and the accumulator substituted for `#0` and `#1` (a nested `lam` is not entered: its indices are its own).
-// `append` joins the values of two lists. Also decides `lt(a, b)` between two values that are
+// `append` joins the values of two lists, and `reverse` reverses one. Also decides `lt(a, b)` between two values that are
 // literals, for regions over lists. No value for anything else, or where the element domain has none.
 template<typename IFindElements,
          typename IMakeList,
@@ -107,6 +108,16 @@ LIST_EVALUATOR_TEMPLATE std::optional<const expr*> LIST_EVALUATOR::evaluate_at(c
         if (!tail.has_value())
             return std::nullopt;
         return make_functor_.make_functor(symbols_.cons, {head.value(), tail.value()});
+    }
+    if (f->id == symbols_.reverse && f->args.size() == 1) {
+        const std::optional<const expr*> list = evaluate_at(f->args[0], input);
+        if (!list.has_value())
+            return std::nullopt;
+        std::optional<std::vector<const expr*>> elements = find_elements_.find_elements(list.value());
+        if (!elements.has_value())
+            return std::nullopt;
+        std::reverse(elements.value().begin(), elements.value().end());
+        return make_list_.make_list(elements.value());
     }
     if (f->id == symbols_.append && f->args.size() == 2) {
         const std::optional<const expr*> first = evaluate_at(f->args[0], input);

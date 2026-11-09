@@ -87,6 +87,10 @@ TEST_F(ListEvaluatorIntegrationTest, AFoldStepThatBuildsAListIsEvaluatedByTheLis
     EXPECT_EQ(evaluate(program(symbols.fold, {lam2(step), nil, xs}), {1, 2, 3}), list({3, 2, 1}));
 }
 
+TEST_F(ListEvaluatorIntegrationTest, ReverseReversesAList) {
+    EXPECT_EQ(evaluate(program(symbols.reverse, {xs}), {1, 2, 3}), list({3, 2, 1}));
+}
+
 TEST_F(ListEvaluatorIntegrationTest, AnExtensionTermHasNoValue) {
     EXPECT_EQ(evaluate(kernel.exprs_.make_var(0), {1}), std::nullopt);
 }

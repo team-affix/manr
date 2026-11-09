@@ -27,6 +27,12 @@ To improve how programs are detected, work in `list_fit`. To add list operations
 | `filter(lam(c), l)` | the elements of `l` where the condition `c` holds, the element as `#0` |
 | `fold(lam(lam(s)), b, l)` | right fold: `b` for `nil`; for `cons(h, t)`, `s` with the head `h` as `#0` (inner `lam`) and the fold of `t` as `#1` (outer `lam`) |
 | `append(a, b)` | the elements of `a`, then those of `b` |
+| `reverse(l)` | the elements of `l` in reverse order (a primitive) |
+
+**Primitives are for very common concepts only.** A primitive makes its concept nearly free in description length,
+so it puts that answer into the vocabulary. `reverse` is common enough to deserve one; anything rarer is built from
+the general vocabulary (folds, `append`, helpers) and found by detectors, which also keeps the general readings: the
+fold that builds a reversed list finds "duplicate each element" too, and stays beside the primitive.
 
 Every bound variable is a de Bruijn index (`plans.md`, bound variables), so binders nest. The fold binds its
 accumulator outside and its head inside, so the element is `#0` in every program: a body fitted for a map can be a
@@ -142,8 +148,8 @@ solved by both solvers:
   generic readings: the smallest of `2h + 1`, the product of `h^2 + 1` from base 3, and two still open (below)
 - reduce request #1 (`map(lam(2 * #0 + 1), filter(lam(lt(#0, 17)), xs))` on 30 lists of 20 to 40 elements), and two
   similar long compositions: squares of positives, and `3e - 2` over the values above -10
-- reduce request #5 (reverse, `fold(lam(lam(append(#1, cons(#0, nil)))), nil, xs)`, cost 10), duplicating each
-  element, reverse with each element twice, and reverse with one wrong label
+- reduce request #5 (reverse: the primitive `reverse(xs)`, cost 2), duplicating each element and reverse with each
+  element twice (folds that build lists), and reverse with one wrong label
 - reduce request #4 (count of evens, `fold(lam(lam(pw(when(eq(mod(#0, 2), 1), #1), 1 + #1))), 0, xs)`, cost 16), and
   the count of multiples of 3 and the sum of the evens; the sum of absolute values and the count of evens on long
   lists are open (below)
