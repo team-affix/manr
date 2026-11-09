@@ -26,6 +26,9 @@ To improve how programs are detected, work in `list_fit`. To add list operations
 | `filter(c, l)` | the elements of `l` where the condition `c`, in `e`, holds |
 | `fold(s, b, l)` | right fold: `b` for `nil`; for `cons(h, t)`, `s` with `h` the head and `acc` the fold of `t` |
 
+The body variables `e`, `h` and `acc` are fixed names, which do not nest (a fold inside a fold's step rebinds them).
+They are to become de Bruijn indices (`plans.md`, bound variables).
+
 `list_evaluator` evaluates a program at an input list. It hands bodies to the element domain at `point(e)` (map,
 filter) or `point(h, acc)` (fold), so a body is anything that domain evaluates: a polynomial, or a piecewise
 polynomial with regions. Programs compose (`fold(h + acc, 0, map(e^2, xs))` evaluates), and the evaluator also

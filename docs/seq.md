@@ -24,6 +24,9 @@ pw(case(point(0), 1), case(point(1), 2), case(point(2), 4), ..., ?0)   ->   exp(
 | `rec(s, b0, ..., b(k-1), n)` | the term at index `n` of the sequence `a` with `a(j) = bj` for `j < k`, and from `k` on `a(j) = s`, with `i` the index `j` and `p1`, `p2`, `p3` the terms `a(j-1)`, `a(j-2)`, `a(j-3)` (0 before the start). Order `k` is the number of bases, 1 to 3. |
 | `exp(b, n)` | `b` to the power `n` |
 
+The step variables `i` and `p1` to `p3` are fixed names, to become de Bruijn indices like every bound variable
+(`plans.md`, bound variables).
+
 Both have no value at a negative index. `seq_evaluator` runs a recurrence by handing the step to the step domain at
 `point(i, p1, p2, p3)`. It evaluates `add`, `sub`, `mul` and `pow` over recurrences and powers itself (as in
 `5 * exp(3, n) + 1`), and leaves everything else to the polynomial evaluator. Conditions (`lt`) go through it too, so

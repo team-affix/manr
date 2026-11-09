@@ -78,8 +78,8 @@ Design points:
   so any domain gets helpers without changing its evaluator. With recursion, evaluation needs a step budget and
   returns nullopt when it runs out, since termination cannot be decided.
 - **The existing binders are helpers already.** `map(f, xs)` with `f` in `e`, and `fold(s, b, xs)` with `s` in `h` and
-  `acc`, are lambdas with named parameters. Later they can take any `lam`, so a helper defined once can be mapped,
-  folded and called.
+  `acc`, are lambdas with named parameters. They move to de Bruijn indices (below, "Bound variables"), and later take
+  any `lam`, so a helper defined once can be mapped, folded and called.
 
 ### Rules, as pairs
 
@@ -150,6 +150,28 @@ where no repetition is visible yet:
 6. Detectors that propose helpers from data (iteration, shared branch structure).
 7. Recursion with a step budget, which is where Turing completeness arrives.
 8. A library of helpers carried across reduce requests.
+
+## Bound variables: de Bruijn indices everywhere
+
+**Decision: every expression that binds a variable refers to it by de Bruijn index, never by name.** Today the
+binders use fixed names: `map` and `filter` bind `e`, `fold` binds `h` and `acc`, and `rec` binds `i`, `p1`, `p2`,
+`p3`. Fixed names do not nest: a fold inside a fold's step rebinds `h` and `acc`, so the inner body cannot refer to
+the outer element, and moving a body under another binder silently captures its variables. With indices, an index
+counts binders outward, so nesting is always well defined, and interning still makes equal bodies one pointer.
+
+- **One numbering for every binder.** A binder that binds several values (`fold`: the head and the accumulator;
+  `rec`: the index and the previous terms) numbers them in a fixed order, documented with the functor.
+- **The index must look like a variable to the body's domain**, so polynomial fitting, evaluation and the
+  polynomial rules keep working on bodies unchanged: e.g. one nullary functor per index (`#0`, `#1`, ...), which the
+  polynomial domain treats as an ordinary variable. A body proposed by fitting over points binds its point's
+  coordinates to the innermost indices.
+- **Moving a term across a binder shifts its indices.** Any rule that moves a subterm into or out of a binder (map
+  fusion, abstraction, inlining) shifts the indices that point past the binder. Rules that rewrite a body in place
+  need nothing.
+- **Bound is not free.** An index is bound by its binder and nothing substitutes for it. `?n` stays the hole that
+  reduction may bind (below).
+- **Order of work:** the `abstraction` module's `arg(i)` and the existing binders share this one representation, so
+  convert `list` and `seq` first (their evaluators, detectors, renamer and tests), then build abstraction on it.
 
 ## Free variables
 

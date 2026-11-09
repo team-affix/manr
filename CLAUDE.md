@@ -91,6 +91,9 @@ A module depends on core and on other modules' headers; core never depends on a 
 - Integers are `integer` (`core/hpp/value_objects/integer.hpp`, Boost's `cpp_int`): arbitrary precision, so literal
   and coefficient arithmetic is exact and never overflows. Don't use built-in integer types for literal values.
 - Polynomial algebra is the first full domain. Read `docs/poly.md` for its rules, detectors and benchmark.
+- **Bound variables use de Bruijn indices** (`docs/plans.md`, bound variables): any functor that binds a variable
+  refers to it by index, never by name, so binders nest. The list and sequence binders (`e`, `h`, `acc`, `i`,
+  `p1`..`p3`) still use fixed names and are to be converted. Don't add a new named binder.
 - Lists are the first program domain. Read `docs/list.md`: detectors recognize a program's shape and hand the rest
   to polynomial fitting.
 - Sequences are the third domain. Read `docs/seq.md`: a recurrence's steps are read off consecutive terms and fitted
