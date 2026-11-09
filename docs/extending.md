@@ -143,8 +143,6 @@ The gate was also checked against regressions it should catch:
 
 ## Planned defenses on the search side
 
-- **Memoize detection in MCTS.** Expressions are interned, so the rewrites of an expression can be cached by its
-  address. That removes most of the drag in the example above.
 - **Per-rule counters in `proposer_union`:** calls, detection time, proposals, and proposals on the best derivation.
   A rule that never appears on a best derivation in the corpus is costing the search and contributing nothing.
 - **A rollout policy that prefers detector proposals** (see `search.md`).

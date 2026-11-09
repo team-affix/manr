@@ -222,3 +222,34 @@ TEST_F(ListDetectorsIntegrationTest, TheCountFoldDetectorProposesNothingForSums)
                                           out);
     EXPECT_TRUE(out.empty());
 }
+
+TEST_F(ListDetectorsIntegrationTest, TheMapFilterDetectorReadsAMapOverAFilter) {
+    rules.map_filters_.propose_hypotheses(
+        points(sample_listed(random_lists(30, 2, 6, -9, 9, 28), [](const std::vector<integer>& list) {
+            std::vector<integer> result;
+            for (const integer& value : list)
+                if (value > 0)
+                    result.push_back(value * value);
+            return result;
+        })),
+        out);
+    EXPECT_THAT(printed(), Contains("map(e^2, filter(lt(0, e), xs))"));
+}
+
+TEST_F(ListDetectorsIntegrationTest, TheMapFilterDetectorLeavesAPlainMapToTheMapDetector) {
+    rules.map_filters_.propose_hypotheses(points(sample_listed(all_lists(-2, 2, 3), doubled)), out);
+    EXPECT_TRUE(out.empty());
+}
+
+TEST_F(ListDetectorsIntegrationTest, TheMapFilterDetectorLeavesAPlainFilterToTheFilterDetector) {
+    rules.map_filters_.propose_hypotheses(
+        points(sample_listed(all_lists(-2, 2, 3), [](const std::vector<integer>& list) {
+            std::vector<integer> kept;
+            for (const integer& value : list)
+                if (value > 0)
+                    kept.push_back(value);
+            return kept;
+        })),
+        out);
+    EXPECT_TRUE(out.empty());
+}

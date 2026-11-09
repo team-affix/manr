@@ -14,6 +14,7 @@
 #include "infrastructure/list_fold_hypotheses.hpp"
 #include "infrastructure/list_integer_fold_hypotheses.hpp"
 #include "infrastructure/list_integer_map_hypotheses.hpp"
+#include "infrastructure/list_map_filter_hypotheses.hpp"
 #include "infrastructure/list_map_hypotheses.hpp"
 #include "infrastructure/list_product_fold_hypotheses.hpp"
 #include "infrastructure/list_sample_converter.hpp"
@@ -43,7 +44,7 @@
 // elements and results of any domain; beside them, the integer cases (`list_integer_map_hypotheses`,
 // `list_integer_fold_hypotheses`, the threshold filter) cover common integer data directly, and the affine, extremum
 // (largest or smallest element), product and count fold detectors read folds from whole lists when the data holds no
-// tails.
+// tails. The map-filter detector reads a filter composed under a map.
 // The list detectors hand the element-level part of the problem to polynomial fitting: `element_fit_` over `e` for
 // map bodies, `step_fit_` over `h` and `acc` for fold steps. The full polynomial rule set then compresses the bodies,
 // all at every position. `rules_` is what a search injects and `initial_` is where it starts.
@@ -119,12 +120,17 @@ struct list_fit_rules_manifest {
         using list_filter_hypotheses<values_t, kernel_t::literals_t, kernel_t::literals_t,
                                      expr_pool>::list_filter_hypotheses;
     };
+    struct map_filters_t : list_map_filter_hypotheses<values_t, kernel_t::literals_t, fit_t::converter_t,
+                                                      fit_t::hypotheses_t, kernel_t::literals_t, expr_pool> {
+        using list_map_filter_hypotheses<values_t, kernel_t::literals_t, fit_t::converter_t, fit_t::hypotheses_t,
+                                         kernel_t::literals_t, expr_pool>::list_map_filter_hypotheses;
+    };
     struct hypotheses_t : pw_hypotheses_union<constants_t, integer_maps_t, integer_folds_t, filterings_t, maps_t,
                                              folds_t, affine_folds_t, extremum_folds_t, product_folds_t,
-                                             count_folds_t> {
+                                             count_folds_t, map_filters_t> {
         using pw_hypotheses_union<constants_t, integer_maps_t, integer_folds_t, filterings_t, maps_t, folds_t,
                                   affine_folds_t, extremum_folds_t, product_folds_t,
-                                  count_folds_t>::pw_hypotheses_union;
+                                  count_folds_t, map_filters_t>::pw_hypotheses_union;
     };
     struct binder_t : pw_extension_binder<hypotheses_t, filter_t, assembler_t> {
         using pw_extension_binder<hypotheses_t, filter_t, assembler_t>::pw_extension_binder;
@@ -166,6 +172,7 @@ struct list_fit_rules_manifest {
     extremum_folds_t extremum_folds_;
     product_folds_t product_folds_;
     count_folds_t count_folds_;
+    map_filters_t map_filters_;
     hypotheses_t hypotheses_;
     binder_t binder_;
     absorber_t absorber_;

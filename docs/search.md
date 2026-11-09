@@ -33,7 +33,11 @@ Expansions are therefore credited with whatever collapse lies within `probing_de
 - **Memory** is one visits entry and one value entry per tree node, and a simulation adds at most one node. A
   probe adds nothing beyond its own path.
 - **Every step proposes on the whole expression,** including detectors. Deep probes (around 1000 rewrites) cost
-  `probing_depth` calls to `detect` per simulation, so detection cost matters here.
+  `probing_depth` calls to `detect` per simulation, so detection cost matters here. Every MCTS manifest therefore
+  injects `detection_memo` as the search's detection: expressions are interned, so it detects each expression once,
+  keeps its rewrites by address, and performs each rewrite at most once. Simulations restart from the same root, so
+  most of their steps are on expressions already detected. Its memory grows with the distinct expressions detected
+  and is never evicted.
 - `core/test/integration/mcts_valley.cpp` shows the motivating case. The collapse sits behind three cost-increasing
   rewrites, and every depth has a 10 000-wide plateau of equal-cost rewrites. MCTS finds it in 200 simulations of
   depth 20. Best-first, given the same 4000 expansions, is still clearing the first plateaus.

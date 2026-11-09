@@ -75,6 +75,15 @@ not reproduce as branches.
   below a threshold, `fold(pw(when(lt(d, h), acc + 1), acc), b, xs)` or with `lt(h, d)`. Every element value is tried
   as `d` in both directions on lists sorted once (each count is a binary search); the base is a starting list's
   output less its count, with the same early abandoning.
+- **A map over a filter.** `list_map_filter_hypotheses` reads `map(f, filter(c, xs))` by the outer-inner split
+  (`decomposing-detection.md`): every element value is either removed or kept and mapped to `f` of it. A point whose
+  output is as long as its values not known to be removed keeps all of them and pairs them by position; a point
+  whose output is exactly the images of its values known to be kept removes the rest (an empty output removes
+  all). Points are revisited until nothing new is learned. The kept and removed values must be split by a
+  threshold, as for the filter detector, and `f`'s values go to the element domain. Plain maps and plain filters
+  are left to their own detectors. On lists of -2 to 2 (the open benchmark problem) only 1 and 2 are kept, so `f` is
+  known at two values, and polynomial fitting proposes nothing it cannot check on a third; 30 random lists of -9 to 9
+  are enough.
 
 The polynomial rules then compress the bodies, at every position, as they do for polynomial fitting.
 
@@ -86,7 +95,7 @@ interpolation. The difference is the order the samples reach the element domain.
 
 ## Benchmark
 
-`bench/list_bench.cpp`, gated by `make bench_check` with its baseline in `bench/baseline/list.tsv`. 31 problems, 30
+`bench/list_bench.cpp`, gated by `make bench_check` with its baseline in `bench/baseline/list.tsv`. 32 problems, 31
 solved by both solvers:
 
 - folds: sum, length, product, sum of squares, alternating sum, digits read as a number, sum over all 781 lists of
@@ -135,7 +144,10 @@ whole lists:
   on every detection, and MCTS detects again at every step: product under MCTS went from 0.77 s to 1.65 s. A
   necessary-condition filter (solving modulo a small prime before the exact solve) or caching detection per
   expression would remove most of it.
-- **Composition.** `map(e^2, filter(lt(0, e), xs))` needs a detector that recognizes one program inside another.
+- **Composition, beyond a map over a filter.** `list_map_filter_hypotheses` reads `map(f, filter(c, xs))`, but it
+  starts only from points that keep or remove all of their values, so long random lists (where every list mixes
+  kept and removed values) give it nothing to start from. Other compositions (`filter` over `map`, a fold over a
+  map) need their own readings.
 - **Enough element values.** A piece of a body needs more distinct element values than it has coefficients, as in
   polynomial fitting.
 - **Filters are thresholds.** No parity, membership or multi-interval conditions yet.

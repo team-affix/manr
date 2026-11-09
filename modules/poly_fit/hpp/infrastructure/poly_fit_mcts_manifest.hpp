@@ -7,6 +7,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include "infrastructure/detection_memo.hpp"
 #include "infrastructure/expr_size.hpp"
 #include "infrastructure/mcts_path_walker.hpp"
 #include "infrastructure/mcts_search.hpp"
@@ -31,7 +32,10 @@ struct poly_fit_mcts_manifest {
     struct uct_t : uct_base_t {
         using uct_base_t::uct_base_t;
     };
-    using search_base_t = mcts_search<rule_set_t::rules_t, expr_size, uct_base_t::chooser_t, uct_base_t::delta_t,
+    struct memo_t : detection_memo<rule_set_t::rules_t> {
+        using detection_memo<rule_set_t::rules_t>::detection_memo;
+    };
+    using search_base_t = mcts_search<memo_t, expr_size, uct_base_t::chooser_t, uct_base_t::delta_t,
                                       uct_base_t::terminator_t>;
     struct search_t : search_base_t {
         using search_base_t::search_base_t;
@@ -52,6 +56,7 @@ struct poly_fit_mcts_manifest {
     values_t values_;
     std::mt19937 rng_;
     uct_t uct_;
+    memo_t memo_;
     search_t search_;
 };
 

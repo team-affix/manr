@@ -198,3 +198,14 @@ TEST_F(ListFitRuntimeIntegrationTest, CountsOfLongListsReduceToACountingFoldWith
               })),
               "fold(pw(when(lt(10, h), acc + 1), acc), 0, xs)");
 }
+
+TEST_F(ListFitRuntimeIntegrationTest, SquaresOfThePositivesReduceToAMapOverAFilter) {
+    EXPECT_EQ(fit(sample_listed(random_lists(30, 2, 6, -9, 9, 28), [](const std::vector<integer>& list) {
+                  std::vector<integer> result;
+                  for (const integer& value : list)
+                      if (value > 0)
+                          result.push_back(value * value);
+                  return result;
+              })),
+              "map(e^2, filter(lt(0, e), xs))");
+}

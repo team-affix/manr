@@ -256,6 +256,9 @@ int main(int argc, char** argv) {
              return fold_right(l, 0, [](integer h, integer acc) { return integer(10) < h ? acc + 1 : acc; });
          },
          {}, 12, "fold(pw(when(lt(10, h), acc + 1), acc), 0, xs)"},
+        {"squares of positives", random_lists(30, 2, 6, -9, 9, 28), true,
+         [](const list_t& l) { return map_each(keep(l, [](integer e) { return e > 0; }), [](integer e) { return e * e; }); },
+         {}, 9, "map(e^2, filter(lt(0, e), xs))"},
         // open: no solver reaches the target yet; kept so the gate reports when one does
         {"squares of positives (open)", all_lists(-2, 2, 3), true,
          [](const list_t& l) { return map_each(keep(l, [](integer e) { return e > 0; }), [](integer e) { return e * e; }); },

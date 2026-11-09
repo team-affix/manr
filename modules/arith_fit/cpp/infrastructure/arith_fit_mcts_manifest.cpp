@@ -36,5 +36,6 @@ arith_fit_mcts_manifest::arith_fit_mcts_manifest(
     , values_()
     , rng_(seed)
     , uct_(visits_, visits_, values_, values_, rng_, exploration_constant, 0)
-    , search_(rules_, sizes_, uct_.chooser, uct_.delta, uct_.terminator, initial_, probing_depth, max_simulations)
+    , memo_(rules_)
+    , search_(memo_, sizes_, uct_.chooser, uct_.delta, uct_.terminator, initial_, probing_depth, max_simulations)
     , printer_(symbols_) {}

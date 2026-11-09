@@ -44,8 +44,10 @@ list_fit_rules_manifest::list_fit_rules_manifest(
                      k_list_default_max_factor_slope, k_list_default_max_factor_offset)
     , count_folds_(values_, kernel.literals_, kernel.renderer_, kernel.literals_, kernel.exprs_, list_symbols_,
                    pw_symbols_, less_symbol_)
+    , map_filters_(values_, kernel.literals_, element_fit_.converter_, element_fit_.hypotheses_, kernel.literals_,
+                   kernel.exprs_, list_symbols_, less_symbol_)
     , hypotheses_(constants_, integer_maps_, integer_folds_, filterings_, maps_, folds_, affine_folds_, extremum_folds_,
-                  product_folds_, count_folds_)
+                  product_folds_, count_folds_, map_filters_)
     , binder_(hypotheses_, filter_, assembler_, pw_symbols_)
     , absorber_(filter_, assembler_, pw_symbols_)
     , union_(binder_, absorber_, poly_rules_.union_)
