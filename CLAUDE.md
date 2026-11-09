@@ -86,6 +86,10 @@ A module depends on core and on other modules' headers; core never depends on a 
 - The search strategy is a manifest choice: `arith_fit_manifest` (best-first) and `arith_fit_mcts_manifest` share
   every rule and differ only in search. Read `docs/search.md` before touching either search.
 
+- **Fit requests drive the roadmap** (`docs/fit-requests.md`): a GitHub issue posts data and the model that produced
+  it. The model is a guide, not expected output: success is a sound result no larger than it. Each issue becomes a
+  benchmark problem, then detectors and rules until MANR recovers it.
+
 ## Build & test
 
 - `make core_debug_fast && ./build/core_debug_fast`, `make modules_debug_fast && ./build/modules_debug_fast`.
