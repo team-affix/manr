@@ -141,7 +141,9 @@ LIST_FACTOR_FOLD_HYPOTHESES_TEMPLATE void LIST_FACTOR_FOLD_HYPOTHESES::propose_h
         if (find_literal_value_.find_value(body).has_value())
             continue;
         const expr* step = make_functor_.make_functor(multiply_symbol_, {body, accumulator});
-        out.push_back(make_functor_.make_functor(symbols_.fold, {make_functor_.make_functor(symbols_.lambda, {make_functor_.make_functor(symbols_.lambda, {step})}), base, input}));
+        const expr* function =
+            make_functor_.make_functor(symbols_.lambda, {make_functor_.make_functor(symbols_.lambda, {step})});
+        out.push_back(make_functor_.make_functor(symbols_.fold, {function, base, input}));
     }
 }
 

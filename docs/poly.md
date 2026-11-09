@@ -75,10 +75,11 @@ covers the same branches. `pw_evaluator` evaluates through piecewises, and `poly
 region conditions.
 
 A piecewise branch is either `case(point, value)`, which applies at exactly that input, or `when(condition, value)`,
-which applies wherever the condition holds. The first branch that applies gives the value. The only condition so far
-is `lt(a, b)`.
+which applies wherever the condition holds. The first branch that applies gives the value. Conditions are `lt(a, b)`
+and `eq(a, b)`, and a side may be `mod(a, m)`: `a` modulo a positive literal `m`, from 0 to `m - 1`, so
+`eq(mod(x, 2), 0)` is "x is even" for negative `x` too.
 
-`poly_interpolator` solves for the polynomial through the data. Two detectors use it.
+`poly_interpolator` solves for the polynomial through the data. Three detectors use it.
 
 `poly_interpolation_hypotheses` proposes one polynomial through all the data:
 
@@ -99,6 +100,14 @@ is `lt(a, b)`.
 - Within a run, one missed value of the variable is tolerated if the next fits. Missed points stay as `case`
   branches.
 - It proposes only when there are two pieces or more.
+
+`poly_residue_hypotheses` proposes a periodic piecewise over one variable, `pw(when(eq(mod(x, m), r1), P1), ..., Q)`:
+
+- For the smallest `m` from 2 to 6 that fits, each residue class of `x` modulo `m` is interpolated at the lowest
+  degree reproducing every sample in it, and must hold at least two samples (a class with none is free).
+- The polynomial most classes share is the otherwise. So a parity, `pw(when(eq(mod(x, 2), 1), 0), 1)`, is found as
+  easily as `pw(when(eq(mod(x, 3), 0), x^2), 2)`, and outliers on every third point become one branch.
+- Data that is one polynomial in every class is left to interpolation.
 
 Limits are in `poly_fit_limits` (`k_poly_fit_default_limits`): max degree 6, at most 84 unknowns (degree 6 in 3
 variables), 8 starting points spread evenly over the data.

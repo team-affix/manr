@@ -53,8 +53,11 @@ list_fit_rules_manifest::list_fit_rules_manifest(
     , factor_folds_(values_, kernel.literals_, factor_solver_, factor_solver_, element_fit_.converter_,
                     element_fit_.hypotheses_, kernel.literals_, kernel.exprs_, list_symbols_,
                     kernel.poly_symbols_.mul)
+    , sum_solver_()
+    , sum_folds_(values_, kernel.literals_, sum_solver_, sum_solver_, element_fit_.converter_, element_fit_.hypotheses_,
+                 kernel.literals_, kernel.exprs_, list_symbols_, pw_symbols_, kernel.poly_symbols_.add)
     , hypotheses_(constants_, integer_maps_, integer_folds_, filterings_, maps_, folds_, affine_folds_, extremum_folds_,
-                  product_folds_, count_folds_, map_filters_, selection_folds_, factor_folds_)
+                  product_folds_, count_folds_, map_filters_, selection_folds_, factor_folds_, sum_folds_)
     , binder_(hypotheses_, filter_, assembler_, pw_symbols_)
     , absorber_(filter_, assembler_, pw_symbols_)
     , union_(binder_, absorber_, poly_rules_.union_)

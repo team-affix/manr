@@ -176,8 +176,8 @@ int main(int argc, char** argv) {
          "pw(when(lt(y, 0), x - y), (x + y)^2)"},
         {"sign flip at zero", {"x", "y"}, {{"x - y", 0}, {"x + y", INT_MAX}}, 0, -3, 3, {}, 11,
          "pw(when(lt(x, 0), x - y), x + y)"},
-        // open: no solver reaches the target yet; kept so the gate reports when one does
-        {"dense outliers (open)", {"x"}, {{"x^2 + 1", INT_MAX}}, 0, 0, 29,
+        // every third point an outlier: once open, now read as a period-3 piecewise by the residue detector
+        {"dense outliers", {"x"}, {{"x^2 + 1", INT_MAX}}, 0, 0, 29,
          {{1, 2}, {4, 2}, {7, 2}, {10, 2}, {13, 2}, {16, 2}, {19, 2}, {22, 2}, {25, 2}, {28, 2}}, 46,
          "10 cases + x^2 + 1"},
     };

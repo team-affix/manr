@@ -73,8 +73,10 @@ LIST_MAP_HYPOTHESES_TEMPLATE void LIST_MAP_HYPOTHESES::propose_hypotheses(
     bodies_.clear();
     propose_element_hypotheses_.propose_hypotheses(elements, bodies_);
     const expr* list = make_functor_.make_functor(symbols_.input, {});
-    for (const expr* body : bodies_)
-        out.push_back(make_functor_.make_functor(symbols_.map, {make_functor_.make_functor(symbols_.lambda, {body}), list}));
+    for (const expr* body : bodies_) {
+        const expr* function = make_functor_.make_functor(symbols_.lambda, {body});
+        out.push_back(make_functor_.make_functor(symbols_.map, {function, list}));
+    }
 }
 
 #undef LIST_MAP_HYPOTHESES

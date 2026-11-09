@@ -213,9 +213,10 @@ which is sound but never generalizes. What we plan to build (`rule-design.md`, s
 
 The open problems and their causes are in `list.md` (gaps, and the fold families table). What we plan to build:
 
-- **The remaining generic outer-inner fold detectors** (`decomposing-detection.md`): `g(h) + acc` and counts on any
-  condition, each recovering `g`'s values per element value and handing them to the element domain, beside the
-  specific detectors (`max` and `*` are built: `list_selection_fold_hypotheses`, `list_factor_fold_hypotheses`).
+- **A count with fewer unknowns than values**, for long lists over many values (`list.md`, gaps); the generic `+`,
+  `max` and `*` readings are built.
+- **Residue conditions in filters**, beside the threshold filters.
+- **Sign-aware rendering**: put a positive term first (`#1 - #0`, not `-1 * #0 + #1`).
 - **A piecewise inside a condition**: conditions evaluated by the piecewise evaluator, so a step like
   `pw(when(lt(acc, |h|), |h|), acc)` can be evaluated (`list.md`, gaps).
 - **A zero-alignment filter for the product detector**: a factor whose root is in a list must give 0 there, and only

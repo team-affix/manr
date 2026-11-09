@@ -273,6 +273,30 @@ TEST_F(ListDetectorsIntegrationTest, TheMapFilterDetectorPairsNoValueWhoseListsA
     EXPECT_TRUE(out.empty());
 }
 
+TEST_F(ListDetectorsIntegrationTest, TheSumFoldDetectorReadsACountOfEvens) {
+    rules.sum_folds_.propose_hypotheses(
+        points(sample_scalar(random_lists(30, 2, 8, -9, 9, 34), [](const std::vector<integer>& list) {
+            integer count = 0;
+            for (const integer& value : list)
+                count += value % 2 == 0 ? 1 : 0;
+            return count;
+        })),
+        out);
+    EXPECT_THAT(printed(), Contains("fold(lam(lam(pw(when(eq(mod(#0, 2), 1), 0 + #1), 1 + #1))), 0, xs)"));
+}
+
+TEST_F(ListDetectorsIntegrationTest, TheSumFoldDetectorLeavesAPlainSumToTheAffineDetector) {
+    rules.sum_folds_.propose_hypotheses(
+        points(sample_scalar(random_lists(30, 2, 8, -9, 9, 34), [](const std::vector<integer>& list) {
+            integer total = 0;
+            for (const integer& value : list)
+                total += value;
+            return total;
+        })),
+        out);
+    EXPECT_TRUE(out.empty());
+}
+
 TEST_F(ListDetectorsIntegrationTest, TheMapFilterDetectorLeavesAPlainMapToTheMapDetector) {
     rules.map_filters_.propose_hypotheses(points(sample_listed(all_lists(-2, 2, 3), doubled)), out);
     EXPECT_TRUE(out.empty());

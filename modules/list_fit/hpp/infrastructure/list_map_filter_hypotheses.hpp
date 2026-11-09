@@ -181,10 +181,13 @@ LIST_MAP_FILTER_HYPOTHESES_TEMPLATE void LIST_MAP_FILTER_HYPOTHESES::propose_hyp
         samples.push_back(poly_sample{.inputs = {value}, .output = image});
     bodies_.clear();
     propose_element_hypotheses_.propose_hypotheses(convert_samples_.convert(samples), bodies_);
+    const expr* kept = make_functor_.make_functor(symbols_.lambda, {condition});
     const expr* filtered =
-        make_functor_.make_functor(symbols_.filter, {make_functor_.make_functor(symbols_.lambda, {condition}), make_functor_.make_functor(symbols_.input, {})});
-    for (const expr* body : bodies_)
-        out.push_back(make_functor_.make_functor(symbols_.map, {make_functor_.make_functor(symbols_.lambda, {body}), filtered}));
+        make_functor_.make_functor(symbols_.filter, {kept, make_functor_.make_functor(symbols_.input, {})});
+    for (const expr* body : bodies_) {
+        const expr* function = make_functor_.make_functor(symbols_.lambda, {body});
+        out.push_back(make_functor_.make_functor(symbols_.map, {function, filtered}));
+    }
 }
 
 // The literal values of a list of literals.

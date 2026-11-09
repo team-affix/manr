@@ -23,7 +23,7 @@ seq_fit_rules_manifest::seq_fit_rules_manifest(
     , third_steps_(kernel, {"#0", "#1", "#2", "#3"}, fit_limits, pw_symbols_, point_symbol_, less_symbol_)
     , evaluator_(fit_.evaluator_, third_steps_.evaluator_, kernel.literals_, kernel.literals_, kernel.exprs_,
                  seq_symbols_, kernel.poly_symbols_, point_symbol_, k_seq_default_max_index)
-    , conditions_(evaluator_, kernel.literals_, less_symbol_)
+    , conditions_(evaluator_, kernel.literals_, less_symbol_, fit_.equal_symbol_, fit_.modulo_symbol_)
     , pw_evaluator_(evaluator_, conditions_, pw_symbols_)
     , first_order_(kernel.literals_, first_steps_.converter_, first_steps_.interpolations_, kernel.literals_,
                    kernel.exprs_, seq_symbols_, fit_.variables_[0], 1)

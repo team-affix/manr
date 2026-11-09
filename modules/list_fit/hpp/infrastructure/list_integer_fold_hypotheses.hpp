@@ -90,8 +90,11 @@ LIST_INTEGER_FOLD_HYPOTHESES_TEMPLATE void LIST_INTEGER_FOLD_HYPOTHESES::propose
     steps_.clear();
     propose_step_hypotheses_.propose_hypotheses(convert_samples_.convert(samples), steps_);
     const expr* list = make_functor_.make_functor(symbols_.input, {});
-    for (const expr* step : steps_)
-        out.push_back(make_functor_.make_functor(symbols_.fold, {make_functor_.make_functor(symbols_.lambda, {make_functor_.make_functor(symbols_.lambda, {step})}), base->second, list}));
+    for (const expr* step : steps_) {
+        const expr* function =
+            make_functor_.make_functor(symbols_.lambda, {make_functor_.make_functor(symbols_.lambda, {step})});
+        out.push_back(make_functor_.make_functor(symbols_.fold, {function, base->second, list}));
+    }
 }
 
 #undef LIST_INTEGER_FOLD_HYPOTHESES

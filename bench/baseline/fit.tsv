@@ -1,41 +1,41 @@
 # problem	solver	cost	target	seconds	sound
-cubic	best-1st	5	5	0.0180527	1
-cubic	mcts	5	5	0.00375518	1
-power of linear	best-1st	7	7	0.0370491	1
-power of linear	mcts	7	7	0.0635107	1
-horner quintic	best-1st	19	19	0.0770981	1
-horner quintic	mcts	19	19	0.24576	1
-one outlier	best-1st	10	10	0.00244841	1
-one outlier	mcts	10	10	0.00188258	1
-outlier run	best-1st	17	101	0.0191028	1
-outlier run	mcts	17	101	0.0112338	1
-scattered outliers	best-1st	30	30	0.00246194	1
-scattered outliers	mcts	30	30	0.00251941	1
-cubic 1000	best-1st	9	9	0.0410774	1
-cubic 1000	mcts	9	9	0.0346766	1
-two-variable square	best-1st	5	5	0.0426695	1
-two-variable square	mcts	5	5	0.0413728	1
-two-variable product	best-1st	17	17	0.0641713	1
-two-variable product	mcts	17	17	0.162082	1
-three-variable cube	best-1st	7	7	0.2004	1
-three-variable cube	mcts	7	7	1.24397	1
-three-variable mixed	best-1st	9	11	0.0701394	1
-three-variable mixed	mcts	9	11	0.108493	1
-two pieces	best-1st	13	13	0.00412306	1
-two pieces	mcts	13	13	0.0033287	1
-two pieces 400	best-1st	13	13	0.00807437	1
-two pieces 400	mcts	13	13	0.00960564	1
-absolute value	best-1st	9	9	0.00353077	1
-absolute value	mcts	9	9	0.0025645	1
-three pieces	best-1st	20	20	0.0362089	1
-three pieces	mcts	20	20	0.0519344	1
-pieces with outlier	best-1st	17	17	0.00353608	1
-pieces with outlier	mcts	17	17	0.00379625	1
-split on x	best-1st	13	13	0.374415	1
-split on x	mcts	13	13	0.281639	1
-split on y	best-1st	13	13	0.334033	1
-split on y	mcts	13	13	0.331676	1
-sign flip at zero	best-1st	11	11	0.324745	1
-sign flip at zero	mcts	11	11	0.268576	1
-dense outliers (open)	best-1st	99	46	0.0545914	1
-dense outliers (open)	mcts	99	46	0.0396599	1
+cubic	best-1st	5	5	0.0181277	1
+cubic	mcts	5	5	0.00380481	1
+power of linear	best-1st	7	7	0.0354977	1
+power of linear	mcts	7	7	0.0572783	1
+horner quintic	best-1st	19	19	0.0579494	1
+horner quintic	mcts	19	19	0.190923	1
+one outlier	best-1st	10	10	0.00176962	1
+one outlier	mcts	10	10	0.00173148	1
+outlier run	best-1st	17	101	0.0271902	1
+outlier run	mcts	17	101	0.0187129	1
+scattered outliers	best-1st	30	30	0.00299085	1
+scattered outliers	mcts	30	30	0.00266589	1
+cubic 1000	best-1st	9	9	0.0631402	1
+cubic 1000	mcts	9	9	0.0306798	1
+two-variable square	best-1st	5	5	0.0290144	1
+two-variable square	mcts	5	5	0.0251566	1
+two-variable product	best-1st	17	17	0.0976598	1
+two-variable product	mcts	17	17	0.170867	1
+three-variable cube	best-1st	7	7	0.17374	1
+three-variable cube	mcts	7	7	1.04901	1
+three-variable mixed	best-1st	9	11	0.0642995	1
+three-variable mixed	mcts	9	11	0.0836141	1
+two pieces	best-1st	13	13	0.00367718	1
+two pieces	mcts	13	13	0.00326941	1
+two pieces 400	best-1st	13	13	0.0108247	1
+two pieces 400	mcts	13	13	0.0107799	1
+absolute value	best-1st	9	9	0.00387405	1
+absolute value	mcts	9	9	0.0032009	1
+three pieces	best-1st	20	20	0.0385027	1
+three pieces	mcts	20	20	0.0349436	1
+pieces with outlier	best-1st	17	17	0.00372187	1
+pieces with outlier	mcts	17	17	0.00309481	1
+split on x	best-1st	13	13	0.286494	1
+split on x	mcts	13	13	0.229867	1
+split on y	best-1st	13	13	0.320043	1
+split on y	mcts	13	13	0.29928	1
+sign flip at zero	best-1st	11	11	0.263164	1
+sign flip at zero	mcts	11	11	0.191266	1
+dense outliers	best-1st	17	46	0.079081	1
+dense outliers	mcts	17	46	0.0211243	1

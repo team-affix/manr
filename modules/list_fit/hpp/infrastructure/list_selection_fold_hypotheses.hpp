@@ -171,7 +171,10 @@ LIST_SELECTION_FOLD_HYPOTHESES_TEMPLATE void LIST_SELECTION_FOLD_HYPOTHESES::pro
             const expr* step = make_functor_.make_functor(
                 piecewise_symbols_.piecewise,
                 {make_functor_.make_functor(piecewise_symbols_.region, {condition, body}), accumulator});
-            out.push_back(make_functor_.make_functor(symbols_.fold, {make_functor_.make_functor(symbols_.lambda, {make_functor_.make_functor(symbols_.lambda, {step})}), make_literal_.make_literal(base), input}));
+            const expr* function =
+                make_functor_.make_functor(symbols_.lambda, {make_functor_.make_functor(symbols_.lambda, {step})});
+            out.push_back(make_functor_.make_functor(
+                symbols_.fold, {function, make_literal_.make_literal(base), input}));
         }
     }
 }

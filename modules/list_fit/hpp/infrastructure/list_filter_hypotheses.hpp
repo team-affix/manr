@@ -80,15 +80,19 @@ LIST_FILTER_HYPOTHESES_TEMPLATE void LIST_FILTER_HYPOTHESES::propose_hypotheses(
     const expr* list = make_functor_.make_functor(symbols_.input, {});
     const bool above = *removed.rbegin() < *kept.begin();
     if (above) {
-        const expr* condition = make_functor_.make_functor(less_symbol_, {make_literal_.make_literal(*removed.rbegin()), element});
-        out.push_back(make_functor_.make_functor(symbols_.filter, {make_functor_.make_functor(symbols_.lambda, {condition}), list}));
+        const expr* condition =
+            make_functor_.make_functor(less_symbol_, {make_literal_.make_literal(*removed.rbegin()), element});
+        const expr* function = make_functor_.make_functor(symbols_.lambda, {condition});
+        out.push_back(make_functor_.make_functor(symbols_.filter, {function, list}));
         return;
     }
     const bool below = *kept.rbegin() < *removed.begin();
     if (!below)
         return;
-    const expr* condition = make_functor_.make_functor(less_symbol_, {element, make_literal_.make_literal(*removed.begin())});
-    out.push_back(make_functor_.make_functor(symbols_.filter, {make_functor_.make_functor(symbols_.lambda, {condition}), list}));
+    const expr* condition =
+        make_functor_.make_functor(less_symbol_, {element, make_literal_.make_literal(*removed.begin())});
+    const expr* function = make_functor_.make_functor(symbols_.lambda, {condition});
+    out.push_back(make_functor_.make_functor(symbols_.filter, {function, list}));
 }
 
 // The literal values of a list of literals.

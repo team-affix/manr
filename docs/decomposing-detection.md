@@ -54,8 +54,9 @@ Each row is one detector, generic in `g`. Compare with the current detectors. Th
 polynomial of bounded degree. The extremum detector fixes `g = h`. The product detector fixes `g` to `a * h + k`. The
 count detector fixes the condition to a threshold. Each is a specific case of its row. **They stay** (design rule 7
 in `extending.md`): they are fast on common data, and the generic row is added beside them, not instead. The `max`
-and `*` rows are built (`list_selection_fold_hypotheses`, `list_factor_fold_hypotheses`); `+` and the count are
-planned.
+and `*` rows are built (`list_selection_fold_hypotheses`, `list_factor_fold_hypotheses`), and so is `+`, which covers
+the count on any condition (`list_sum_fold_hypotheses`, with the element domain's residue detector reading a
+parity).
 
 What makes the split work:
 

@@ -132,9 +132,12 @@ LIST_AFFINE_FOLD_HYPOTHESES_TEMPLATE void LIST_AFFINE_FOLD_HYPOTHESES::propose_h
     }
     step.terms.emplace(poly_monomial{.powers = {poly_power{.variable = symbols_.accumulator, .exponent = 1}}},
                        fold.value().multiplier);
-    out.push_back(make_functor_.make_functor(symbols_.fold,
-                                             {make_functor_.make_functor(symbols_.lambda, {make_functor_.make_functor(symbols_.lambda, {render_.render(step)})}), make_literal_.make_literal(fold.value().base),
-                                              make_functor_.make_functor(symbols_.input, {})}));
+    const expr* body = render_.render(step);
+    const expr* function =
+        make_functor_.make_functor(symbols_.lambda, {make_functor_.make_functor(symbols_.lambda, {body})});
+    out.push_back(make_functor_.make_functor(
+        symbols_.fold,
+        {function, make_literal_.make_literal(fold.value().base), make_functor_.make_functor(symbols_.input, {})}));
 }
 
 // The fold reproducing the most lists, among those reproducing more than half of them and more than any fold's

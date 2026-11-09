@@ -119,7 +119,7 @@ interpolation. The difference is the order the samples reach the element domain.
 
 ## Benchmark
 
-`bench/list_bench.cpp`, gated by `make bench_check` with its baseline in `bench/baseline/list.tsv`. 41 problems, 38
+`bench/list_bench.cpp`, gated by `make bench_check` with its baseline in `bench/baseline/list.tsv`. 46 problems, 41
 solved by both solvers:
 
 - folds: sum, length, product, sum of squares, alternating sum, digits read as a number, sum over all 781 lists of
@@ -138,6 +138,9 @@ solved by both solvers:
   generic readings: the smallest of `2h + 1`, the product of `h^2 + 1` from base 3, and two still open (below)
 - reduce request #1 (`map(lam(2 * #0 + 1), filter(lam(lt(#0, 17)), xs))` on 30 lists of 20 to 40 elements), and two
   similar long compositions: squares of positives, and `3e - 2` over the values above -10
+- reduce request #4 (count of evens, `fold(lam(lam(pw(when(eq(mod(#0, 2), 1), #1), 1 + #1))), 0, xs)`, cost 16), and
+  the count of multiples of 3 and the sum of the evens; the sum of absolute values and the count of evens on long
+  lists are open (below)
 
 Every result is checked against every sample. The soundness fuzz (`list_fit_soundness.cpp`) performs every rewrite
 along random walks and checks the same.
@@ -151,9 +154,10 @@ accumulator (`#1`):
 | family | step | examples | detection | status |
 |---|---|---|---|---|
 | affine | `p(h) + c * acc` | sum, length, sum of squares, alternating sum, digits | linear in `p` and `b` once `c` is fixed; exact solve | `list_affine_fold_hypotheses` |
+| additive | `g(h) + acc` | count of evens, count of multiples of 3, sum of the evens, sum of absolute values | output is `b` plus a sum of per-value terms: linear in `b` and `g` at each value, an exact solve; `g`'s values go to the element domain (a parity through its residue detector) | `list_sum_fold_hypotheses` (any `g`; needs more lists than distinct values) |
 | selection | `pw(when(lt(acc, h), h), acc)` | maximum, minimum | output is an element or the base; direct check | `list_extremum_fold_hypotheses` |
 | multiplicative | `q(h) * acc` | product, product of squares, `2^length` | output is `b` times a product of per-value factors: zeros mark the values with `q = 0`; on the rest, each prime's exponent in the output is linear in the per-value exponents (or, cheaper, `log|out|` by least squares, then rounded and checked exactly); signs are linear mod 2. The factors per value then go to the element domain. | `list_product_fold_hypotheses` (linear factors by enumeration), `list_factor_fold_hypotheses` (any `q`, by logs and signs mod 2) |
-| counting | `pw(when(c(h), acc + 1), acc)` | count of positives, count above a threshold | output is the number of elements passing a threshold: try the thresholds between element values, as the filter detector does | `list_count_fold_hypotheses` (one threshold) |
+| counting | `pw(when(c(h), acc + 1), acc)` | count of positives, count above a threshold | output is the number of elements passing a threshold: try the thresholds between element values, as the filter detector does | `list_count_fold_hypotheses` (one threshold); any condition is the additive row with `g` 0 or 1 |
 | selection of a value | `pw(when(lt(acc, p(h)), p(h)), acc)` | largest square, largest absolute value | output is `p` of some element: bound `p` at each value by the outputs of the lists holding it; values that alone reach their list's output pin `p` there, and go to the element domain | `list_selection_fold_hypotheses` (open on long lists and for piecewise `p`, below) |
 | boolean | `and`/`or` of a condition | all positive, any zero | a counting fold compared with 0 or the length | open (needs booleans) |
 | list-valued | `cons(h, acc)`, `append(acc, cons(h, nil))` | copy, reverse, append | the output's elements are a permutation of the input's: compare positions | open (needs a list step domain) |
@@ -177,7 +181,14 @@ accumulator (`#1`):
   (`e^2` over both signs merges two values' lists), or a list that keeps or removes all of its values.
 - **Enough element values.** A piece of a body needs more distinct element values than it has coefficients, as in
   polynomial fitting.
-- **Filters are thresholds.** No parity, membership or multi-interval conditions yet.
+- **Filters are thresholds.** The filter detectors read only thresholds; parity and other residue conditions reach
+  folds (through the sum fold and the element domain's residue detector) but not filters yet.
+- **The sum fold needs more lists than distinct values.** Its exact solve has one unknown per value, so 30 long lists
+  over 101 values (the open long count of evens) do not pin it. A count would need fewer unknowns: a condition read
+  from the lists that differ by one value, or a residue guessed first and checked.
+- **Negative leading terms.** The sum of absolute values reaches `pw(when(lt(#0, 1), -1 * #0 + #1), #0 + #1)` (18),
+  where `#1 - #0` would make it 16: the polynomial renderer writes terms in variable order, so a negative first term
+  costs two nodes (`poly.md`).
 - **No list-valued folds.** `reverse` or `append` need a fold whose accumulator is a list.
 - **Large expressions are slow to expand.** On the long product, best-first finds `fold(lam(lam(#0 * #1)), 1, xs)` on its first
   expansion (0.03 s), then spends 37 s using the rest of its budget, because every expansion detects at every
