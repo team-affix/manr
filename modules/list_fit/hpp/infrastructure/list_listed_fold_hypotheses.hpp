@@ -22,8 +22,8 @@ constexpr size_t k_list_default_max_listed_step = 7;
 // `a * length(acc) + b` elements (a its `#1`s, b its `cons`es), so a list's final length is predicted in one pass,
 // stopping once it passes the output's; only a list whose length matches is run. This keeps steps that double the
 // accumulator (`append(#1, #1)`) from building lists of 2^n elements. A step is refuted as soon as it misses too many
-// lists to reproduce more than half, so most steps stop after a few lists. The copy (`cons(#0, #1)`, the input itself) and steps ignoring the head are
-// left out.
+// lists to reproduce more than half, so most steps stop after a few lists.
+// The copy (`cons(#0, #1)`, the input itself) and steps ignoring the head are left out.
 template<typename IFindElements, typename IMakeFunctor>
 struct list_listed_fold_hypotheses {
     list_listed_fold_hypotheses(IFindElements& find_elements,

@@ -145,13 +145,18 @@ where no repetition is visible yet:
 
 ### Order of work
 
-1. The vocabulary, de Bruijn interning, and evaluation by substitution, with a soundness fuzz (an evaluator check
-   that a rewrite kept the meaning).
+Built so far (module `abstraction`, `abs_`, for reduce request #8): the vocabulary (`lam`, `app`, `let`), de Bruijn
+interning (`abs_indices`), the reducer (`abs_reducer`: capture-free shifting and substitution, beta-reduction of
+`let` and applied lambdas, a step budget, memoized), and evaluation through it (`abs_evaluator`), used by the
+polynomial fit rule set. The first helper detector is built too (item 6, iteration): `poly_iteration_hypotheses`.
+
+1. The vocabulary, de Bruijn interning, and evaluation by substitution (built), with a soundness fuzz (an evaluator
+   check that a rewrite kept the meaning).
 2. Inline and beta-reduce (local, always shrinking).
 3. Common subterms (arity 0) at the root, with the saving formula: the cheapest special case.
 4. Compositions and anti-unification of pairs: fragments with inputs.
 5. The general search over fragments, pruned by its saving bound.
-6. Detectors that propose helpers from data (iteration, shared branch structure).
+6. Detectors that propose helpers from data: iteration (built, polynomials), shared branch structure.
 7. Recursion with a step budget, which is where Turing completeness arrives.
 8. A library of helpers carried across reduce requests.
 

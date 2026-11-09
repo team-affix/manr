@@ -101,6 +101,17 @@ and `eq(a, b)`, and a side may be `mod(a, m)`: `a` modulo a positive literal `m`
   branches.
 - It proposes only when there are two pieces or more.
 
+`poly_iteration_hypotheses` (in the fit rule set, not the element domain) proposes a polynomial iterated with a helper,
+`let(lam(g(#0)), app(#0, app(#0, ... x)))` (`plans.md`, abstraction):
+
+- For each degree `d >= 2` and count `k >= 2` with `d^k` up to 16 and below the number of samples, the data is
+  interpolated at degree `d^k`, past the usual degree limit.
+- A polynomial `P` reproducing every sample is solved for `g` with `g^k = P` exactly: the leading coefficient is an
+  integer root of `P`'s, and each next coefficient, from the top, enters the next coefficient of `g^k` linearly, so
+  trying 0 and 1 and dividing pins it. The whole `g^k` is checked against `P`.
+- `g(g(g(x)))` with `g = y^2 + 1` (degree 8, size 23 expanded) becomes the 14-node helper form (reduce request #8).
+  Expressions are evaluated through the abstraction reducer, which reduces helpers away first.
+
 `poly_residue_hypotheses` proposes a periodic piecewise over one variable, `pw(when(eq(mod(x, m), r1), P1), ..., Q)`:
 
 - For the smallest `m` from 2 to 6 that fits, each residue class of `x` modulo `m` is interpolated at the lowest

@@ -95,7 +95,7 @@ outcome finish(Manifest& m, const std::vector<poly_sample>& samples, std::chrono
     const expr* best = m.search_.best();
     bool sound = true;
     for (const pw_data_point& point : m.rule_set_.fit_.converter_.convert(samples)) {
-        const std::optional<const expr*> value = m.rule_set_.fit_.pw_evaluator_.evaluate_at(best, point.input);
+        const std::optional<const expr*> value = m.rule_set_.pw_evaluator_.evaluate_at(best, point.input);
         sound = sound && value.has_value() && value.value() == point.output;
     }
     std::ostringstream os;
@@ -176,6 +176,15 @@ int main(int argc, char** argv) {
          "pw(when(lt(y, 0), x - y), (x + y)^2)"},
         {"sign flip at zero", {"x", "y"}, {{"x - y", 0}, {"x + y", INT_MAX}}, 0, -3, 3, {}, 11,
          "pw(when(lt(x, 0), x - y), x + y)"},
+        // reduce request #8, and similar iterated polynomials, read with a helper by the iteration detector
+        {"#8 g(g(g(x))), g = y^2 + 1", {"x"}, {{"x^8 + 4*x^6 + 8*x^4 + 8*x^2 + 5", INT_MAX}}, 0, -6, 6, {}, 14,
+         "let(lam(#0^2 + 1), app(#0, app(#0, app(#0, x))))"},
+        {"g(g(x)), g = y^3 - y", {"x"}, {{"(x^3 - x)^3 - (x^3 - x)", INT_MAX}}, 0, -6, 6, {}, 12,
+         "let(lam(#0^3 - #0), app(#0, app(#0, x)))"},
+        {"g(g(g(x))), g = y^2 + y", {"x"}, {{"((x^2 + x)^2 + x^2 + x)^2 + (x^2 + x)^2 + x^2 + x", INT_MAX}}, 0, -6, 6, {},
+         14, "let(lam(#0^2 + #0), app(#0, app(#0, app(#0, x))))"},
+        {"g(g(x)), g = y^2 - 2", {"x"}, {{"(x^2 - 2)^2 - 2", INT_MAX}}, 0, -6, 6, {}, 9,
+         "(x^2 - 2)^2 - 2 (smaller than the helper form, 12)"},
         // every third point an outlier: once open, now read as a period-3 piecewise by the residue detector
         {"dense outliers", {"x"}, {{"x^2 + 1", INT_MAX}}, 0, 0, 29,
          {{1, 2}, {4, 2}, {7, 2}, {10, 2}, {13, 2}, {16, 2}, {19, 2}, {22, 2}, {25, 2}, {28, 2}}, 46,

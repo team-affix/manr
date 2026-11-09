@@ -33,6 +33,8 @@ core/test/{unit,integration}, main.cpp
 modules/<name>/{hpp,cpp,test}/...             one directory per rule module; prefix every file with the module's
                                               domain prefix, since every module's hpp/ is on the include path
   piecewise/  (pw_)                           the extension algebra over data sets, generic over the domain
+  abstraction/ (abs_)                         helpers, generic over the domain: `lam`, `app`, `let`, de Bruijn
+                                              indices, a reducer (beta-reduction with shifting) and an evaluator
   arith/      (arith_)                        integer arithmetic: literals, evaluator, simplifier
   arith_fit/  (arith_)                        composition: linear-fit detector, manifest, runtime
   poly/       (poly_)                         polynomial algebra over Z: normal form oracle, rules, detectors

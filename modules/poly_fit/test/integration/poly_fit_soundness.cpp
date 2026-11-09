@@ -37,7 +37,7 @@ struct PolyFitSoundnessIntegrationTest : ::testing::Test {
                     if (proposal == nullptr)
                         return checked;
                     for (const pw_data_point& point : points) {
-                        const std::optional<const expr*> value = rules.fit_.pw_evaluator_.evaluate_at(proposal, point.input);
+                        const std::optional<const expr*> value = rules.pw_evaluator_.evaluate_at(proposal, point.input);
                         const bool reproduced = value.has_value() && value.value() == point.output;
                         EXPECT_TRUE(reproduced) << print(manifest, e) << "  ->  " << print(manifest, proposal)
                                                 << "  misses " << print(manifest, point.input);
