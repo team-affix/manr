@@ -1,10 +1,10 @@
 # The scout workflow: find what MANR fails at, and file it
 
-**"Perform the scout workflow"** (or "scout") means: find problems MANR struggles with or fails at, check them
-against MANR, and file each real failure as a GitHub issue in the fit-request form (`fit-requests.md`). Scout builds
-nothing. Its output is issues. The forge workflow (`forge.md`) picks them up and builds the fixes.
+**"Perform the scout workflow"** (or "scout") means: find inputs MANR struggles to reduce or fails to reduce, check
+them against MANR, and file each real failure as a GitHub issue in the reduce-request form (`reduce-requests.md`).
+Scout builds nothing. Its output is issues. The forge workflow (`forge.md`) picks them up and builds the fixes.
 
-Invoking scout authorizes creating issues and the `fit-request` label in `team-affix/manr`. Every issue created is
+Invoking scout authorizes creating issues and the `reduce-request` label in `team-affix/manr`. Every issue created is
 listed in the report.
 
 ## 1. Survey what MANR implements
@@ -15,13 +15,16 @@ Skip this when the session already knows. Otherwise read:
 - `plans.md` and the gaps sections of the module docs: what is known to be missing
 - the benchmarks (`bench/*_bench.cpp`) and their baselines (`bench/baseline/*.tsv`): what is solved, what is open,
   and which solver is slow where
-- the open issues (`gh issue list --label fit-request`), so nothing is filed twice
+- the open issues (`gh issue list --label reduce-request`), so nothing is filed twice
 
 ## 2. Invent problems MANR probably cannot do
 
-Start from the known weak points (open benchmark problems, gaps, plans). Then invent problems, each as **data plus
-the model that produced it**. Push in several directions:
+Start from the known weak points (open benchmark problems, gaps, plans). Then invent problems, each as **an input
+plus the reduction it should reach**: an expression and its simpler form, or data and the model that produced it.
+Push in several directions:
 
+- **Expressions that do not reduce as they should.** Symbolic expressions of an existing domain whose obvious
+  simpler form MANR misses: cancellations, factorings, identities, nested forms (`poly_bench` is the model).
 - **Harder data in an existing domain.** Fewer points, no tails, few distinct values, huge values, a wrong label or
   several, data that does not determine the model.
 - **Harder models in an existing domain.** Deeper nesting, programs inside programs, a step in pieces, a repeated
@@ -32,12 +35,13 @@ the model that produced it**. Push in several directions:
 - **Scale.** The same problem with ten times the data, or ten times the size.
 
 Aim for a handful, a mix of near misses and far reaches. Prefer data that determines the model: enough points that
-the model is the smallest sound explanation.
+the model is the smallest sound explanation. Inputs in domains MANR does not support at all are as welcome as any.
 
 ## 3. Check each against MANR
 
 Confirm each problem really fails before filing it. Run it under both solvers (a scratch copy of the domain's
-benchmark or a test is enough; scout commits nothing). Record:
+benchmark or a test is enough: `poly_bench` for expressions, `fit_bench` or `list_bench` for data; scout commits
+nothing). Record:
 
 - the cost reached against the model's size (the target), whether the result is sound, and the time each solver takes
 - the best form each solver reaches
@@ -60,11 +64,12 @@ the issue is.
 
 ## 5. File the issues
 
-One issue per model, in the fit-request template (`.github/ISSUE_TEMPLATE/fit-request.md`), labelled
-`fit-request` (create the label if it is missing). Title: `fit: <model in a few words>`. Fill in:
+One issue per desired reduction, in the reduce-request template (`.github/ISSUE_TEMPLATE/reduce-request.md`),
+labelled `reduce-request` (create the label if it is missing). Title: `reduce: <a few words>`. Fill in:
 
-- **Domain**, **Model** (in MANR's vocabulary where it has one, and the target size), **Data** (one sample per line;
-  inline when small, otherwise the generator: the model, the input ranges and a seed, so forge can rebuild it exactly)
+- **Domain**; **Input**: the expression, or the data (one sample per line; inline when small, otherwise the
+  generator: the model, the input ranges and a seed, so forge can rebuild it exactly); **Desired reduction**: the
+  simpler form or the model, in MANR's vocabulary where it has one, with its size (the target)
 - **Notes**: what MANR reaches today under each solver (cost, time, best form), the diagnosed cause, and related
   issues. Problems that share a cause reference each other, so forge can solve them together.
 

@@ -4,7 +4,7 @@ What we plan to implement, at the level of modules, rules and searches. `vision.
 be able to do; this document says what we intend to build next and how. When something here is built, its design
 moves to its module's doc (`poly.md`, `list.md`, `search.md`, ...) and leaves this one.
 
-Fit requests (`fit-requests.md`) decide the order: a plan here is built when a request needs it, with that request's
+Reduce requests (`reduce-requests.md`) decide the order: a plan here is built when a request needs it, with that request's
 problems in the benchmark first.
 
 ## Abstraction: helper functions, composition and application
@@ -120,7 +120,7 @@ where no repetition is visible yet:
   the data contains both ends.
 - **Shared structure across branches.** A piecewise whose regions use the same shape with different constants is one
   fragment applied to per-region arguments. Anti-unifying the regions finds it.
-- **A library across data sets.** Helpers found for one fit request can be offered to the next, as DreamCoder and
+- **A library across data sets.** Helpers found for one reduce request can be offered to the next, as DreamCoder and
   Stitch do for program corpora. This is the furthest out, and the most powerful.
 
 ### Searching with helpers
@@ -149,7 +149,7 @@ where no repetition is visible yet:
 5. The general search over fragments, pruned by its saving bound.
 6. Detectors that propose helpers from data (iteration, shared branch structure).
 7. Recursion with a step budget, which is where Turing completeness arrives.
-8. A library of helpers carried across fit requests.
+8. A library of helpers carried across reduce requests.
 
 ## Search
 
@@ -178,4 +178,4 @@ The open problems and their causes are in `list.md` (gaps, and the fold families
 ## Core vocabulary
 
 - **Tuples as inputs**, so a model can take several values or several lists (needed by "fold both lists and add 1").
-- **A text front end**: reading data and expressions from text, so a fit request can be run without writing C++.
+- **A text front end**: reading data and expressions from text, so a reduce request can be run without writing C++.

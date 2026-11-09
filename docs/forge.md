@@ -1,17 +1,17 @@
 # The forge workflow: pick an issue, and build what solves it
 
-**"Perform the forge workflow"** (or "forge") means: pull the open fit-request issues, choose one (or a group that
-shares a cause), design the most general fix that stays efficient, build it, prove it on the gate, and report on the
-issue. The issues come from the scout workflow (`scout.md`) or from anyone (`fit-requests.md`).
+**"Perform the forge workflow"** (or "forge") means: pull the open reduce-request issues, choose one (or a group
+that shares a cause), design the most general fix that stays efficient, build it, prove it on the gate, and report on the
+issue. The issues come from the scout workflow (`scout.md`) or from anyone (`reduce-requests.md`).
 
-A model in an issue is a guide, not expected output: success is a result that reproduces every sample and is no
-larger than the model (`fit-requests.md`). Committing and pushing follow the usual rule: ask first unless told to.
+The desired reduction in an issue is a guide, not expected output: success is a result that means the same as the
+input (same normal form, or every sample reproduced) and is no larger than the desired form (`reduce-requests.md`). Committing and pushing follow the usual rule: ask first unless told to.
 Comments on the issue go out after the push, and an issue is closed only when its problem reaches its target.
 
 ## 1. Pull the issues
 
-`gh issue list --label fit-request --state open`, then read each candidate (`gh issue view <n>`). For the chosen
-ones, rebuild the data exactly (inline, or from the generator and seed).
+`gh issue list --label reduce-request --state open`, then read each candidate (`gh issue view <n>`). For the chosen
+ones, rebuild the input exactly (the expression, or the data inline or from its generator and seed).
 
 ## 2. Choose what to work on
 
@@ -28,7 +28,8 @@ Say which issue was chosen and why, and which were passed over.
 
 ## 3. Reproduce
 
-Restate the model in MANR's vocabulary and compute its size: the target. Add the data to the domain's benchmark as a
+Restate the desired reduction in MANR's vocabulary and compute its size: the target. Add the input to the domain's
+benchmark (`poly_bench` for expressions, `fit_bench` or `list_bench` for data, a new benchmark for a new domain) as a
 problem named after the issue (`"#42 squares of positives"`), with that target and the model as target text. Run
 the gate: it appears as `new`. If it is already solved, comment so on the issue, close it, and choose another.
 
@@ -45,8 +46,9 @@ Fit the issue's example first, then generalize as far as efficiency allows:
   - a rule or detector in an existing module
   - a family of similar rules (one per combiner, per condition kind, per domain)
   - new vocabulary in a domain (functors, evaluation, rules)
-  - a new module, for a new domain or a domain-free capability (`vision.md`, "What a domain must supply"; for
-    abstraction, `plans.md`)
+  - a new module, or several, for a domain MANR does not support at all or a domain-free capability (`vision.md`,
+    "What a domain must supply"; for abstraction, `plans.md`). An unsupported domain's first request is its first
+    benchmark problem.
 - Consider free variables (`rule-design.md`, section 5), and record what is out of scope in `plans.md`.
 
 ## 5. Build and prove it general
