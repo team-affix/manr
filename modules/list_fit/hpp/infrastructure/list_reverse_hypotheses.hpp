@@ -9,7 +9,7 @@
 #include "value_objects/list_symbols.hpp"
 #include "value_objects/pw_data_point.hpp"
 
-// A detector that reads list-to-list data as the primitive `reverse(xs)`: proposed when more than half of the points
+// A detector that reads list-to-list data as the primitive `reverse(#0)`: proposed when more than half of the points
 // map a list to its elements in reverse order. The fold that builds the same list
 // (`list_listed_fold_hypotheses`) stays beside it, for the steps no primitive covers.
 template<typename IFindElements, typename IMakeFunctor>

@@ -15,7 +15,7 @@
 constexpr size_t k_poly_fit_default_max_degree = 6;
 constexpr size_t k_poly_fit_default_max_starts = 8;
 
-// A detector that reads the data and proposes one polynomial through all of it, for any number of input variables.
+// A detector that reads the data and proposes one polynomial through all of it, for any number of inputs.
 // For each total degree (lowest first) it interpolates from several starting indices, spread evenly over the data so
 // a fit can begin past outliers, even a long run of them. An interpolant is proposed when it reproduces at least one
 // point beyond the unknowns that determined it (otherwise it explains nothing). Stops at the first degree whose

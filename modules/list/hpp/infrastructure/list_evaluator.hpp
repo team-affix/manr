@@ -11,15 +11,15 @@
 #include "value_objects/integer.hpp"
 #include "value_objects/list_symbols.hpp"
 
-// The value of a list program at an input list, as an interned value: a list (`cons`/`nil` chain) or an element. `xs`
-// is the input; literals and `nil` are themselves; `cons` builds a list from the values of its arguments; `map`,
-// `filter` and `fold` run over the value of their list argument, unwrapping their functions' binders (one for map and
-// filter, two for fold, as `lam`s or a `lams`) and handing the bodies to the element domain at `point(element)` for map
-// and filter and `point(head, accumulator)` for fold, which binds `#0` and `#1` in that order. A fold step the element
-// domain cannot evaluate, such as one building a list (`append(#1, cons(#0, nil))`), is evaluated here instead, with
-// the head and the accumulator substituted for `#0` and `#1` (a nested binder is not entered: its indices are its own).
-// `append` joins the values of two lists, and `reverse` reverses one. Also decides `lt(a, b)` between two values that
-// are literals, for regions over lists. No value for anything else, or where the element domain has none.
+// The value of a list program at a list it is applied to, as an interned value: a list (`cons`/`nil` chain) or an
+// element. `#0` is that list; literals and `nil` are themselves; `cons` builds a list from the values of its arguments;
+// `map`, `filter` and `fold` run over the value of their list argument, unwrapping their functions' binders (one for
+// map and filter, two for fold, as `lam`s or a `lams`) and handing the bodies to the element domain at `point(element)`
+// for map and filter and `point(head, accumulator)` for fold, which binds `#0` and `#1` in that order. A fold step the
+// element domain cannot evaluate, such as one building a list (`append(#1, cons(#0, nil))`), is evaluated here instead,
+// with the head and the accumulator substituted for `#0` and `#1` (a nested binder is not entered: its indices are its
+// own). `append` joins the values of two lists, and `reverse` reverses one. Also decides `lt(a, b)` between two values
+// that are literals, for regions over lists. No value for anything else, or where the element domain has none.
 template<typename IFindElements,
          typename IMakeList,
          typename IMakeFunctor,

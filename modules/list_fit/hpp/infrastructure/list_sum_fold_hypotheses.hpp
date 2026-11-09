@@ -18,7 +18,7 @@
 constexpr size_t k_list_default_max_sum_starts = 4;
 
 // A detector that reads list-to-integer data as a sum of an unknown inner function of the elements,
-// `fold(lam(lam(g(#0) + #1)), b, xs)` (the head is `#0`, the accumulator `#1`), from whole lists: the outer-inner split
+// `fold(lam(lam(g(#0) + #1)), b, #0)` (the head is `#0`, the accumulator `#1`), from whole lists: the outer-inner split
 // with the outer combiner `+` (`docs/decomposing-detection.md`). A count on any condition is the case where g is 0 or
 // 1. `list_affine_fold_hypotheses` covers polynomial g, kept beside it. The solver (`list_sum_fold_solver`) recovers g
 // at each element value and the base by an exact solve, from a few starting lists so a wrong label among the first

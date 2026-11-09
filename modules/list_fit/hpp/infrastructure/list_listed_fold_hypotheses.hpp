@@ -13,7 +13,7 @@
 
 constexpr size_t k_list_default_max_listed_step = 7;
 
-// A detector that reads list-to-list data as a fold whose accumulator is a list, `fold(lam(lam(s)), b, xs)` with s
+// A detector that reads list-to-list data as a fold whose accumulator is a list, `fold(lam(lam(s)), b, #0)` with s
 // built from `cons`, `append`, `nil`, the head `#0` and the accumulator `#1`: reverse is
 // `append(#1, cons(#0, nil))`, duplicating each element `cons(#0, cons(#0, #1))`. Such steps are few and small, so this
 // is a specific detector by enumeration: every list-valued step up to `max_size` nodes is run over the data directly

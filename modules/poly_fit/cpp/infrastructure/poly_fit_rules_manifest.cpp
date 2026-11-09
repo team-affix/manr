@@ -26,7 +26,7 @@ poly_fit_rules_manifest::poly_fit_rules_manifest(
     , iterations_(fit_.converter_, fit_.interpolator_, fit_.interpolator_, kernel.renderer_, indices_, kernel.exprs_,
                   abs_symbols_)
     , hypotheses_(fit_.hypotheses_, iterations_)
-    , closing_(hypotheses_, function_maker_, arity)
+    , closing_(hypotheses_, function_maker_, point_symbol_)
     , assembler_(kernel.exprs_, pw_symbols_)
     , builder_(kernel.exprs_, kernel.exprs_, assembler_, pw_symbols_)
     , filter_(pw_evaluator_, pw_symbols_)

@@ -14,7 +14,7 @@
 #include "value_objects/pw_symbols.hpp"
 
 // A detector that reads list-to-integer data as a selection fold, the largest or the smallest of the elements and a
-// base: `fold(pw(when(lt(acc, h), h), acc), b, xs)` for the largest, `fold(pw(when(lt(h, acc), h), acc), b, xs)` for
+// base: `fold(pw(when(lt(acc, h), h), acc), b, #0)` for the largest, `fold(pw(when(lt(h, acc), h), acc), b, #0)` for
 // the smallest. It reads whole lists and needs no tails. A base shows only where an output lies beyond every element
 // of its list (the empty list's output always does), so each such output is a candidate; so is one base no further
 // out than any list's extreme, which leaves every list to its elements (0 when it qualifies, else that extreme). The

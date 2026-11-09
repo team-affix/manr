@@ -71,7 +71,7 @@ list_fit_rules_manifest::list_fit_rules_manifest(
     , hypotheses_(constants_, integer_maps_, integer_folds_, filterings_, maps_, folds_, affine_folds_, extremum_folds_,
                   product_folds_, count_folds_, map_filters_, selection_folds_, factor_folds_, sum_folds_,
                   listed_folds_, reversals_)
-    , closing_(hypotheses_, function_maker_, 1)
+    , closing_(hypotheses_, function_maker_, point_symbol_)
     , binder_(closing_, filter_, assembler_, pw_symbols_)
     , absorber_(filter_, assembler_, pw_symbols_)
     , union_(binder_, absorber_, poly_rules_.union_)

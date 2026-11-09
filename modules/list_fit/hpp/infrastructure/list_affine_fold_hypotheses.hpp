@@ -20,7 +20,7 @@ constexpr size_t k_list_default_max_multiplier = 10;
 constexpr size_t k_list_default_max_fold_starts = 2;
 
 // A detector that reads list-to-integer data as a right fold whose step is affine in the accumulator,
-// `fold(p(h) + c * acc, b, xs)`, from whole lists: unlike `list_integer_fold_hypotheses` it needs neither tails nor
+// `fold(p(h) + c * acc, b, #0)`, from whole lists: unlike `list_integer_fold_hypotheses` it needs neither tails nor
 // the empty list in the data, since for a fixed multiplier c the solver pins p and b from the lists' outputs alone
 // (`list_affine_fold_solver`). Multipliers are tried by magnitude (1, -1, 2, -2, ...) up to the limit, first from the
 // first list, then from later starting lists so a fit can begin past a wrong label. The fold reproducing the most

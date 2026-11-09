@@ -28,7 +28,7 @@ arith_fit_manifest::arith_fit_manifest(const std::vector<arith_sample>& samples,
     , constants_(sizes_)
     , lines_(literals_, literals_, exprs_, arith_symbols_)
     , hypotheses_(constants_, lines_)
-    , closing_(hypotheses_, function_maker_, 1)
+    , closing_(hypotheses_, function_maker_, symbols_.intern_symbol("point"))
     , binder_(closing_, filter_, assembler_, pw_symbols_)
     , absorber_(filter_, assembler_, pw_symbols_)
     , simplifier_(literals_, literals_, arith_symbols_)

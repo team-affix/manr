@@ -18,7 +18,7 @@ constexpr size_t k_list_default_max_factor_slope = 2;
 constexpr size_t k_list_default_max_factor_offset = 3;
 
 // A detector that reads list-to-integer data as a right fold whose step multiplies the accumulator by a linear factor
-// of the head, `fold((a * h + k) * acc, b, xs)`: the output is b times one factor per element, so it reads whole lists
+// of the head, `fold((a * h + k) * acc, b, #0)`: the output is b times one factor per element, so it reads whole lists
 // and needs no tails. Factors are tried simplest first (a by magnitude 1, -1, 2, -2, ..., k by magnitude 0, 1, -1,
 // ...), up to the limits; a = 0 is left to the affine detector, which covers `c * acc`. For each factor the base is
 // the output of a starting list over its product (the first list, then one halfway along, so a fit can begin past a

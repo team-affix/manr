@@ -6,7 +6,7 @@
 #include "value_objects/integer.hpp"
 
 // A right fold over integer lists whose step adds a term of the head to the accumulator,
-// `fold(lam(lam(g(#0) + #1)), base, xs)`, with g given by its value at each element value of the data.
+// `fold(lam(lam(g(#0) + #1)), base, #0)`, with g given by its value at each element value of the data.
 struct list_sum_fold {
     std::map<integer, integer> terms;
     integer base;

@@ -17,8 +17,8 @@
 #include "value_objects/pw_symbols.hpp"
 
 // A detector that reads list-to-integer data as a counting fold, a base plus the number of elements past a threshold:
-// `fold(pw(when(lt(d, h), acc + 1), acc), b, xs)` counts the elements above d, `fold(pw(when(lt(h, d), acc + 1),
-// acc), b, xs)` those below. It reads whole lists and needs no tails. Each element value of the data is tried as d in
+// `fold(pw(when(lt(d, h), acc + 1), acc), b, #0)` counts the elements above d, `fold(pw(when(lt(h, d), acc + 1),
+// acc), b, #0)` those below. It reads whole lists and needs no tails. Each element value of the data is tried as d in
 // both directions (a threshold between two values counts the same as the value below or above it), with the lists
 // sorted once so each count is a binary search; the base is a starting list's output less its count (the first list,
 // then one halfway along, so a fit can begin past a wrong label). Counting every element

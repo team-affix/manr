@@ -35,7 +35,7 @@
 #include "value_objects/poly_sample.hpp"
 #include "value_objects/pw_symbols.hpp"
 
-// The rules for fitting boolean functions to truth-table data over `arity` inputs; the data piecewise is a function of
+// The rules for fitting boolean functions to truth-table data over `arity` inputs; a piecewise is a function of
 // them, so what replaces its catch-all is `lam(b)` or `lams(arity, b)`, the first input `#(arity-1)` and the last `#0`
 // in b, on a polynomial kernel (for its
 // pool, literals and printer): the samples (inputs and outputs of 0s and 1s) become a piecewise with an open

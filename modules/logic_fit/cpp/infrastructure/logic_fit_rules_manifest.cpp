@@ -28,7 +28,7 @@ logic_fit_rules_manifest::logic_fit_rules_manifest(
     , cover_solver_(k_logic_default_max_cover_width)
     , covers_(reader_, cover_solver_, kernel.exprs_, logic_symbols_, variables_)
     , hypotheses_(constants_, parities_, covers_)
-    , closing_(hypotheses_, function_maker_, arity)
+    , closing_(hypotheses_, function_maker_, point_symbol_)
     , assembler_(kernel.exprs_, pw_symbols_)
     , builder_(kernel.exprs_, kernel.exprs_, assembler_, pw_symbols_)
     , filter_(pw_evaluator_, pw_symbols_)

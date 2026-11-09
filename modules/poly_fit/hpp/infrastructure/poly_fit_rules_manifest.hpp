@@ -34,15 +34,15 @@
 #include "value_objects/pw_symbols.hpp"
 
 // The rules for fitting polynomial data, over a kernel: the samples become a piecewise with an open catch-all; the
-// piecewise rules bind it to what `fit_` proposes (constants, interpolated polynomials, and piecewise polynomials
-// split over intervals of one variable, periodic over residues, and over one variable a polynomial iterated with a
-// helper, `let(lam(g(#0)), app(#0, app(#0, #1)))`) and drop the branches they reproduce; and the full polynomial rule
-// set compresses whatever polynomial results, all at every position. Expressions are evaluated through the
-// abstraction reducer, so helpers reduce to polynomials before the polynomial evaluator sees them.
-// A piecewise is a function of its `arity` keys: what replaces its catch-all is closed over them, `lam(b)` or
-// `lams(arity, b)` with the first key coordinate `#(arity-1)` and the last `#0` in b, and once no case is left the
-// piecewise is that function. Evaluating a function at an input applies it. `rules_` is what a search injects and
-// `initial_` is where it starts.
+// piecewise rules bind it to what `fit_` proposes (constants, interpolated polynomials, and piecewise polynomials split
+// over intervals of one variable, periodic over residues, and over one variable a polynomial iterated with a helper,
+// `let(lam(g(#0)), app(#0, app(#0, #1)))`) and drop the branches they reproduce; and the full polynomial rule set
+// compresses whatever polynomial results, all at every position. Expressions are evaluated through the abstraction
+// reducer, so helpers reduce to polynomials before the polynomial evaluator sees them. The detectors read keys of
+// `arity` coordinates and fit in `#(arity-1)` ... `#0`. A piecewise is a function of its keys: what replaces its
+// catch-all is closed over that piecewise's own inputs (`lam(b)` or `lams(k, b)`, k read from its keys), and once no
+// case is left the piecewise is that function. Evaluating a function at an input applies it. `rules_` is what a search
+// injects and `initial_` is where it starts.
 struct poly_fit_rules_manifest {
     using kernel_t = poly_kernel_manifest;
     using fit_t = poly_fit_hypotheses_manifest;

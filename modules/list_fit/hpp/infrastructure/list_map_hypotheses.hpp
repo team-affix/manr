@@ -9,9 +9,9 @@
 #include "value_objects/list_symbols.hpp"
 #include "value_objects/pw_data_point.hpp"
 
-// A detector that reads list-to-list data as `map(f, xs)`, for elements of any domain: every point whose input and
+// A detector that reads list-to-list data as `map(f, #0)`, for elements of any domain: every point whose input and
 // output are lists of the same length gives one element data point per position, `point(e) -> output element`. The
-// element data points are handed to the element domain, and each body it proposes becomes `map(f, xs)`. Points of any
+// element data points are handed to the element domain, and each body it proposes becomes `map(f, #0)`. Points of any
 // other shape are ignored, and stay as branches unless the proposal happens to reproduce them. The first output seen
 // for an element is kept, so a conflicting point cannot make the element data inconsistent; elements keep the order
 // they are first seen in.

@@ -10,10 +10,10 @@
 #include "value_objects/list_symbols.hpp"
 #include "value_objects/pw_data_point.hpp"
 
-// A detector that reads data over lists as a right fold, `fold(s, b, xs)`, for elements and results of any domain.
+// A detector that reads data over lists as a right fold, `fold(s, b, #0)`, for elements and results of any domain.
 // The base `b` is the output for the empty list. Every point whose input is `cons(h, t)`, where `t` is itself an
 // input of the data, gives one step data point `point(h, output of t) -> output`. The step data points are handed to
-// the step domain (variables `h`, `acc`), and each step it proposes becomes `fold(s, b, xs)`. Needs the empty list
+// the step domain (variables `h`, `acc`), and each step it proposes becomes `fold(s, b, #0)`. Needs the empty list
 // and tails in the data; without them it proposes nothing. The first output seen for a step input is kept; step data
 // points keep the order of the data.
 template<typename IProposeStepHypotheses, typename IMakeFunctor>

@@ -61,7 +61,7 @@
 // unknown inner function of the elements, handed to the element domain beside the extremum and product detectors, and
 // the sum fold detector the same for the sum (a count on any condition when the inner function is 0 or 1). The listed
 // fold detector reads folds that build lists by enumerating their small steps, and the reverse detector proposes the
-// primitive `reverse(xs)`. The list detectors hand the element-level part of the problem to polynomial fitting:
+// primitive `reverse(#0)`. The list detectors hand the element-level part of the problem to polynomial fitting:
 // `element_fit_` over `#0` for map bodies, `step_fit_` over `#0` (the head) and `#1` (the accumulator) for fold steps.
 // The full polynomial rule set then compresses the bodies, all at every position. `rules_` is what a search injects and
 // `initial_` is where it starts.

@@ -39,7 +39,7 @@ seq_fit_rules_manifest::seq_fit_rules_manifest(
     , third_order_(kernel.literals_, third_steps_.converter_, third_steps_.interpolations_, kernel.literals_,
                    kernel.exprs_, seq_symbols_, fit_.variables_[0], 3)
     , hypotheses_(fit_.hypotheses_, first_order_, second_order_, third_order_)
-    , closing_(hypotheses_, function_maker_, 1)
+    , closing_(hypotheses_, function_maker_, point_symbol_)
     , assembler_(kernel.exprs_, pw_symbols_)
     , builder_(kernel.exprs_, kernel.exprs_, assembler_, pw_symbols_)
     , filter_(pw_evaluator_, pw_symbols_)

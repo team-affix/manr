@@ -37,7 +37,7 @@
 // polynomial fitting does (`fit_`), plus the recurrences of order 1 to 3 read off consecutive terms, whose steps go to
 // polynomial fitting over the index `#0` and the previous terms `#1` to `#3` (`first_steps_` to `third_steps_`), and
 // the closing rule that turns a geometric recurrence into a power. The evaluator runs recurrences and powers and
-// leaves the rest to the polynomial evaluator, and chains of binders merge into one `lams`. The data piecewise is a
+// leaves the rest to the polynomial evaluator, and chains of binders merge into one `lams`. A piecewise is a
 // function of the index: what replaces its catch-all is closed over it, `lam(b)` with the index `#0` in b, and a
 // function is applied to the input when evaluated. `rules_` is what a search injects and `initial_` is where it
 // starts.

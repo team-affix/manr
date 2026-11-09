@@ -11,10 +11,10 @@
 #include "value_objects/list_symbols.hpp"
 #include "value_objects/pw_data_point.hpp"
 
-// A detector that reads list-to-list data as `filter(c, xs)` with a threshold condition. A point is a filtering when
+// A detector that reads list-to-list data as `filter(c, #0)` with a threshold condition. A point is a filtering when
 // its output is its input with every occurrence of some values removed; its kept values are the output's. When every
-// kept value of the data lies above every removed one, it proposes `filter(lt(d, e), xs)` with d the largest removed
-// value; when below, `filter(lt(e, d), xs)` with d the smallest removed value. Points of any other shape are ignored.
+// kept value of the data lies above every removed one, it proposes `filter(lt(d, e), #0)` with d the largest removed
+// value; when below, `filter(lt(e, d), #0)` with d the smallest removed value. Points of any other shape are ignored.
 template<typename IFindElements, typename IFindLiteralValue, typename IMakeLiteral, typename IMakeFunctor>
 struct list_filter_hypotheses {
     list_filter_hypotheses(IFindElements& find_elements,

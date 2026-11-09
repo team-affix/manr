@@ -14,10 +14,10 @@
 #include "value_objects/pw_data_point.hpp"
 
 // The integer case of `list_fold_hypotheses`, kept beside it: step samples are integers, ordered by value, and handed
-// to the step domain as integer samples. Reads list-to-integer data as a right fold, `fold(s, b, xs)`. The base `b`
+// to the step domain as integer samples. Reads list-to-integer data as a right fold, `fold(s, b, #0)`. The base `b`
 // is the output for the empty list. Every point whose input is `cons(h, t)`, where `t` is itself an input of the
 // data, gives one step sample `(h, output of t) -> output`. The step samples are handed to the step domain
-// (variables `h`, `acc`), and each step it proposes becomes `fold(s, b, xs)`. Needs the empty list and tails in the
+// (variables `h`, `acc`), and each step it proposes becomes `fold(s, b, #0)`. Needs the empty list and tails in the
 // data; without them it proposes nothing. The first output seen for a step input is kept.
 template<typename IFindLiteralValue, typename IConvertSamples, typename IProposeStepHypotheses, typename IMakeFunctor>
 struct list_integer_fold_hypotheses {

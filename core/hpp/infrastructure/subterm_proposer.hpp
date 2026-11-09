@@ -6,9 +6,10 @@
 #include "value_objects/expr.hpp"
 #include "value_objects/rewrite.hpp"
 
-// Lifts a local rule set (rules that only look at the expression they are handed) to every position of an
-// expression. Each rewrite detected at a subterm is wrapped so that, when invoked, it performs the local rewrite and
-// rebuilds the path from that subterm to the root through the pool. Nothing is rebuilt until a rewrite is taken.
+// Lifts a local rule set (rules that only look at the expression they are handed) to every position of an expression.
+// Each rewrite detected at a subterm is wrapped so that, when invoked, it performs the local rewrite and rebuilds the
+// path from that subterm back up to the expression it was handed, through the pool. Nothing is rebuilt until a rewrite
+// is taken.
 template<typename IDetectLocal, typename IMakeFunctor>
 struct subterm_proposer {
     subterm_proposer(IDetectLocal& detect_local, IMakeFunctor& make_functor);

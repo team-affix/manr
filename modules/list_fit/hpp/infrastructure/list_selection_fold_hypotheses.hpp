@@ -16,7 +16,7 @@
 #include "value_objects/pw_symbols.hpp"
 
 // A detector that reads list-to-integer data as the largest (or smallest) value of an unknown inner function of the
-// elements: `fold(lam(lam(pw(when(lt(#1, g(#0)), g(#0)), #1))), b, xs)`, or with `lt(g(#0), #1)` (the head is `#0`,
+// elements: `fold(lam(lam(pw(when(lt(#1, g(#0)), g(#0)), #1))), b, #0)`, or with `lt(g(#0), #1)` (the head is `#0`,
 // the accumulator `#1`). It is the outer-inner split
 // with the outer combiner `max` (`docs/decomposing-detection.md`); `list_extremum_fold_hypotheses` is its specific case
 // `g(h) = h`, kept beside it. Each output is `g` of one of its list's elements, so for the largest, `g(v)` is at most

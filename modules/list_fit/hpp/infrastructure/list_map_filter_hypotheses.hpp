@@ -13,7 +13,7 @@
 #include "value_objects/poly_sample.hpp"
 #include "value_objects/pw_data_point.hpp"
 
-// A detector that reads list-to-list data as a composition, `map(f, filter(c, xs))`, split outer-inner
+// A detector that reads list-to-list data as a composition, `map(f, filter(c, #0))`, split outer-inner
 // (`docs/decomposing-detection.md`): each element value is either removed by the filter or kept and mapped to f of
 // it, so the data gives f's values and the kept and removed values, and both go on to the readings that already
 // exist. The signature reading seeds f's values from every list at once: a kept value v and its image f(v) appear in
@@ -26,7 +26,7 @@
 // nothing new is learned, since each one read can settle another. A point that contradicts what is known (a value
 // both kept and removed, two images of one value) is ignored and stays as a branch.
 // The kept and removed values must be split by a threshold, as for `list_filter_hypotheses`, and f's values go to the
-// element domain; each body it proposes becomes `map(f, filter(c, xs))`. Nothing is proposed when no value is removed
+// element domain; each body it proposes becomes `map(f, filter(c, #0))`. Nothing is proposed when no value is removed
 // (a map) or f is the identity on every kept value (a filter): the map and filter detectors read those.
 template<typename IFindElements,
          typename IFindLiteralValue,

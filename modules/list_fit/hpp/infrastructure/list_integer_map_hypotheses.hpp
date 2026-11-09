@@ -11,11 +11,11 @@
 #include "value_objects/pw_data_point.hpp"
 
 // The integer case of `list_map_hypotheses`, kept beside it: element samples are integers, ordered by value, and handed
-// to the element domain as integer samples. Reads list-to-list data as `map(f, xs)`: every point whose input and
-// output are lists of literals of the same length gives one element sample per position, `e -> output element`. The
-// element samples are handed to the element domain, and each body it proposes becomes `map(f, xs)`. Points of any other shape are ignored, and stay
-// as branches unless the proposal happens to reproduce them. The first output seen for an element value is kept, so
-// a conflicting point cannot make the element samples inconsistent.
+// to the element domain as integer samples. Reads list-to-list data as `map(f, #0)`: every point whose input and output
+// are lists of literals of the same length gives one element sample per position, `e -> output element`. The element
+// samples are handed to the element domain, and each body it proposes becomes `map(f, #0)`. Points of any other shape
+// are ignored, and stay as branches unless the proposal happens to reproduce them. The first output seen for an element
+// value is kept, so a conflicting point cannot make the element samples inconsistent.
 template<typename IFindElements,
          typename IFindLiteralValue,
          typename IConvertSamples,

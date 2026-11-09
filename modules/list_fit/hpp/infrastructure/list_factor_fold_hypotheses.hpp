@@ -14,12 +14,13 @@
 #include "value_objects/pw_data_point.hpp"
 
 // A detector that reads list-to-integer data as a product of an unknown inner function of the elements,
-// `fold(lam(lam(g(#0) * #1)), b, xs)` (the head is `#0`, the accumulator `#1`), from whole lists: the outer-inner split with the outer combiner `*`
-// (`docs/decomposing-detection.md`). `list_product_fold_hypotheses` is its specific case for linear `g`, kept beside
-// it. The solver (`list_factor_fold_solver`) recovers `g` at each element value and the base; the result is checked
-// exactly against every list, and proposed when it reproduces more than half of them. `g`'s values then go to the
-// element domain, and each body it proposes, in `#0`, is `g` in the step as it stands, since the head is `#0` too. A `g` that is the identity, or the same factor
-// at every value (`c^n`, an affine fold), is left to the specific detectors.
+// `fold(lam(lam(g(#0) * #1)), b, #0)` (the head is `#0`, the accumulator `#1`), from whole lists: the outer-inner split
+// with the outer combiner `*` (`docs/decomposing-detection.md`). `list_product_fold_hypotheses` is its specific case
+// for linear `g`, kept beside it. The solver (`list_factor_fold_solver`) recovers `g` at each element value and the
+// base; the result is checked exactly against every list, and proposed when it reproduces more than half of them. `g`'s
+// values then go to the element domain, and each body it proposes, in `#0`, is `g` in the step as it stands, since the
+// head is `#0` too. A `g` that is the identity, or the same factor at every value (`c^n`, an affine fold), is left to
+// the specific detectors.
 template<typename IFindElements,
          typename IFindLiteralValue,
          typename ISolveFold,

@@ -20,11 +20,11 @@
 #include "value_objects/poly_fit_limits.hpp"
 #include "value_objects/pw_symbols.hpp"
 
-// Polynomial fitting over named input variables, as a hypothesis source and an evaluator: given data points whose
-// inputs are `point(v1, ..., vk)` of literals, `hypotheses_` proposes constants, interpolated polynomials,
-// piecewise polynomials over intervals of one variable and, over one variable, periodic ones (a polynomial per
-// residue class, regions `eq(mod(x, m), r)`); `pw_evaluator_` evaluates any of them at a point. Another
-// domain that reduces part of its problem to polynomial data owns one per set of variables.
+// Polynomial fitting over the given index variables (`#k`), as a hypothesis source and an evaluator: given data points
+// whose inputs are `point(v1, ..., vk)` of literals, `hypotheses_` proposes constants, interpolated polynomials,
+// piecewise polynomials over intervals of one variable and, over one variable, periodic ones (a polynomial per residue
+// class, regions `eq(mod(x, m), r)`); `pw_evaluator_` evaluates any of them at a point. Another domain that reduces
+// part of its problem to polynomial data owns one per set of variables.
 struct poly_fit_hypotheses_manifest {
     using kernel_t = poly_kernel_manifest;
     struct converter_t : poly_sample_converter<kernel_t::literals_t, expr_pool, kernel_t::literals_t> {
