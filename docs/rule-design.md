@@ -19,6 +19,32 @@ the answer is no. So the no should be as cheap as possible.
 - **A filter must cost much less than what it saves.** A filter is worth having when (chance it rejects) × (cost of
   the full test) is much larger than (cost of the filter).
 
+### Refuting is often far cheaper than confirming
+
+Proving a rule applies often means nearly computing its result: fitting the polynomial, solving the system, expanding
+the product, building the rewritten expression. Proving it does not apply often takes one cheap fact that any result
+would have to satisfy. The two questions have very different costs, so ask the cheap one first. Design each rule by
+asking: **what must be true of the data or expression if this rule applies, and what is the cheapest such fact to
+check?** Each such fact is a refutation, and a rule can stack several, cheapest first, before its real test.
+
+Examples from MANR's rules:
+
+- **Too few data to pin the unknowns.** A fit with k unknowns needs at least k + 1 points to be checked. Counting
+  points or distinct values refutes it before any solve (`list_affine_fold_solver`, the count and product fold
+  detectors).
+- **The output must be one of the inputs.** A largest-element fold can only output an element of its list or a value
+  beyond all of them, so one pass over a list refutes it, without trying any base.
+- **Zeros must line up.** A product fold `(a * h + k) * acc` outputs 0 only on lists that contain the root `-k / a`,
+  so one nonzero output on a list holding the root, or a zero output on a list without it, refutes that factor
+  without computing any big product.
+- **Remainders.** Equality, divisibility and perfect powers can all be refuted modulo a word-sized prime
+  (section 2), long before exact big-integer work.
+- **Abandon at the first failure that decides.** When a candidate must reproduce more lists than the best found so
+  far, checking stops at the first failure past what it can afford, which is usually the first or second list
+  (`list_affine_fold_hypotheses`).
+
+Memory counts as cost too: refute before allocating anything the full test would need.
+
 ### Signatures: precomputed facts about each expression
 
 Expressions are interned, so any property computed from an expression's children can be computed once per
