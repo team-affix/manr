@@ -72,7 +72,8 @@ make bench_baseline     # record the current results as the baseline
    costs, plus at least one it should not change. Run the gate. The new problems appear as `new` and unsolved. This
    is test-first development at the level of the corpus.
 2. **Design the rule.** Follow `rule-design.md`: certain detection, filters before exact work, limits as parameters.
-   Prefer a detector that proposes the final result in one step (see the design rules below).
+   Prefer a detector that proposes the final result in one step (see the design rules below). For a hard shape (a
+   general fold, a composition), first split it into subproblems with `decomposing-detection.md`.
 3. **Test it.** Write a unit test for its logic and an integration test where it depends on real interning. Make sure
    the domain's soundness fuzz covers it. A rule added to a domain's rule union is covered automatically. A new
    domain needs its own fuzz test with its own oracle (`poly_soundness.cpp`, `poly_fit_soundness.cpp`).

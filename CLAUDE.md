@@ -80,6 +80,9 @@ A module depends on core and on other modules' headers; core never depends on a 
 - Polynomial algebra is the first full domain. Read `docs/poly.md` for its rules, detectors and benchmark.
 - Lists are the first program domain. Read `docs/list.md`: detectors recognize a program's shape and hand the rest
   to polynomial fitting.
+- **Detecting a hard shape is decomposed** (`docs/decomposing-detection.md`): split it into subproblems, each made
+  easy by one assumption, and keep each solution generic by handing the rest to another domain's detectors (e.g. a
+  fold step as an easy outer combiner over an unknown inner function). Read it before adding a detector.
 - The search strategy is a manifest choice: `arith_fit_manifest` (best-first) and `arith_fit_mcts_manifest` share
   every rule and differ only in search. Read `docs/search.md` before touching either search.
 
