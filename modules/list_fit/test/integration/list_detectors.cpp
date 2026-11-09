@@ -297,6 +297,50 @@ TEST_F(ListDetectorsIntegrationTest, TheSumFoldDetectorLeavesAPlainSumToTheAffin
     EXPECT_TRUE(out.empty());
 }
 
+TEST_F(ListDetectorsIntegrationTest, TheListedFoldDetectorReadsAReverse) {
+    rules.listed_folds_.propose_hypotheses(
+        points(sample_listed(random_lists(30, 0, 6, -9, 9, 35), [](const std::vector<integer>& list) {
+            return std::vector<integer>(list.rbegin(), list.rend());
+        })),
+        out);
+    EXPECT_THAT(printed(), Contains("fold(lam(lam(append(#1, cons(#0, nil)))), nil, xs)"));
+}
+
+TEST_F(ListDetectorsIntegrationTest, TheListedFoldDetectorReadsADuplicationOfEachElement) {
+    rules.listed_folds_.propose_hypotheses(
+        points(sample_listed(random_lists(30, 0, 6, -9, 9, 51), [](const std::vector<integer>& list) {
+            std::vector<integer> result;
+            for (const integer& value : list) {
+                result.push_back(value);
+                result.push_back(value);
+            }
+            return result;
+        })),
+        out);
+    EXPECT_THAT(printed(), Contains("fold(lam(lam(cons(#0, cons(#0, #1)))), nil, xs)"));
+}
+
+TEST_F(ListDetectorsIntegrationTest, TheListedFoldDetectorRefutesDoublingStepsOnLongListsByLength) {
+    // a step like append(#1, #1) would build 2^40 elements on these lists; the length check refutes it first
+    rules.listed_folds_.propose_hypotheses(
+        points(sample_listed(random_lists(30, 20, 40, -50, 50, 31), [](const std::vector<integer>& list) {
+            return std::vector<integer>(list.rbegin(), list.rend());
+        })),
+        out);
+    EXPECT_THAT(printed(), Contains("fold(lam(lam(append(#1, cons(#0, nil)))), nil, xs)"));
+}
+
+TEST_F(ListDetectorsIntegrationTest, TheListedFoldDetectorProposesNothingForASort) {
+    rules.listed_folds_.propose_hypotheses(
+        points(sample_listed(random_lists(30, 2, 6, -9, 9, 54), [](const std::vector<integer>& list) {
+            std::vector<integer> sorted = list;
+            std::sort(sorted.begin(), sorted.end());
+            return sorted;
+        })),
+        out);
+    EXPECT_TRUE(out.empty());
+}
+
 TEST_F(ListDetectorsIntegrationTest, TheMapFilterDetectorLeavesAPlainMapToTheMapDetector) {
     rules.map_filters_.propose_hypotheses(points(sample_listed(all_lists(-2, 2, 3), doubled)), out);
     EXPECT_TRUE(out.empty());

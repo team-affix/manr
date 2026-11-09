@@ -226,7 +226,8 @@ The open problems and their causes are in `list.md` (gaps, and the fold families
 - **A zero-alignment filter for the product detector**: a factor whose root is in a list must give 0 there, and only
   there (`rule-design.md`, refuting is cheaper than confirming).
 - **Booleans** in the vocabulary, for `all` and `any`, generic filter conditions, and list-to-boolean data.
-- **List-valued folds** (`reverse`, `append`), which need a step whose accumulator is a list.
+- **List-valued steps beyond enumeration**: list-valued folds are read by enumerating steps up to 7 nodes
+  (`list_listed_fold_hypotheses`); larger ones (a sort, an insertion) need a reading that decomposes them.
 - **More compositions**: `filter` over `map`, a fold over a map.
 
 ## Sequences

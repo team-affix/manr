@@ -292,6 +292,35 @@ int main(int argc, char** argv) {
         {"count of evens, long (open)", random_lists(30, 20, 40, -50, 50, 48), false,
          [](const list_t& l) { return fold_right(l, 0, [](integer h, integer acc) { return h % 2 == 0 ? acc + 1 : acc; }); },
          {}, 17, "fold(lam(lam(pw(when(eq(mod(#0, 2), 0), #1 + 1), #1))), 0, xs)"},
+        // reduce request #5, and similar folds that build lists, for the listed fold detector
+        {"#5 reverse", random_lists(30, 0, 6, -9, 9, 35), true,
+         [](const list_t& l) { return list_t(l.rbegin(), l.rend()); },
+         {}, 10, "fold(lam(lam(append(#1, cons(#0, nil)))), nil, xs)"},
+        {"duplicate each element", random_lists(30, 0, 6, -9, 9, 51), true,
+         [](const list_t& l) {
+             list_t result;
+             for (const integer& value : l) {
+                 result.push_back(value);
+                 result.push_back(value);
+             }
+             return result;
+         },
+         {}, 10, "fold(lam(lam(cons(#0, cons(#0, #1)))), nil, xs)"},
+        {"reverse with each element twice", random_lists(30, 0, 6, -9, 9, 52), true,
+         [](const list_t& l) {
+             list_t result;
+             for (auto value = l.rbegin(); value != l.rend(); ++value) {
+                 result.push_back(*value);
+                 result.push_back(*value);
+             }
+             return result;
+         },
+         {}, 12, "fold(lam(lam(append(#1, cons(#0, cons(#0, nil))))), nil, xs)"},
+        {"reverse, wrong label", random_lists(30, 0, 6, -9, 9, 53), true,
+         [](const list_t& l) { return list_t(l.rbegin(), l.rend()); },
+         {{3, 1}}, 26,
+         "pw(case(cons(1, cons(-4, cons(9, nil))), cons(10, cons(-4, cons(1, nil)))), "
+         "fold(lam(lam(append(#1, cons(#0, nil)))), nil, xs))"},
         // reduce request #1, and similar long compositions for the signature reading of a map over a filter
         {"#1 long map over filter", random_lists(30, 20, 40, -50, 50, 31), true,
          [](const list_t& l) { return map_each(keep(l, [](integer e) { return e < 17; }), [](integer e) { return 2 * e + 1; }); },

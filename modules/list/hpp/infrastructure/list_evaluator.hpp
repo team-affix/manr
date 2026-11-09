@@ -14,7 +14,10 @@
 // is the input; literals and `nil` are themselves; `cons` builds a list from the values of its arguments; `map`,
 // `filter` and `fold` run over the value of their list argument, unwrapping their functions' `lam` binders (one for
 // map and filter, two for fold) and handing the bodies to the element domain at `point(element)` for map and filter
-// and `point(head, accumulator)` for fold, which binds `#0` and `#1` in that order. Also decides `lt(a, b)` between two values that are
+// and `point(head, accumulator)` for fold, which binds `#0` and `#1` in that order. A fold step the element domain
+// cannot evaluate, such as one building a list (`append(#1, cons(#0, nil))`), is evaluated here instead, with the head
+// and the accumulator substituted for `#0` and `#1` (a nested `lam` is not entered: its indices are its own).
+// `append` joins the values of two lists. Also decides `lt(a, b)` between two values that are
 // literals, for regions over lists. No value for anything else, or where the element domain has none.
 template<typename IFindElements,
          typename IMakeList,
@@ -40,7 +43,8 @@ private:
     std::optional<const expr*> evaluate_map(const expr* body, const std::vector<const expr*>& elements);
     std::optional<const expr*> evaluate_filter(const expr* condition, const std::vector<const expr*>& elements);
     std::optional<const expr*> evaluate_fold(const expr* step, const expr* base,
-                                             const std::vector<const expr*>& elements);
+                                             const std::vector<const expr*>& elements, const expr* input);
+    const expr* substitute(const expr* body, const expr* head, const expr* accumulator);
 
     IFindElements& find_elements_;
     IMakeList& make_list_;
@@ -104,6 +108,20 @@ LIST_EVALUATOR_TEMPLATE std::optional<const expr*> LIST_EVALUATOR::evaluate_at(c
             return std::nullopt;
         return make_functor_.make_functor(symbols_.cons, {head.value(), tail.value()});
     }
+    if (f->id == symbols_.append && f->args.size() == 2) {
+        const std::optional<const expr*> first = evaluate_at(f->args[0], input);
+        if (!first.has_value())
+            return std::nullopt;
+        const std::optional<const expr*> second = evaluate_at(f->args[1], input);
+        if (!second.has_value())
+            return std::nullopt;
+        std::optional<std::vector<const expr*>> joined = find_elements_.find_elements(first.value());
+        const std::optional<std::vector<const expr*>> rest = find_elements_.find_elements(second.value());
+        if (!joined.has_value() || !rest.has_value())
+            return std::nullopt;
+        joined.value().insert(joined.value().end(), rest.value().begin(), rest.value().end());
+        return make_list_.make_list(joined.value());
+    }
     const bool program = (f->id == symbols_.map && f->args.size() == 2)
                          || (f->id == symbols_.filter && f->args.size() == 2)
                          || (f->id == symbols_.fold && f->args.size() == 3);
@@ -131,7 +149,7 @@ LIST_EVALUATOR_TEMPLATE std::optional<const expr*> LIST_EVALUATOR::evaluate_at(c
     const std::optional<const expr*> base = evaluate_at(f->args[1], input);
     if (!base.has_value())
         return std::nullopt;
-    return evaluate_fold(body, base.value(), elements.value());
+    return evaluate_fold(body, base.value(), elements.value(), input);
 }
 
 LIST_EVALUATOR_TEMPLATE std::optional<bool> LIST_EVALUATOR::holds_at(const expr* condition, const expr* input) {
@@ -181,16 +199,35 @@ LIST_EVALUATOR_TEMPLATE std::optional<const expr*> LIST_EVALUATOR::evaluate_filt
 }
 
 LIST_EVALUATOR_TEMPLATE std::optional<const expr*> LIST_EVALUATOR::evaluate_fold(
-    const expr* step, const expr* base, const std::vector<const expr*>& elements) {
+    const expr* step, const expr* base, const std::vector<const expr*>& elements, const expr* input) {
     const expr* accumulated = base;
     for (auto element = elements.rbegin(); element != elements.rend(); ++element) {
-        const std::optional<const expr*> value =
+        std::optional<const expr*> value =
             evaluate_step_at_.evaluate_at(step, make_functor_.make_functor(point_symbol_, {*element, accumulated}));
+        if (!value.has_value())
+            value = evaluate_at(substitute(step, *element, accumulated), input);
         if (!value.has_value())
             return std::nullopt;
         accumulated = value.value();
     }
     return accumulated;
+}
+
+// The body with the head for `#0` and the accumulator for `#1`, outside any nested `lam`.
+LIST_EVALUATOR_TEMPLATE const expr* LIST_EVALUATOR::substitute(
+    const expr* body, const expr* head, const expr* accumulator) {
+    const expr::functor* f = std::get_if<expr::functor>(&body->content);
+    if (f == nullptr || f->id == symbols_.lambda)
+        return body;
+    if (f->args.empty() && f->id == symbols_.head)
+        return head;
+    if (f->args.empty() && f->id == symbols_.accumulator)
+        return accumulator;
+    std::vector<const expr*> args;
+    args.reserve(f->args.size());
+    for (const expr* arg : f->args)
+        args.push_back(substitute(arg, head, accumulator));
+    return make_functor_.make_functor(f->id, args);
 }
 
 #undef LIST_EVALUATOR

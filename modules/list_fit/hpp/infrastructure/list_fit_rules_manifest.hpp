@@ -16,6 +16,7 @@
 #include "infrastructure/list_fold_hypotheses.hpp"
 #include "infrastructure/list_integer_fold_hypotheses.hpp"
 #include "infrastructure/list_integer_map_hypotheses.hpp"
+#include "infrastructure/list_listed_fold_hypotheses.hpp"
 #include "infrastructure/list_map_filter_hypotheses.hpp"
 #include "infrastructure/list_map_hypotheses.hpp"
 #include "infrastructure/list_product_fold_hypotheses.hpp"
@@ -52,7 +53,8 @@
 // tails. The map-filter detector reads a filter composed under a map. The selection and factor fold detectors are the
 // generic outer-inner readings (`docs/decomposing-detection.md`): the largest or smallest value, or the product, of an
 // unknown inner function of the elements, handed to the element domain beside the extremum and product detectors, and
-// the sum fold detector the same for the sum (a count on any condition when the inner function is 0 or 1).
+// the sum fold detector the same for the sum (a count on any condition when the inner function is 0 or 1). The listed
+// fold detector reads folds that build lists (reverse) by enumerating their small steps.
 // The list detectors hand the element-level part of the problem to polynomial fitting: `element_fit_` over `#0` for
 // map bodies, `step_fit_` over `#0` (the head) and `#1` (the accumulator) for fold steps. The full polynomial rule set then compresses the bodies,
 // all at every position. `rules_` is what a search injects and `initial_` is where it starts.
@@ -151,13 +153,16 @@ struct list_fit_rules_manifest {
     struct sum_folds_t : sum_folds_base_t {
         using sum_folds_base_t::sum_folds_base_t;
     };
+    struct listed_folds_t : list_listed_fold_hypotheses<values_t, expr_pool> {
+        using list_listed_fold_hypotheses<values_t, expr_pool>::list_listed_fold_hypotheses;
+    };
     struct hypotheses_t : pw_hypotheses_union<constants_t, integer_maps_t, integer_folds_t, filterings_t, maps_t,
                                              folds_t, affine_folds_t, extremum_folds_t, product_folds_t,
                                              count_folds_t, map_filters_t, selection_folds_t, factor_folds_t,
-                                             sum_folds_t> {
+                                             sum_folds_t, listed_folds_t> {
         using pw_hypotheses_union<constants_t, integer_maps_t, integer_folds_t, filterings_t, maps_t, folds_t,
                                   affine_folds_t, extremum_folds_t, product_folds_t, count_folds_t, map_filters_t,
-                                  selection_folds_t, factor_folds_t, sum_folds_t>::pw_hypotheses_union;
+                                  selection_folds_t, factor_folds_t, sum_folds_t, listed_folds_t>::pw_hypotheses_union;
     };
     struct binder_t : pw_extension_binder<hypotheses_t, filter_t, assembler_t> {
         using pw_extension_binder<hypotheses_t, filter_t, assembler_t>::pw_extension_binder;
@@ -205,6 +210,7 @@ struct list_fit_rules_manifest {
     factor_folds_t factor_folds_;
     list_sum_fold_solver sum_solver_;
     sum_folds_t sum_folds_;
+    listed_folds_t listed_folds_;
     hypotheses_t hypotheses_;
     binder_t binder_;
     absorber_t absorber_;

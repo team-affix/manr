@@ -11,11 +11,14 @@
 //   `filter(lam(c), l)`      the elements of l where the condition c holds, the element as `#0`
 //   `fold(lam(lam(s)), b, l)` right fold: b for nil; for cons(h, t), s with the head h as `#0` (inner) and the fold
 //                            of t as `#1` (outer), so the element is `#0` in every program
-// The bodies `f`, `c` and `s` belong to the element domain, which evaluates them. `element`, `head` and
+//   `append(a, b)`           the elements of a, then those of b
+// The bodies `f`, `c` and `s` belong to the element domain, which evaluates them; a fold step the element domain cannot
+// evaluate (one that builds a list, `append(#1, cons(#0, nil))`) is evaluated by the list evaluator itself. `element`, `head` and
 // `accumulator` are the index symbols each body sees: `#0`, `#0` and `#1`.
 struct list_symbols {
     uint32_t nil;
     uint32_t cons;
+    uint32_t append;
     uint32_t map;
     uint32_t filter;
     uint32_t fold;

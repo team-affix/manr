@@ -76,6 +76,17 @@ TEST_F(ListEvaluatorIntegrationTest, AFoldStepMayBeAPiecewise) {
     EXPECT_EQ(evaluate(program(symbols.fold, {lam2(larger), parse("0"), xs}), {3, 9, 4}), kernel.literals_.make_literal(9));
 }
 
+TEST_F(ListEvaluatorIntegrationTest, AppendJoinsTwoLists) {
+    const expr* doubled = program(symbols.append, {xs, xs});
+    EXPECT_EQ(evaluate(doubled, {1, 2}), list({1, 2, 1, 2}));
+}
+
+TEST_F(ListEvaluatorIntegrationTest, AFoldStepThatBuildsAListIsEvaluatedByTheListEvaluator) {
+    const expr* nil = program(symbols.nil, {});
+    const expr* step = program(symbols.append, {parse("#1"), program(symbols.cons, {parse("#0"), nil})});
+    EXPECT_EQ(evaluate(program(symbols.fold, {lam2(step), nil, xs}), {1, 2, 3}), list({3, 2, 1}));
+}
+
 TEST_F(ListEvaluatorIntegrationTest, AnExtensionTermHasNoValue) {
     EXPECT_EQ(evaluate(kernel.exprs_.make_var(0), {1}), std::nullopt);
 }

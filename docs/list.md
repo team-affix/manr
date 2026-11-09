@@ -26,6 +26,7 @@ To improve how programs are detected, work in `list_fit`. To add list operations
 | `map(lam(f), l)` | `f` applied to every element of `l`, the element as `#0` |
 | `filter(lam(c), l)` | the elements of `l` where the condition `c` holds, the element as `#0` |
 | `fold(lam(lam(s)), b, l)` | right fold: `b` for `nil`; for `cons(h, t)`, `s` with the head `h` as `#0` (inner `lam`) and the fold of `t` as `#1` (outer `lam`) |
+| `append(a, b)` | the elements of `a`, then those of `b` |
 
 Every bound variable is a de Bruijn index (`plans.md`, bound variables), so binders nest. The fold binds its
 accumulator outside and its head inside, so the element is `#0` in every program: a body fitted for a map can be a
@@ -37,6 +38,9 @@ body is anything that domain evaluates: a polynomial in the indices, or a piecew
 that is not under the right number of `lam`s has no value. Programs compose
 (`fold(lam(lam(#0 + #1)), 0, map(lam(#0^2), xs))` evaluates), and the evaluator also decides `lt(a, b)` between two
 integer-valued programs, for regions over lists.
+
+A fold step the element domain cannot evaluate, one that builds a list (`append(#1, cons(#0, nil))`), is evaluated by
+the list evaluator itself, with the head and the accumulator substituted for `#0` and `#1`.
 
 ## Detectors
 
@@ -119,7 +123,7 @@ interpolation. The difference is the order the samples reach the element domain.
 
 ## Benchmark
 
-`bench/list_bench.cpp`, gated by `make bench_check` with its baseline in `bench/baseline/list.tsv`. 46 problems, 41
+`bench/list_bench.cpp`, gated by `make bench_check` with its baseline in `bench/baseline/list.tsv`. 50 problems, 45
 solved by both solvers:
 
 - folds: sum, length, product, sum of squares, alternating sum, digits read as a number, sum over all 781 lists of
@@ -138,6 +142,8 @@ solved by both solvers:
   generic readings: the smallest of `2h + 1`, the product of `h^2 + 1` from base 3, and two still open (below)
 - reduce request #1 (`map(lam(2 * #0 + 1), filter(lam(lt(#0, 17)), xs))` on 30 lists of 20 to 40 elements), and two
   similar long compositions: squares of positives, and `3e - 2` over the values above -10
+- reduce request #5 (reverse, `fold(lam(lam(append(#1, cons(#0, nil)))), nil, xs)`, cost 10), duplicating each
+  element, reverse with each element twice, and reverse with one wrong label
 - reduce request #4 (count of evens, `fold(lam(lam(pw(when(eq(mod(#0, 2), 1), #1), 1 + #1))), 0, xs)`, cost 16), and
   the count of multiples of 3 and the sum of the evens; the sum of absolute values and the count of evens on long
   lists are open (below)
@@ -160,7 +166,7 @@ accumulator (`#1`):
 | counting | `pw(when(c(h), acc + 1), acc)` | count of positives, count above a threshold | output is the number of elements passing a threshold: try the thresholds between element values, as the filter detector does | `list_count_fold_hypotheses` (one threshold); any condition is the additive row with `g` 0 or 1 |
 | selection of a value | `pw(when(lt(acc, p(h)), p(h)), acc)` | largest square, largest absolute value | output is `p` of some element: bound `p` at each value by the outputs of the lists holding it; values that alone reach their list's output pin `p` there, and go to the element domain | `list_selection_fold_hypotheses` (open on long lists and for piecewise `p`, below) |
 | boolean | `and`/`or` of a condition | all positive, any zero | a counting fold compared with 0 or the length | open (needs booleans) |
-| list-valued | `cons(h, acc)`, `append(acc, cons(h, nil))` | copy, reverse, append | the output's elements are a permutation of the input's: compare positions | open (needs a list step domain) |
+| list-valued | `cons(h, acc)`, `append(acc, cons(h, nil))` | reverse, duplicating each element, reverse with each element twice | enumerate the small steps over `cons`, `append`, `nil`, `#0`, `#1`; refute by length (`a * length(acc) + b` elements), then run the rest | `list_listed_fold_hypotheses` (steps up to 7 nodes) |
 
 ## Gaps (the open problems)
 
