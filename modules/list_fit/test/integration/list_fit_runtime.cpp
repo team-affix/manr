@@ -209,3 +209,23 @@ TEST_F(ListFitRuntimeIntegrationTest, SquaresOfThePositivesReduceToAMapOverAFilt
               })),
               "map(e^2, filter(lt(0, e), xs))");
 }
+
+TEST_F(ListFitRuntimeIntegrationTest, LargestSquaresReduceToASelectionFoldOfASquare) {
+    EXPECT_EQ(fit(sample_scalar(random_lists(30, 2, 6, -9, 9, 32), [](const std::vector<integer>& list) {
+                  integer largest = 0;
+                  for (const integer& value : list)
+                      largest = std::max(largest, integer(value * value));
+                  return largest;
+              })),
+              "fold(pw(when(lt(acc, h^2), h^2), acc), 0, xs)");
+}
+
+TEST_F(ListFitRuntimeIntegrationTest, ProductsOfSquaresReduceToAFoldWithoutTails) {
+    EXPECT_EQ(fit(sample_scalar(random_lists(30, 2, 6, -4, 4, 33), [](const std::vector<integer>& list) {
+                  integer product = 1;
+                  for (const integer& value : list)
+                      product *= value * value;
+                  return product;
+              })),
+              "fold(h^2 * acc, 1, xs)");
+}

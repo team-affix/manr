@@ -259,6 +259,29 @@ int main(int argc, char** argv) {
         {"squares of positives", random_lists(30, 2, 6, -9, 9, 28), true,
          [](const list_t& l) { return map_each(keep(l, [](integer e) { return e > 0; }), [](integer e) { return e * e; }); },
          {}, 9, "map(e^2, filter(lt(0, e), xs))"},
+        // reduce requests #2 and #3, and similar problems for the generic selection and factor folds
+        {"#2 largest square", random_lists(30, 2, 6, -9, 9, 32), false,
+         [](const list_t& l) { return fold_right(l, 0, [](integer h, integer acc) { return acc < h * h ? h * h : acc; }); },
+         {}, 14, "fold(pw(when(lt(acc, h^2), h^2), acc), 0, xs)"},
+        {"#3 product of squares", random_lists(30, 2, 6, -4, 4, 33), false,
+         [](const list_t& l) { return fold_right(l, 1, [](integer h, integer acc) { return integer(h * h * acc); }); }, {}, 8,
+         "fold(h^2 * acc, 1, xs)"},
+        {"largest absolute value (open)", random_lists(30, 2, 6, -9, 9, 42), false,
+         [](const list_t& l) {
+             return fold_right(l, 0, [](integer h, integer acc) { return acc < abs(h) ? integer(abs(h)) : acc; });
+         },
+         {}, 26, "fold(pw(when(lt(acc, |h|), |h|), acc), 0, xs), |h| as pw(when(lt(h, 1), -1 * h), h)"},
+        {"smallest of 2h + 1", random_lists(30, 2, 6, -9, 9, 37), false,
+         [](const list_t& l) {
+             return fold_right(l, 100, [](integer h, integer acc) { return 2 * h + 1 < acc ? integer(2 * h + 1) : acc; });
+         },
+         {}, 18, "fold(pw(when(lt(2 * h + 1, acc), 2 * h + 1), acc), 7, xs)"},
+        {"product of h^2 + 1", random_lists(30, 1, 5, -3, 3, 43), false,
+         [](const list_t& l) { return fold_right(l, 3, [](integer h, integer acc) { return integer((h * h + 1) * acc); }); }, {},
+         10, "fold((h^2 + 1) * acc, 3, xs)"},
+        {"long largest square (open)", random_lists(30, 20, 40, -50, 50, 44), false,
+         [](const list_t& l) { return fold_right(l, 0, [](integer h, integer acc) { return acc < h * h ? h * h : acc; }); },
+         {}, 14, "fold(pw(when(lt(acc, h^2), h^2), acc), 0, xs)"},
         // open: no solver reaches the target yet; kept so the gate reports when one does
         {"squares of positives (open)", all_lists(-2, 2, 3), true,
          [](const list_t& l) { return map_each(keep(l, [](integer e) { return e > 0; }), [](integer e) { return e * e; }); },

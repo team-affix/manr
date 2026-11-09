@@ -53,7 +53,9 @@ element domain's hypotheses (polynomial fitting today; any domain's detectors la
 Each row is one detector, generic in `g`. Compare with the current detectors. The affine detector fixes `g` to a
 polynomial of bounded degree. The extremum detector fixes `g = h`. The product detector fixes `g` to `a * h + k`. The
 count detector fixes the condition to a threshold. Each is a specific case of its row. **They stay** (design rule 7
-in `extending.md`): they are fast on common data, and the generic row is added beside them, not instead.
+in `extending.md`): they are fast on common data, and the generic row is added beside them, not instead. The `max`
+and `*` rows are built (`list_selection_fold_hypotheses`, `list_factor_fold_hypotheses`); `+` and the count are
+planned.
 
 What makes the split work:
 

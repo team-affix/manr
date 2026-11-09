@@ -165,9 +165,11 @@ where no repetition is visible yet:
 
 The open problems and their causes are in `list.md` (gaps, and the fold families table). What we plan to build:
 
-- **The generic outer-inner fold detectors** (`decomposing-detection.md`): `g(h) + acc`, `g(h) * acc`,
-  `max(g(h), acc)` and counts on any condition, each recovering `g`'s values per element value and handing them to
-  the element domain, beside the specific detectors that exist.
+- **The remaining generic outer-inner fold detectors** (`decomposing-detection.md`): `g(h) + acc` and counts on any
+  condition, each recovering `g`'s values per element value and handing them to the element domain, beside the
+  specific detectors (`max` and `*` are built: `list_selection_fold_hypotheses`, `list_factor_fold_hypotheses`).
+- **A piecewise inside a condition**: conditions evaluated by the piecewise evaluator, so a step like
+  `pw(when(lt(acc, |h|), |h|), acc)` can be evaluated (`list.md`, gaps).
 - **A zero-alignment filter for the product detector**: a factor whose root is in a list must give 0 there, and only
   there (`rule-design.md`, refuting is cheaper than confirming).
 - **Booleans** in the vocabulary, for `all` and `any`, generic filter conditions, and list-to-boolean data.
