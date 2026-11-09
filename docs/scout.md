@@ -33,7 +33,8 @@ Push in several directions:
   truth table), algebra, graphs, strings, anything in `vision.md` or beyond it. A problem MANR has no vocabulary
   for is a valid finding: it marks a missing domain.
 - **Scale.** The same problem with ten times the data, or ten times the size.
-- **Free variables (`?n`).** A free variable is a hole at the syntax level: reduction may bind it to any expression
+- **Free variables (`?n`), the priority.** We want many of these: they are what turns reduction into
+  generalization, and MANR binds almost none of them yet (`plans.md`, free variables). A free variable is a hole at the syntax level: reduction may bind it to any expression
   of the domain, and should bind it to whatever makes the whole expression smallest. That is how reduction
   generalizes: the data piecewise's catch-all `?0` is bound to a model, and the same goes for a `?n` anywhere. So a
   request with free variables asks for the smallest expression reachable by choosing their bindings, and its desired
@@ -48,7 +49,8 @@ Push in several directions:
   - several holes, holes inside data (an output that is `?1`, a list holding `?0`), and holes whose best binding is
     itself an expression of the input variables, not a constant.
 
-Aim for a handful, a mix of near misses and far reaches, with at least one carrying a free variable. Prefer data that determines the model: enough points that
+Aim for a handful, a mix of near misses and far reaches, and make free-variable requests a large share of them,
+about half, starting with holes inside data. Prefer data that determines the model: enough points that
 the model is the smallest sound explanation. Inputs in domains MANR does not support at all are as welcome as any.
 
 ## 3. Check each against MANR
