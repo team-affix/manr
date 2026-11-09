@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -94,5 +95,130 @@ TEST_F(ListDetectorsIntegrationTest, TheFilterDetectorProposesNothingWhenNoThres
                                              return kept;
                                          })),
                                          out);
+    EXPECT_TRUE(out.empty());
+}
+
+TEST_F(ListDetectorsIntegrationTest, TheExtremumFoldDetectorReadsTheLargestElementWithTheEmptyListsOutputAsBase) {
+    rules.extremum_folds_.propose_hypotheses(points(sample_scalar(all_lists(0, 3, 3), [](const std::vector<integer>& list) {
+                                                 integer largest = 0;
+                                                 for (const integer& value : list)
+                                                     largest = std::max(largest, value);
+                                                 return largest;
+                                             })),
+                                             out);
+    EXPECT_EQ(printed(), std::vector<std::string>{"fold(pw(when(lt(acc, h), h), acc), 0, xs)"});
+}
+
+TEST_F(ListDetectorsIntegrationTest, TheExtremumFoldDetectorReadsTheSmallestElementWithoutTails) {
+    rules.extremum_folds_.propose_hypotheses(
+        points(sample_scalar(random_lists(20, 3, 8, -9, 9, 12), [](const std::vector<integer>& list) {
+            return *std::min_element(list.begin(), list.end());
+        })),
+        out);
+    EXPECT_EQ(printed(), std::vector<std::string>{"fold(pw(when(lt(h, acc), h), acc), 0, xs)"});
+}
+
+TEST_F(ListDetectorsIntegrationTest, TheExtremumFoldDetectorTakesTheBaseFromOutputsBeyondEveryElement) {
+    rules.extremum_folds_.propose_hypotheses(
+        points(sample_scalar(random_lists(20, 1, 4, 0, 5, 13), [](const std::vector<integer>& list) {
+            return std::max(integer(2), *std::max_element(list.begin(), list.end()));
+        })),
+        out);
+    EXPECT_EQ(printed(), std::vector<std::string>{"fold(pw(when(lt(acc, h), h), acc), 2, xs)"});
+}
+
+TEST_F(ListDetectorsIntegrationTest, TheExtremumFoldDetectorProposesNothingForSums) {
+    rules.extremum_folds_.propose_hypotheses(points(sample_scalar(all_lists(0, 3, 3), [](const std::vector<integer>& list) {
+                                                 integer total = 0;
+                                                 for (const integer& value : list)
+                                                     total += value;
+                                                 return total;
+                                             })),
+                                             out);
+    EXPECT_TRUE(out.empty());
+}
+
+TEST_F(ListDetectorsIntegrationTest, TheExtremumFoldDetectorDoesNotTakeAWrongLabelBeyondItsListAsTheBase) {
+    std::vector<list_sample> samples = sample_scalar(random_lists(20, 3, 8, 1, 9, 16), [](const std::vector<integer>& list) {
+        return *std::max_element(list.begin(), list.end());
+    });
+    samples[0].output[0] += 100;
+    rules.extremum_folds_.propose_hypotheses(points(samples), out);
+    EXPECT_EQ(printed(), std::vector<std::string>{"fold(pw(when(lt(acc, h), h), acc), 0, xs)"});
+}
+
+TEST_F(ListDetectorsIntegrationTest, TheProductFoldDetectorReadsAProductWithoutTails) {
+    rules.product_folds_.propose_hypotheses(
+        points(sample_scalar(random_lists(20, 2, 6, -5, 5, 21), [](const std::vector<integer>& list) {
+            integer product = 1;
+            for (const integer& value : list)
+                product *= value;
+            return product;
+        })),
+        out);
+    EXPECT_EQ(printed(), std::vector<std::string>{"fold(h * acc, 1, xs)"});
+}
+
+TEST_F(ListDetectorsIntegrationTest, TheProductFoldDetectorReadsALinearFactorAndABase) {
+    rules.product_folds_.propose_hypotheses(
+        points(sample_scalar(random_lists(20, 1, 5, -4, 4, 22), [](const std::vector<integer>& list) {
+            integer product = 3;
+            for (const integer& value : list)
+                product *= 2 - value;
+            return product;
+        })),
+        out);
+    EXPECT_EQ(printed(), std::vector<std::string>{"fold(-1 * h * acc + 2 * acc, 3, xs)"});
+}
+
+TEST_F(ListDetectorsIntegrationTest, TheProductFoldDetectorStartsPastAWrongLabelOnTheFirstList) {
+    std::vector<list_sample> samples = sample_scalar(random_lists(20, 2, 6, 1, 5, 23), [](const std::vector<integer>& list) {
+        integer product = 1;
+        for (const integer& value : list)
+            product *= value;
+        return product;
+    });
+    samples[0].output[0] += 1;
+    rules.product_folds_.propose_hypotheses(points(samples), out);
+    EXPECT_EQ(printed(), std::vector<std::string>{"fold(h * acc, 1, xs)"});
+}
+
+TEST_F(ListDetectorsIntegrationTest, TheProductFoldDetectorProposesNothingForSums) {
+    rules.product_folds_.propose_hypotheses(points(sample_scalar(all_lists(0, 3, 3), [](const std::vector<integer>& list) {
+                                                integer total = 0;
+                                                for (const integer& value : list)
+                                                    total += value;
+                                                return total;
+                                            })),
+                                            out);
+    EXPECT_TRUE(out.empty());
+}
+
+TEST_F(ListDetectorsIntegrationTest, TheCountFoldDetectorCountsElementsAboveAThresholdWithoutTails) {
+    rules.count_folds_.propose_hypotheses(
+        points(sample_scalar(random_lists(20, 3, 8, -9, 9, 24), [](const std::vector<integer>& list) {
+            return integer(std::count_if(list.begin(), list.end(), [](const integer& value) { return value > 2; }));
+        })),
+        out);
+    EXPECT_EQ(printed(), std::vector<std::string>{"fold(pw(when(lt(2, h), acc + 1), acc), 0, xs)"});
+}
+
+TEST_F(ListDetectorsIntegrationTest, TheCountFoldDetectorCountsElementsBelowAThresholdFromABase) {
+    rules.count_folds_.propose_hypotheses(
+        points(sample_scalar(random_lists(20, 3, 8, -9, 9, 25), [](const std::vector<integer>& list) {
+            return 5 + integer(std::count_if(list.begin(), list.end(), [](const integer& value) { return value < -1; }));
+        })),
+        out);
+    EXPECT_EQ(printed(), std::vector<std::string>{"fold(pw(when(lt(h, -1), acc + 1), acc), 5, xs)"});
+}
+
+TEST_F(ListDetectorsIntegrationTest, TheCountFoldDetectorProposesNothingForSums) {
+    rules.count_folds_.propose_hypotheses(points(sample_scalar(random_lists(20, 3, 8, -9, 9, 26), [](const std::vector<integer>& list) {
+                                              integer total = 0;
+                                              for (const integer& value : list)
+                                                  total += value;
+                                              return total;
+                                          })),
+                                          out);
     EXPECT_TRUE(out.empty());
 }

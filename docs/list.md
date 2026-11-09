@@ -61,6 +61,20 @@ not reproduce as branches.
   the most lists (more than half, and more than its unknowns) is proposed. It covers sum, length, sum of squares,
   alternating sums and digits; it does not cover steps where `acc` is multiplied by a function of `h` (product) or
   steps in pieces (maximum).
+- **Extremum folds, from whole lists.** `list_extremum_fold_hypotheses` reads the largest or smallest element with a
+  base, `fold(pw(when(lt(acc, h), h), acc), b, xs)` or with `lt(h, acc)`. A base only shows where an output lies
+  beyond every element of its list (always for `nil`), so each such output is a candidate, beside one base that
+  leaves every list to its elements (0 when it qualifies). The direction and base reproducing the most lists (more
+  than half) are proposed, so a wrong label above its list cannot become the base. It is a direct check, linear in
+  the data, and needs no tails.
+- **Product folds, from whole lists.** `list_product_fold_hypotheses` reads `fold((a * h + k) * acc, b, xs)`: the
+  output is `b` times one factor per element. Factors are tried simplest first (`a` up to 2 in size, `a = 0` left to
+  the affine detector; `k` up to 3), the base is a starting list's output over its product when it divides, and a
+  factor is abandoned at its first failure past what the best so far allows. Two starting lists, as for affine.
+- **Count folds, from whole lists.** `list_count_fold_hypotheses` reads a base plus the number of elements above or
+  below a threshold, `fold(pw(when(lt(d, h), acc + 1), acc), b, xs)` or with `lt(h, d)`. Every element value is tried
+  as `d` in both directions on lists sorted once (each count is a binary search); the base is a starting list's
+  output less its count, with the same early abandoning.
 
 The polynomial rules then compress the bodies, at every position, as they do for polynomial fitting.
 
@@ -72,7 +86,7 @@ interpolation. The difference is the order the samples reach the element domain.
 
 ## Benchmark
 
-`bench/list_bench.cpp`, gated by `make bench_check` with its baseline in `bench/baseline/list.tsv`. 26 problems, 24
+`bench/list_bench.cpp`, gated by `make bench_check` with its baseline in `bench/baseline/list.tsv`. 31 problems, 30
 solved by both solvers:
 
 - folds: sum, length, product, sum of squares, alternating sum, digits read as a number, sum over all 781 lists of
@@ -83,17 +97,41 @@ solved by both solvers:
   about 9^40), a sum with one wrong label, two maps and a filter. These folds are given every list's tails; maps and
   filters need none, so 30 random lists are enough.
 - sums without tails: every list of exactly three elements, and 40 random lists of 20 to 40 elements (affine fold)
+- extremes: the maximum of short lists, the minimum of long lists without tails, and the maximum of long lists with
+  one wrong label
+- products and counts: a product of 30 lists without tails, a long product with one wrong label, and the count of
+  elements above 10 in long lists without tails
 
 Every result is checked against every sample. The soundness fuzz (`list_fit_soundness.cpp`) performs every rewrite
 along random walks and checks the same.
 
+## Fold families and how to detect them
+
+Folds over integer lists to integers, grouped by the shape of their step, with the reading that finds each one from
+whole lists:
+
+| family | step | examples | detection | status |
+|---|---|---|---|---|
+| affine | `p(h) + c * acc` | sum, length, sum of squares, alternating sum, digits | linear in `p` and `b` once `c` is fixed; exact solve | `list_affine_fold_hypotheses` |
+| selection | `pw(when(lt(acc, h), h), acc)` | maximum, minimum | output is an element or the base; direct check | `list_extremum_fold_hypotheses` |
+| multiplicative | `q(h) * acc` | product, product of squares, `2^length` | output is `b` times a product of per-value factors: zeros mark the values with `q = 0`; on the rest, each prime's exponent in the output is linear in the per-value exponents (or, cheaper, `log|out|` by least squares, then rounded and checked exactly); signs are linear mod 2. The factors per value then go to the element domain. Built: linear factors `a * h + k` by enumeration | `list_product_fold_hypotheses` (linear factors; product of squares open) |
+| counting | `pw(when(c(h), acc + 1), acc)` | count of positives, count above a threshold | output is the number of elements passing a threshold: try the thresholds between element values, as the filter detector does | `list_count_fold_hypotheses` (one threshold) |
+| selection of a value | `pw(when(lt(acc, p(h)), p(h)), acc)` | largest square, largest absolute value | output is `p` of some element: fit `p` from the elements that attain it. Which element attains it is unknown, so this is a search over element choices per list (or a guess of `p` checked directly) | open |
+| boolean | `and`/`or` of a condition | all positive, any zero | a counting fold compared with 0 or the length | open (needs booleans) |
+| list-valued | `cons(h, acc)`, `append(acc, cons(h, nil))` | copy, reverse, append | the output's elements are a permutation of the input's: compare positions | open (needs a list step domain) |
+
 ## Gaps (the open problems)
 
-- **Maximum.** Its step, `pw(when(lt(acc, h), h), acc)`, compares two variables. The split detector only cuts on
-  one variable at a threshold.
-- **Data without tails, beyond affine steps.** Without tails only affine steps are found. A step like `h * acc` makes
-  the output nonlinear in the unknowns; it needs either tails or a solver for that shape.
-- **The affine detector's drag.** On data it cannot fit (product, maximum) it tries every multiplier from both starts
+- **Steps in pieces in general.** The extremum detector covers the largest and smallest element. A step in pieces
+  that compares the two variables some other way (`lt(acc, p(h))`, e.g. the largest square) is still out of reach:
+  the split detector only cuts on one variable at a threshold.
+- **Data without tails, beyond the built families.** Without tails, affine, extremum, linear-factor product and
+  single-threshold count steps are found. A factor that is not linear in `h` (`h^2 * acc`) needs the per-value
+  factor reading in the table; a count on a condition other than one threshold needs the condition handed to the
+  element domain.
+- **Detectors' drag.** The product and count detectors abandon a candidate at its first failure past what the best
+  allows, and add little; long sums under MCTS still went from about 3.3 s to 4 s across the extremum, product and
+  count detectors. **The affine detector's drag.** On data it cannot fit (product, maximum) it tries every multiplier from both starts
   on every detection, and MCTS detects again at every step: product under MCTS went from 0.77 s to 1.65 s. A
   necessary-condition filter (solving modulo a small prime before the exact solve) or caching detection per
   expression would remove most of it.

@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <string>
 #include <vector>
 #include <gtest/gtest.h>
@@ -162,4 +163,38 @@ TEST_F(ListFitRuntimeIntegrationTest, AWrongLabelOnTheFirstListWithoutTailsStays
     EXPECT_TRUE(best.starts_with("pw(case(")) << best;
     EXPECT_TRUE(best.ends_with("), fold(h + acc, 0, xs))")) << best;
     EXPECT_EQ(best.find("case(", 8), std::string::npos) << best;
+}
+
+TEST_F(ListFitRuntimeIntegrationTest, MaximaReduceToASelectionFold) {
+    EXPECT_EQ(fit(sample_scalar(all_lists(0, 3, 3), [](const std::vector<integer>& list) {
+                  integer largest = 0;
+                  for (const integer& value : list)
+                      largest = std::max(largest, value);
+                  return largest;
+              })),
+              "fold(pw(when(lt(acc, h), h), acc), 0, xs)");
+}
+
+TEST_F(ListFitRuntimeIntegrationTest, MinimaOfLongListsReduceToASelectionFoldWithoutTails) {
+    EXPECT_EQ(fit(sample_scalar(random_lists(30, 20, 40, -50, 50, 14), [](const std::vector<integer>& list) {
+                  return *std::min_element(list.begin(), list.end());
+              })),
+              "fold(pw(when(lt(h, acc), h), acc), 0, xs)");
+}
+
+TEST_F(ListFitRuntimeIntegrationTest, ProductsReduceToAFoldWithoutTails) {
+    EXPECT_EQ(fit(sample_scalar(random_lists(20, 2, 6, -5, 5, 21), [](const std::vector<integer>& list) {
+                  integer product = 1;
+                  for (const integer& value : list)
+                      product *= value;
+                  return product;
+              })),
+              "fold(h * acc, 1, xs)");
+}
+
+TEST_F(ListFitRuntimeIntegrationTest, CountsOfLongListsReduceToACountingFoldWithoutTails) {
+    EXPECT_EQ(fit(sample_scalar(random_lists(30, 20, 40, -50, 50, 27), [](const std::vector<integer>& list) {
+                  return integer(std::count_if(list.begin(), list.end(), [](const integer& value) { return value > 10; }));
+              })),
+              "fold(pw(when(lt(10, h), acc + 1), acc), 0, xs)");
 }

@@ -38,7 +38,14 @@ list_fit_rules_manifest::list_fit_rules_manifest(
     , affine_folds_(values_, kernel.literals_, affine_solver_, affine_solver_, kernel.renderer_, kernel.literals_,
                     kernel.exprs_, list_symbols_, fit_limits.max_degree, k_list_default_max_multiplier,
                     k_list_default_max_fold_starts)
-    , hypotheses_(constants_, integer_maps_, integer_folds_, filterings_, maps_, folds_, affine_folds_)
+    , extremum_folds_(values_, kernel.literals_, kernel.literals_, kernel.exprs_, list_symbols_, pw_symbols_,
+                      less_symbol_)
+    , product_folds_(values_, kernel.literals_, kernel.renderer_, kernel.literals_, kernel.exprs_, list_symbols_,
+                     k_list_default_max_factor_slope, k_list_default_max_factor_offset)
+    , count_folds_(values_, kernel.literals_, kernel.renderer_, kernel.literals_, kernel.exprs_, list_symbols_,
+                   pw_symbols_, less_symbol_)
+    , hypotheses_(constants_, integer_maps_, integer_folds_, filterings_, maps_, folds_, affine_folds_, extremum_folds_,
+                  product_folds_, count_folds_)
     , binder_(hypotheses_, filter_, assembler_, pw_symbols_)
     , absorber_(filter_, assembler_, pw_symbols_)
     , union_(binder_, absorber_, poly_rules_.union_)
