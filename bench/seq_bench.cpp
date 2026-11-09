@@ -8,8 +8,11 @@
 // --fast skips MCTS on the large data sets; --write saves the results, --check gates them against a baseline
 // (bench/bench_gate.hpp).
 // Problems are solved in parallel, one per thread; --serial solves them one at a time, for true timings.
+#include <algorithm>
 #include <chrono>
+#include <cstdint>
 #include <cstdio>
+#include <map>
 #include <sstream>
 #include <string>
 #include <utility>
@@ -33,6 +36,7 @@ struct seq_problem {
     int low;
     int high;
     std::vector<std::pair<size_t, int>> outliers;
+    std::vector<std::pair<size_t, int>> holes;
     size_t target;
     std::string target_text;
 };
@@ -76,25 +80,56 @@ std::vector<poly_sample> sample(const seq_problem& p) {
     return samples;
 }
 
+// The samples as data points, each hole's label replaced by `?k` (k from 1, in order), or `coefficient * ?k`.
 template<typename Manifest>
-outcome finish(Manifest& m, const std::vector<poly_sample>& samples, std::chrono::steady_clock::time_point start) {
+std::vector<pw_data_point> find_points(Manifest& m, const seq_problem& p, const std::vector<poly_sample>& samples) {
+    std::vector<pw_data_point> points = m.rule_set_.fit_.converter_.convert(samples);
+    uint32_t next = 1;
+    for (const auto& [index, coefficient] : p.holes) {
+        const expr* hole = m.kernel_.exprs_.make_var(next++);
+        const expr* scale = m.kernel_.literals_.make_literal(coefficient);
+        points[index].output =
+            coefficient == 1 ? hole : m.kernel_.exprs_.make_functor(m.kernel_.poly_symbols_.mul, {scale, hole});
+    }
+    return points;
+}
+
+// Sound when every point's label matches the result's value there, under one binding of the holes, or the result
+// keeps the point's own case (a label holding a hole has no value).
+template<typename Manifest, typename Search>
+outcome finish(Manifest& m, Search& search, const std::vector<pw_data_point>& points,
+               std::chrono::steady_clock::time_point start) {
     const double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
-    const expr* best = m.search_.best();
+    const expr* best = search.best();
+    const expr::functor& top = std::get<expr::functor>(best->content);
     bool sound = true;
-    for (const pw_data_point& point : m.rule_set_.fit_.converter_.convert(samples)) {
+    std::map<uint32_t, const expr*> bindings;
+    for (const pw_data_point& point : points) {
+        const expr* own = m.kernel_.exprs_.make_functor(m.rule_set_.pw_symbols_.branch, {point.input, point.output});
+        const bool kept = top.id == m.rule_set_.pw_symbols_.piecewise
+                          && std::find(top.args.begin(), top.args.end(), own) != top.args.end();
+        if (kept)
+            continue;
         const std::optional<const expr*> value = m.rule_set_.pw_evaluator_.evaluate_at(best, point.input);
-        sound = sound && value.has_value() && value.value() == point.output;
+        sound = sound && value.has_value() && m.rule_set_.matcher_.match(point.output, value.value(), bindings);
     }
     std::ostringstream os;
     m.kernel_.printer_.print(os, best);
-    return outcome{.cost = m.search_.best_cost(), .best = os.str(), .seconds = seconds, .sound = sound};
+    return outcome{.cost = search.best_cost(), .best = os.str(), .seconds = seconds, .sound = sound};
 }
 
-outcome run_best_first(const std::vector<poly_sample>& samples) {
+// A problem with holes starts from its own piecewise, with a search of its own.
+outcome run_best_first(const seq_problem& p, const std::vector<poly_sample>& samples) {
     const auto start = std::chrono::steady_clock::now();
     seq_fit_manifest m{samples, k_poly_default_limits, k_poly_fit_default_limits, k_frontier};
-    while (m.search_.rewrites() < k_rewrites && m.search_.next()) {}
-    return finish(m, samples, start);
+    const std::vector<pw_data_point> points = find_points(m, p, samples);
+    if (p.holes.empty()) {
+        while (m.search_.rewrites() < k_rewrites && m.search_.next()) {}
+        return finish(m, m.search_, points, start);
+    }
+    seq_fit_manifest::search_t search{m.rule_set_.rules_, m.kernel_.sizes_, m.rule_set_.builder_.build(points, 0), k_frontier};
+    while (search.rewrites() < k_rewrites && search.next()) {}
+    return finish(m, search, points, start);
 }
 
 outcome run_mcts(const std::vector<poly_sample>& samples) {
@@ -102,7 +137,7 @@ outcome run_mcts(const std::vector<poly_sample>& samples) {
     seq_fit_mcts_manifest m{samples, k_poly_default_limits, k_poly_fit_default_limits, k_probing_depth,
                             k_simulations, k_exploration, 1};
     while (m.search_.next()) {}
-    return finish(m, samples, start);
+    return finish(m, m.search_, m.rule_set_.fit_.converter_.convert(samples), start);
 }
 
 std::string cell(const outcome& o, size_t target) {
@@ -122,9 +157,9 @@ struct solved {
 
 solved solve(const seq_problem& p, bool fast) {
     const std::vector<poly_sample> samples = sample(p);
-    const bool skip_mcts = fast && samples.size() > k_large;
+    const bool skip_mcts = (fast && samples.size() > k_large) || !p.holes.empty();
     const outcome skipped{.cost = 0, .best = "(skipped)", .seconds = 0, .sound = true};
-    return solved{.points = samples.size(), .skip_mcts = skip_mcts, .best_first = run_best_first(samples),
+    return solved{.points = samples.size(), .skip_mcts = skip_mcts, .best_first = run_best_first(p, samples),
                   .mcts = skip_mcts ? skipped : run_mcts(samples)};
 }
 
@@ -133,21 +168,27 @@ solved solve(const seq_problem& p, bool fast) {
 int main(int argc, char** argv) {
     const bench_options options = parse_bench_options(argc, argv);
     const std::vector<seq_problem> problems{
-        {"#7 powers of two", "2*p1", {1}, 0, 25, {}, 4, "lam(exp(2, #0))"},
-        {"#6 Fibonacci", "p1 + p2", {0, 1}, 0, 25, {}, 10, "lam(rec(lams(3, #1 + #2), 0, 1, #0))"},
-        {"five times powers of 3", "3*p1", {5}, 0, 20, {}, 6, "lam(5 * exp(3, #0))"},
-        {"powers of -2", "-2*p1", {1}, 0, 20, {}, 4, "lam(exp(-2, #0))"},
-        {"Lucas numbers", "p1 + p2", {2, 1}, 0, 25, {}, 10, "lam(rec(lams(3, #1 + #2), 2, 1, #0))"},
-        {"Pell numbers", "2*p1 + p2", {0, 1}, 0, 20, {}, 12, "lam(rec(lams(3, 2*#1 + #2), 0, 1, #0))"},
-        {"tribonacci", "p1 + p2 + p3", {0, 0, 1}, 0, 25, {}, 13, "lam(rec(lams(4, #1 + #2 + #3), 0, 0, 1, #0))"},
-        {"factorial", "i*p1", {1}, 0, 15, {}, 9, "lam(rec(lam(lam(#0*#1)), 1, #0))"},
-        {"Fibonacci, wrong label", "p1 + p2", {0, 1}, 0, 25, {{10, 1}}, 15,
+        {"#7 powers of two", "2*p1", {1}, 0, 25, {}, {}, 4, "lam(exp(2, #0))"},
+        {"#6 Fibonacci", "p1 + p2", {0, 1}, 0, 25, {}, {}, 10, "lam(rec(lams(3, #1 + #2), 0, 1, #0))"},
+        {"five times powers of 3", "3*p1", {5}, 0, 20, {}, {}, 6, "lam(5 * exp(3, #0))"},
+        {"powers of -2", "-2*p1", {1}, 0, 20, {}, {}, 4, "lam(exp(-2, #0))"},
+        {"Lucas numbers", "p1 + p2", {2, 1}, 0, 25, {}, {}, 10, "lam(rec(lams(3, #1 + #2), 2, 1, #0))"},
+        {"Pell numbers", "2*p1 + p2", {0, 1}, 0, 20, {}, {}, 12, "lam(rec(lams(3, 2*#1 + #2), 0, 1, #0))"},
+        {"tribonacci", "p1 + p2 + p3", {0, 0, 1}, 0, 25, {}, {}, 13, "lam(rec(lams(4, #1 + #2 + #3), 0, 0, 1, #0))"},
+        {"factorial", "i*p1", {1}, 0, 15, {}, {}, 9, "lam(rec(lam(lam(#0*#1)), 1, #0))"},
+        {"Fibonacci, wrong label", "p1 + p2", {0, 1}, 0, 25, {{10, 1}}, {}, 15,
          "pw(case(point(10), 56), lam(rec(lams(3, #1 + #2), 0, 1, #0)))"},
-        {"squares", "i^2", {0}, 0, 20, {}, 4, "lam(#0^2)"},
-        {"powers of two, long", "2*p1", {1}, 0, 60, {}, 4, "lam(exp(2, #0))"},
-        {"Mersenne numbers", "2*p1 + 1", {0}, 0, 20, {}, 6, "exp(2, n) - 1"},
+        {"squares", "i^2", {0}, 0, 20, {}, {}, 4, "lam(#0^2)"},
+        {"powers of two, long", "2*p1", {1}, 0, 60, {}, {}, 4, "lam(exp(2, #0))"},
+        {"Mersenne numbers", "2*p1 + 1", {0}, 0, 20, {}, {}, 6, "exp(2, n) - 1"},
+        // reduce request #15, and similar sequences with unknown terms: a hole is bound to the model's value
+        {"#15 Fibonacci, unknown term", "p1 + p2", {0, 1}, 0, 20, {}, {{7, 1}}, 10,
+         "lam(rec(lams(3, #1 + #2), 0, 1, #0)), ?1 = 13"},
+        {"Pell numbers, two unknown terms", "2*p1 + p2", {0, 1}, 0, 20, {}, {{5, 1}, {12, 1}}, 12,
+         "lam(rec(lams(3, 2*#1 + #2), 0, 1, #0))"},
+        {"powers of two, scaled unknown", "2*p1", {1}, 0, 25, {}, {{10, 4}}, 4, "lam(exp(2, #0)), ?1 = 256"},
         // open: no solver reaches the target yet; kept so the gate reports when one does
-        {"Fibonacci from index 1 (open)", "p1 + p2", {0, 1}, 1, 25, {}, 10, "lam(rec(lams(3, #1 + #2), 0, 1, #0))"},
+        {"Fibonacci from index 1 (open)", "p1 + p2", {0, 1}, 1, 25, {}, {}, 10, "lam(rec(lams(3, #1 + #2), 0, 1, #0))"},
     };
 
     std::printf("budgets: best-first %zu rewrites; mcts %zu simulations x depth %zu\n", k_rewrites, k_simulations,

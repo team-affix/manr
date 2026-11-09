@@ -42,7 +42,9 @@ seq_fit_rules_manifest::seq_fit_rules_manifest(
     , closing_(hypotheses_, function_maker_, point_symbol_)
     , assembler_(kernel.exprs_, pw_symbols_)
     , builder_(kernel.exprs_, kernel.exprs_, assembler_, pw_symbols_)
-    , filter_(pw_evaluator_, pw_symbols_)
+    , solver_(kernel.literals_, kernel.literals_, kernel.poly_symbols_.add, kernel.poly_symbols_.sub, kernel.poly_symbols_.mul)
+    , matcher_(solver_)
+    , filter_(pw_evaluator_, matcher_, pw_symbols_)
     , binder_(closing_, filter_, assembler_, pw_symbols_)
     , absorber_(filter_, assembler_, pw_symbols_)
     , closer_(binders_, kernel.expander_, kernel.literals_, kernel.literals_, kernel.exprs_, seq_symbols_,

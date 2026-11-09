@@ -73,6 +73,9 @@ problems, 12 solved by both solvers.
 | squares (polynomial fitting alone) | 3 | `n^2` |
 | powers of two, 61 terms | 3 | `exp(2, n)` |
 | Mersenne numbers | 5 | `exp(2, n) - 1` |
+| #15 Fibonacci, unknown term `?1` | 10 | `lam(rec(lams(3, #1 + #2), 0, 1, #0))`, `?1 = 13` |
+| Pell numbers, two unknown terms | 12 | `lam(rec(lams(3, 2*#1 + #2), 0, 1, #0))` |
+| powers of two, a term `4 * ?1` | 4 | `lam(exp(2, #0))`, `?1 = 256` |
 | Fibonacci from index 1 (open) | 10 | `rec(lam(lam(lam(#1 + #2))), 0, 1, n)` |
 
 Best-first spends 6.7 s on powers of -2, though it reaches `exp(-2, n)` in its first rewrites. Plain polynomial

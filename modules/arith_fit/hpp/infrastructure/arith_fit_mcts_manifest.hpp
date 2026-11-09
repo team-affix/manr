@@ -11,6 +11,7 @@
 #include "infrastructure/abs_closing_hypotheses.hpp"
 #include "infrastructure/abs_function_maker.hpp"
 #include "infrastructure/arith_evaluator.hpp"
+#include "infrastructure/arith_hole_solver.hpp"
 #include "infrastructure/arith_linear_hypotheses.hpp"
 #include "infrastructure/arith_literals.hpp"
 #include "infrastructure/arith_sample_converter.hpp"
@@ -28,6 +29,7 @@
 #include "infrastructure/pw_builder.hpp"
 #include "infrastructure/pw_constant_hypotheses.hpp"
 #include "infrastructure/pw_extension_binder.hpp"
+#include "infrastructure/pw_hole_matcher.hpp"
 #include "infrastructure/pw_hypotheses_union.hpp"
 #include "infrastructure/subterm_proposer.hpp"
 #include "infrastructure/symbol_table.hpp"
@@ -67,8 +69,14 @@ struct arith_fit_mcts_manifest {
     struct applying_t : abs_applying_evaluator<binders_t, evaluator_t> {
         using abs_applying_evaluator<binders_t, evaluator_t>::abs_applying_evaluator;
     };
-    struct filter_t : pw_branch_filter<applying_t> {
-        using pw_branch_filter<applying_t>::pw_branch_filter;
+    struct solver_t : arith_hole_solver<literals_t, literals_t> {
+        using arith_hole_solver<literals_t, literals_t>::arith_hole_solver;
+    };
+    struct matcher_t : pw_hole_matcher<solver_t> {
+        using pw_hole_matcher<solver_t>::pw_hole_matcher;
+    };
+    struct filter_t : pw_branch_filter<applying_t, matcher_t> {
+        using pw_branch_filter<applying_t, matcher_t>::pw_branch_filter;
     };
     struct lines_t : arith_linear_hypotheses<literals_t, literals_t, expr_pool> {
         using arith_linear_hypotheses<literals_t, literals_t, expr_pool>::arith_linear_hypotheses;
@@ -137,6 +145,8 @@ struct arith_fit_mcts_manifest {
     applying_t applying_;
     assembler_t assembler_;
     builder_t builder_;
+    solver_t solver_;
+    matcher_t matcher_;
     filter_t filter_;
     constants_t constants_;
     lines_t lines_;

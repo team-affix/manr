@@ -184,19 +184,20 @@ bodies unchanged). Binders are explicit and local:
 ## Free variables
 
 A free variable `?n` is a hole at the syntax level: reduction may bind it to any expression, and binds it to
-whatever makes the whole expression smallest. Binding is what turns minimization into generalization. Today only
-the data piecewise's catch-all is ever bound (`pw_extension_binder`). Every other `?n` is carried through untouched,
-which is sound but never generalizes. What we plan to build (`rule-design.md`, section 5):
+whatever makes the whole expression smallest. Binding is what turns minimization into generalization. The data
+piecewise's catch-all is bound (`pw_extension_binder`), and so are holes in its labels (built, reduce requests #15,
+#18): the branch filter checks a case under some binding of the holes in its label instead of by equality
+(`pw_hole_matcher`, one binding shared by the branches of a check), so a model absorbs `case(7, ?1)`,
+`case(3, 2 * ?2)` and `case(cons(3, cons(4, nil)), cons(9, cons(?1, nil)))`. A hole matches anything, functors of
+one shape match argument by argument, and the rest is solved in the domain: `arith_hole_solver` solves a label linear
+in its one hole over the integers (`2 * ?2 = 10`), and nothing else yet. Every other `?n` is carried through
+untouched, which is sound but never generalizes. What remains (`rule-design.md`, section 5):
 
-- **Holes inside the data piecewise first**, the most common case: a label that is a hole (`case(3, ?1)`, any model
-  explains it), a label with a hole in it (`case(3, 2 * ?1 + 1)`), an input with a hole in it
-  (`case(cons(?2, nil), 5)`). The branch filter and the binder check a hypothesis under some binding instead of by
-  equality.
-- **That needs free-variable reductions in each domain**, since checking a branch becomes solving for its hole in the
-  domain's terms:
-  - polynomials: solve `model value = 2 * ?1 + 1` for `?1` (a linear solve, or a parity refutation first);
-  - lists: match a list value against `cons(?2, nil)`;
-  - sequences: a term against a hole.
+- **Holes in the keys** (#20): `case(cons(3, cons(?2, nil)), cons(9, cons(16, nil)))`. The model cannot be evaluated
+  at a key holding a hole, so this needs evaluating with the hole as an unknown and solving the output for it
+  (`?2^2 = 16`): a solver for powers and products of the hole, not only linear ones.
+- **Nonlinear labels** (`case(3, ?1^2)`), and holes in labels the logic table reader refutes (a truth table with an
+  unknown row is a don't care there).
 - **Binding rules on expressions**: a hole whose best binding shrinks the whole, e.g. `(?0 + 1)^2 - ?0^2` reduces to
   `1` with `?0 = 0`, or `or(and(not(x), y), ?0)` to `xor(x, y)` with `?0 = and(x, not(y))`. These are detectors:
   read what the rest of the expression needs from the hole, and propose it.

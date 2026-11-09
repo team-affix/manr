@@ -147,6 +147,10 @@ Piecewise polynomials:
 - With an outlier: `pw(case(point(-6), 39), when(lt(x, 0), x^2), 3 * x + 1)`.
 - Two variables, split on either one: `pw(when(lt(y, 0), x - y), (x + y)^2)`.
 
+Labels holding holes (#18): `x^2 + 1` with labels `?1` and `2 * ?2` reduces to `lam(#0^2 + 1)` with `?1 = 2`,
+`?2 = 5`: the branch filter matches a label under a binding, solving a linear one for its hole. A label with no
+integer solution (`2 * ?1` where the model gives 5) stays a case.
+
 Gaps:
 
 - Integer coefficients only: `x*(x+1)/2` has no polynomial over Z, so it is not found.

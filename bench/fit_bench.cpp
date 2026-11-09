@@ -7,9 +7,12 @@
 // --fast skips MCTS on the large data sets; --write saves the results, --check gates them against a baseline
 // (bench/bench_gate.hpp).
 // Problems are solved in parallel, one per thread; --serial solves them one at a time, for true timings.
+#include <algorithm>
 #include <chrono>
 #include <climits>
+#include <cstdint>
 #include <cstdio>
+#include <map>
 #include <string>
 #include <utility>
 #include <vector>
@@ -37,6 +40,7 @@ struct fit_problem {
     int low;
     int high;
     std::vector<std::pair<size_t, int>> outliers;
+    std::vector<std::pair<size_t, int>> holes;
     size_t target;
     std::string target_text;
 };
@@ -89,25 +93,56 @@ std::vector<poly_sample> sample(const fit_problem& p) {
     return samples;
 }
 
+// The samples as data points, each hole's label replaced by `?k` (k from 1, in order), or `coefficient * ?k`.
 template<typename Manifest>
-outcome finish(Manifest& m, const std::vector<poly_sample>& samples, std::chrono::steady_clock::time_point start) {
+std::vector<pw_data_point> find_points(Manifest& m, const fit_problem& p, const std::vector<poly_sample>& samples) {
+    std::vector<pw_data_point> points = m.rule_set_.fit_.converter_.convert(samples);
+    uint32_t next = 1;
+    for (const auto& [index, coefficient] : p.holes) {
+        const expr* hole = m.kernel_.exprs_.make_var(next++);
+        const expr* scale = m.kernel_.literals_.make_literal(coefficient);
+        points[index].output =
+            coefficient == 1 ? hole : m.kernel_.exprs_.make_functor(m.kernel_.poly_symbols_.mul, {scale, hole});
+    }
+    return points;
+}
+
+// Sound when every point's label matches the result's value there, under one binding of the holes, or the result
+// keeps the point's own case (a label holding a hole has no value).
+template<typename Manifest, typename Search>
+outcome finish(Manifest& m, Search& search, const std::vector<pw_data_point>& points,
+               std::chrono::steady_clock::time_point start) {
     const double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
-    const expr* best = m.search_.best();
+    const expr* best = search.best();
+    const expr::functor& top = std::get<expr::functor>(best->content);
     bool sound = true;
-    for (const pw_data_point& point : m.rule_set_.fit_.converter_.convert(samples)) {
+    std::map<uint32_t, const expr*> bindings;
+    for (const pw_data_point& point : points) {
+        const expr* own = m.kernel_.exprs_.make_functor(m.rule_set_.pw_symbols_.branch, {point.input, point.output});
+        const bool kept = top.id == m.rule_set_.pw_symbols_.piecewise
+                          && std::find(top.args.begin(), top.args.end(), own) != top.args.end();
+        if (kept)
+            continue;
         const std::optional<const expr*> value = m.rule_set_.pw_evaluator_.evaluate_at(best, point.input);
-        sound = sound && value.has_value() && value.value() == point.output;
+        sound = sound && value.has_value() && m.rule_set_.matcher_.match(point.output, value.value(), bindings);
     }
     std::ostringstream os;
     m.kernel_.printer_.print(os, best);
-    return outcome{.cost = m.search_.best_cost(), .best = os.str(), .seconds = seconds, .sound = sound};
+    return outcome{.cost = search.best_cost(), .best = os.str(), .seconds = seconds, .sound = sound};
 }
 
+// A problem with holes starts from its own piecewise, with a search of its own.
 outcome run_best_first(const fit_problem& p, const std::vector<poly_sample>& samples) {
     const auto start = std::chrono::steady_clock::now();
     poly_fit_manifest m{p.variables.size(), samples, k_poly_default_limits, k_poly_fit_default_limits, k_frontier};
-    while (m.search_.rewrites() < k_rewrites && m.search_.next()) {}
-    return finish(m, samples, start);
+    const std::vector<pw_data_point> points = find_points(m, p, samples);
+    if (p.holes.empty()) {
+        while (m.search_.rewrites() < k_rewrites && m.search_.next()) {}
+        return finish(m, m.search_, points, start);
+    }
+    poly_fit_manifest::search_t search{m.rule_set_.rules_, m.kernel_.sizes_, m.rule_set_.builder_.build(points, 0), k_frontier};
+    while (search.rewrites() < k_rewrites && search.next()) {}
+    return finish(m, search, points, start);
 }
 
 outcome run_mcts(const fit_problem& p, const std::vector<poly_sample>& samples) {
@@ -115,7 +150,7 @@ outcome run_mcts(const fit_problem& p, const std::vector<poly_sample>& samples) 
     poly_fit_mcts_manifest m{p.variables.size(), samples, k_poly_default_limits, k_poly_fit_default_limits,
                              k_probing_depth, k_simulations, k_exploration, 1};
     while (m.search_.next()) {}
-    return finish(m, samples, start);
+    return finish(m, m.search_, m.rule_set_.fit_.converter_.convert(samples), start);
 }
 
 std::string cell(const outcome& o, size_t target) {
@@ -135,7 +170,7 @@ struct solved {
 
 solved solve(const fit_problem& p, bool fast) {
     const std::vector<poly_sample> samples = sample(p);
-    const bool skip_mcts = fast && samples.size() > k_large;
+    const bool skip_mcts = (fast && samples.size() > k_large) || !p.holes.empty();
     const outcome skipped{.cost = 0, .best = "(skipped)", .seconds = 0, .sound = true};
     return solved{.points = samples.size(), .skip_mcts = skip_mcts, .best_first = run_best_first(p, samples),
                   .mcts = skip_mcts ? skipped : run_mcts(p, samples)};
@@ -146,48 +181,55 @@ solved solve(const fit_problem& p, bool fast) {
 int main(int argc, char** argv) {
     const bench_options options = parse_bench_options(argc, argv);
     const std::vector<fit_problem> problems{
-        {"cubic", {"x"}, {{"x^3 - x", INT_MAX}}, 0, -3, 4, {}, 6, "lam(#0^3 - #0)"},
-        {"power of linear", {"x"}, {{"(2*x - 1)^3", INT_MAX}}, 0, -3, 4, {}, 8, "lam((2*#0 - 1)^3)"},
-        {"horner quintic", {"x"}, {{"x^5 + 2*x^4 + 3*x^3 + 4*x^2 + 5*x + 6", INT_MAX}}, 0, -3, 5, {}, 20,
+        {"cubic", {"x"}, {{"x^3 - x", INT_MAX}}, 0, -3, 4, {}, {}, 6, "lam(#0^3 - #0)"},
+        {"power of linear", {"x"}, {{"(2*x - 1)^3", INT_MAX}}, 0, -3, 4, {}, {}, 8, "lam((2*#0 - 1)^3)"},
+        {"horner quintic", {"x"}, {{"x^5 + 2*x^4 + 3*x^3 + 4*x^2 + 5*x + 6", INT_MAX}}, 0, -3, 5, {}, {}, 20,
          "lam(((((#0+2)*#0+3)*#0+4)*#0+5)*#0+6)"},
-        {"one outlier", {"x"}, {{"x^2 + 1", INT_MAX}}, 0, 0, 8, {{3, 7}}, 11, "pw(case(point(3), 17), lam(#0^2 + 1))"},
+        {"one outlier", {"x"}, {{"x^2 + 1", INT_MAX}}, 0, 0, 8, {{3, 7}}, {}, 11, "pw(case(point(3), 17), lam(#0^2 + 1))"},
         {"outlier run", {"x"}, {{"x^2 - 4*x", INT_MAX}}, 0, 0, 39,
-         {{0, 1}, {1, 1}, {2, 1}, {3, 1}, {4, 1}, {5, 1}, {6, 1}, {7, 1}, {8, 1}, {9, 1}, {10, 1}, {11, 1}}, 102,
+         {{0, 1}, {1, 1}, {2, 1}, {3, 1}, {4, 1}, {5, 1}, {6, 1}, {7, 1}, {8, 1}, {9, 1}, {10, 1}, {11, 1}}, {}, 102,
          "12 cases + #0^2 - 4*#0"},
         {"scattered outliers", {"x"}, {{"x^2 + 1", INT_MAX}}, 0, 0, 39, {{3, 5}, {10, 5}, {17, 5}, {24, 5}, {31, 5}, {38, 5}},
-         31, "6 cases + #0^2 + 1"},
-        {"cubic 1000", {"x"}, {{"x^3 - 2*x + 5", INT_MAX}}, 0, -500, 499, {}, 10, "lam(#0^3 - 2*#0 + 5)"},
-        {"two-variable square", {"x", "y"}, {{"(x + y)^2", INT_MAX}}, 0, -2, 2, {}, 7, "lams(2, (#1 + #0)^2)"},
-        {"two-variable product", {"x", "y"}, {{"(x - y + 2)*(x + 2*y)", INT_MAX}}, 0, -2, 2, {{4, 3}}, 19,
+         {}, 31, "6 cases + #0^2 + 1"},
+        {"cubic 1000", {"x"}, {{"x^3 - 2*x + 5", INT_MAX}}, 0, -500, 499, {}, {}, 10, "lam(#0^3 - 2*#0 + 5)"},
+        {"two-variable square", {"x", "y"}, {{"(x + y)^2", INT_MAX}}, 0, -2, 2, {}, {}, 7, "lams(2, (#1 + #0)^2)"},
+        {"two-variable product", {"x", "y"}, {{"(x - y + 2)*(x + 2*y)", INT_MAX}}, 0, -2, 2, {{4, 3}}, {}, 19,
          "pw(case(point(2, -2), -9), lams(2, (#1 - #0 + 2)*(#1 + 2*#0)))"},
-        {"three-variable cube", {"x", "y", "z"}, {{"(x + y + z)^3", INT_MAX}}, 0, -1, 2, {}, 9, "lams(3, (#2 + #1 + #0)^3)"},
-        {"three-variable mixed", {"x", "y", "z"}, {{"x*y*z + x^2 - z", INT_MAX}}, 0, -1, 2, {}, 13, "lams(3, #2*#1*#0 + #2^2 - #0)"},
-        {"two pieces", {"x"}, {{"x^2", 0}, {"3*x + 1", INT_MAX}}, 0, -10, 9, {}, 14,
+        {"three-variable cube", {"x", "y", "z"}, {{"(x + y + z)^3", INT_MAX}}, 0, -1, 2, {}, {}, 9, "lams(3, (#2 + #1 + #0)^3)"},
+        {"three-variable mixed", {"x", "y", "z"}, {{"x*y*z + x^2 - z", INT_MAX}}, 0, -1, 2, {}, {}, 13, "lams(3, #2*#1*#0 + #2^2 - #0)"},
+        {"two pieces", {"x"}, {{"x^2", 0}, {"3*x + 1", INT_MAX}}, 0, -10, 9, {}, {}, 14,
          "lam(pw(when(lt(#0, 0), #0^2), 3*#0 + 1))"},
-        {"two pieces 400", {"x"}, {{"x^2", 0}, {"3*x + 1", INT_MAX}}, 0, -200, 199, {}, 14,
+        {"two pieces 400", {"x"}, {{"x^2", 0}, {"3*x + 1", INT_MAX}}, 0, -200, 199, {}, {}, 14,
          "lam(pw(when(lt(#0, 0), #0^2), 3*#0 + 1))"},
-        {"absolute value", {"x"}, {{"-1*x", 0}, {"x", INT_MAX}}, 0, -10, 10, {}, 10, "lam(pw(when(lt(#0, 1), -1*#0), #0))"},
-        {"three pieces", {"x"}, {{"5", 10}, {"x^2 - 7", 20}, {"(x - 1)^3", INT_MAX}}, 0, 0, 29, {}, 21,
+        {"absolute value", {"x"}, {{"-1*x", 0}, {"x", INT_MAX}}, 0, -10, 10, {}, {}, 10, "lam(pw(when(lt(#0, 1), -1*#0), #0))"},
+        {"three pieces", {"x"}, {{"5", 10}, {"x^2 - 7", 20}, {"(x - 1)^3", INT_MAX}}, 0, 0, 29, {}, {}, 21,
          "lam(pw(when(lt(#0, 10), 5), when(lt(#0, 20), #0^2 - 7), (#0 - 1)^3))"},
-        {"pieces with outlier", {"x"}, {{"x^2", 0}, {"3*x + 1", INT_MAX}}, 0, -10, 9, {{4, 3}}, 19,
+        {"pieces with outlier", {"x"}, {{"x^2", 0}, {"3*x + 1", INT_MAX}}, 0, -10, 9, {{4, 3}}, {}, 19,
          "pw(case(point(-6), 39), lam(pw(when(lt(#0, 0), #0^2), 3*#0 + 1)))"},
-        {"split on x", {"x", "y"}, {{"x*y", 1}, {"x + y^2", INT_MAX}}, 0, -3, 3, {}, 15, "lams(2, pw(when(lt(#1, 1), #1*#0), #0^2 + #1))"},
-        {"split on y", {"x", "y"}, {{"x - y", 0}, {"(x + y)^2", INT_MAX}}, 1, -3, 3, {}, 15,
+        {"split on x", {"x", "y"}, {{"x*y", 1}, {"x + y^2", INT_MAX}}, 0, -3, 3, {}, {}, 15, "lams(2, pw(when(lt(#1, 1), #1*#0), #0^2 + #1))"},
+        {"split on y", {"x", "y"}, {{"x - y", 0}, {"(x + y)^2", INT_MAX}}, 1, -3, 3, {}, {}, 15,
          "lams(2, pw(when(lt(#0, 0), #1 - #0), (#1 + #0)^2))"},
-        {"sign flip at zero", {"x", "y"}, {{"x - y", 0}, {"x + y", INT_MAX}}, 0, -3, 3, {}, 13,
+        {"sign flip at zero", {"x", "y"}, {{"x - y", 0}, {"x + y", INT_MAX}}, 0, -3, 3, {}, {}, 13,
          "pw(when(lt(x, 0), x - y), x + y)"},
         // reduce request #8, and similar iterated polynomials, read with a helper by the iteration detector
-        {"#8 g(g(g(x))), g = y^2 + 1", {"x"}, {{"x^8 + 4*x^6 + 8*x^4 + 8*x^2 + 5", INT_MAX}}, 0, -6, 6, {}, 15,
+        {"#8 g(g(g(x))), g = y^2 + 1", {"x"}, {{"x^8 + 4*x^6 + 8*x^4 + 8*x^2 + 5", INT_MAX}}, 0, -6, 6, {}, {}, 15,
          "lam(let(lam(#0^2 + 1), app(#0, app(#0, app(#0, #1)))))"},
-        {"g(g(x)), g = y^3 - y", {"x"}, {{"(x^3 - x)^3 - (x^3 - x)", INT_MAX}}, 0, -6, 6, {}, 13,
+        {"g(g(x)), g = y^3 - y", {"x"}, {{"(x^3 - x)^3 - (x^3 - x)", INT_MAX}}, 0, -6, 6, {}, {}, 13,
          "lam(let(lam(#0^3 - #0), app(#0, app(#0, #1))))"},
         {"g(g(g(x))), g = y^2 + y", {"x"}, {{"((x^2 + x)^2 + x^2 + x)^2 + (x^2 + x)^2 + x^2 + x", INT_MAX}}, 0, -6, 6, {},
-         15, "lam(let(lam(#0^2 + #0), app(#0, app(#0, app(#0, #1)))))"},
-        {"g(g(x)), g = y^2 - 2", {"x"}, {{"(x^2 - 2)^2 - 2", INT_MAX}}, 0, -6, 6, {}, 10,
+         {}, 15, "lam(let(lam(#0^2 + #0), app(#0, app(#0, app(#0, #1)))))"},
+        {"g(g(x)), g = y^2 - 2", {"x"}, {{"(x^2 - 2)^2 - 2", INT_MAX}}, 0, -6, 6, {}, {}, 10,
          "(x^2 - 2)^2 - 2 (smaller than the helper form, 12)"},
+        // reduce request #18, and similar labels holding holes: a hole is bound to the model's value, or solved for
+        {"#18 x^2 + 1, holes in two labels", {"x"}, {{"x^2 + 1", INT_MAX}}, 0, 0, 8, {}, {{1, 1}, {3, 2}}, 6,
+         "lam(#0^2 + 1), ?1 = 2, ?2 = 5"},
+        {"two-variable square, holes", {"x", "y"}, {{"(x + y)^2", INT_MAX}}, 0, -2, 2, {}, {{3, 1}, {12, -1}, {23, 3}},
+         7, "lams(2, (#1 + #0)^2)"},
+        {"hole with no integer solution", {"x"}, {{"x^2 + 1", INT_MAX}}, 0, 0, 8, {}, {{2, 2}}, 13,
+         "pw(case(point(2), 2 * ?1), lam(#0^2 + 1))"},
         // every third point an outlier: once open, now read as a period-3 piecewise by the residue detector
         {"dense outliers", {"x"}, {{"x^2 + 1", INT_MAX}}, 0, 0, 29,
-         {{1, 2}, {4, 2}, {7, 2}, {10, 2}, {13, 2}, {16, 2}, {19, 2}, {22, 2}, {25, 2}, {28, 2}}, 47,
+         {{1, 2}, {4, 2}, {7, 2}, {10, 2}, {13, 2}, {16, 2}, {19, 2}, {22, 2}, {25, 2}, {28, 2}}, {}, 47,
          "10 cases + #0^2 + 1"},
     };
 

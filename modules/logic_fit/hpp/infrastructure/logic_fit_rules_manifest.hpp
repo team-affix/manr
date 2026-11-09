@@ -9,6 +9,7 @@
 #include "infrastructure/abs_binders.hpp"
 #include "infrastructure/abs_closing_hypotheses.hpp"
 #include "infrastructure/abs_function_maker.hpp"
+#include "infrastructure/arith_hole_solver.hpp"
 #include "infrastructure/expr_pool.hpp"
 #include "infrastructure/expr_size.hpp"
 #include "infrastructure/logic_cover_hypotheses.hpp"
@@ -27,6 +28,7 @@
 #include "infrastructure/pw_constant_hypotheses.hpp"
 #include "infrastructure/pw_evaluator.hpp"
 #include "infrastructure/pw_extension_binder.hpp"
+#include "infrastructure/pw_hole_matcher.hpp"
 #include "infrastructure/pw_hypotheses_union.hpp"
 #include "infrastructure/subterm_proposer.hpp"
 #include "value_objects/abs_symbols.hpp"
@@ -86,8 +88,14 @@ struct logic_fit_rules_manifest {
     struct builder_t : pw_builder<expr_pool, expr_pool, assembler_t> {
         using pw_builder<expr_pool, expr_pool, assembler_t>::pw_builder;
     };
-    struct filter_t : pw_branch_filter<pw_evaluator_t> {
-        using pw_branch_filter<pw_evaluator_t>::pw_branch_filter;
+    struct solver_t : arith_hole_solver<kernel_t::literals_t, kernel_t::literals_t> {
+        using arith_hole_solver<kernel_t::literals_t, kernel_t::literals_t>::arith_hole_solver;
+    };
+    struct matcher_t : pw_hole_matcher<solver_t> {
+        using pw_hole_matcher<solver_t>::pw_hole_matcher;
+    };
+    struct filter_t : pw_branch_filter<pw_evaluator_t, matcher_t> {
+        using pw_branch_filter<pw_evaluator_t, matcher_t>::pw_branch_filter;
     };
     struct binder_t : pw_extension_binder<closing_t, filter_t, assembler_t> {
         using pw_extension_binder<closing_t, filter_t, assembler_t>::pw_extension_binder;
@@ -125,6 +133,8 @@ struct logic_fit_rules_manifest {
     closing_t closing_;
     assembler_t assembler_;
     builder_t builder_;
+    solver_t solver_;
+    matcher_t matcher_;
     filter_t filter_;
     binder_t binder_;
     absorber_t absorber_;
