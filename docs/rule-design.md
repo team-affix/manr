@@ -100,6 +100,19 @@ must be correct by construction (built only from identities), or else accepted o
 primes, with error probability set by configuration). The second option weakens the "never wrong" guarantee, so it
 needs an explicit decision.
 
+## 5. Free variables in the expression
+
+The goal is generalization: fitting piecewises, and symbolic expressions in general, that themselves contain free
+variables (`?n`), in every domain. So when writing a rule, consider the case where part of the expression or the
+data is a free variable.
+
+- **Handle it when it costs nothing.** If the rule can treat `?n` as an opaque term, or simply skip it, without
+  losing speed or reach on the common case, do that. It must never crash or rewrite wrongly because a `?n` appeared.
+- **Don't weaken a rule for it.** If handling free variables would make a fast common-case rule slower or less
+  effective, leave the rule as it is and add a separate rule beside it that works with free variables (as with
+  specific and generic detectors, `extending.md` design rule 7).
+- The architecture is to add modules and add rules; free-variable support can grow the same way.
+
 ## Where the current polynomial rules stand
 
 None of this has been applied yet. These are the most promising opportunities, with the biggest expected wins first:
