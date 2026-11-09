@@ -135,12 +135,32 @@ expression, and binding it well is how reduction generalizes (`(?0 + 1)^2 - ?0^2
 So when writing a rule, consider the case where part of the expression or the data is a free variable: a rule may
 leave it alone, or propose a binding that shrinks the whole expression.
 
-- **Handle it when it costs nothing.** If the rule can treat `?n` as an opaque term, or simply skip it, without
-  losing speed or reach on the common case, do that. It must never crash or rewrite wrongly because a `?n` appeared.
+- **Tolerating is the minimum; binding is the goal.** At the least, a rule must never crash or rewrite wrongly
+  because a `?n` appeared: skipping it, or carrying it through untouched, is always sound. Better, when it costs
+  nothing, is a rule that also proposes the binding that makes the whole expression smaller. A rewrite that binds
+  `?n` must bind every occurrence of it in the whole expression, not just the subterm it looked at, since it is one
+  hole.
 - **Don't weaken a rule for it.** If handling free variables would make a fast common-case rule slower or less
   effective, leave the rule as it is and add a separate rule beside it that works with free variables (as with
   specific and generic detectors, `extending.md` design rule 7).
 - The architecture is to add modules and add rules; free-variable support can grow the same way.
+
+### Free variables in a piecewise
+
+The most common case, and the reason free variables matter: the data piecewise `pw(case(in, out), ..., ?0)` is
+reduced by binding its catch-all `?0` to a model (`pw_extension_binder`). Holes inside it are the next step:
+
+- **A label that is a hole**, `case(3, ?1)`: an unknown output. Any model explains it, since `?1` can be bound to the
+  model's value at 3, so the branch should vanish once a model is bound, and it must never block one.
+- **A label with a hole in it**, `case(3, 2 * ?1 + 1)`: the model must agree with it under some binding, so checking
+  a hypothesis becomes solving for `?1` in the domain's terms: is the model's value at 3 odd?
+- **An input with a hole in it**, `case(cons(?2, nil), 5)`: some one-element list maps to 5. A model explains it when
+  some binding makes it so.
+
+So reducing a piecewise with holes leads into reductions with holes in each domain: matching a polynomial against
+`2 * ?1 + 1`, a list against `cons(?2, nil)`, a sequence term against `?1`. That is why each domain needs its own
+free-variable rules, and why they are worth building: they let the piecewise rules generalize over data that is
+itself only partly known.
 
 ## Where the current polynomial rules stand
 

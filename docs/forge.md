@@ -49,7 +49,9 @@ Fit the issue's example first, then generalize as far as efficiency allows:
   - a new module, or several, for a domain MANR does not support at all or a domain-free capability (`vision.md`,
     "What a domain must supply"; for abstraction, `plans.md`). An unsupported domain's first request is its first
     benchmark problem.
-- Consider free variables (`rule-design.md`, section 5), and record what is out of scope in `plans.md`.
+- Consider free variables (`rule-design.md`, section 5): holes at the syntax level that a rule may bind to shrink
+  the whole. A fix should tolerate them, and bind them where that is cheap. Record what is out of scope in
+  `plans.md`.
 
 ## 5. Build and prove it general
 

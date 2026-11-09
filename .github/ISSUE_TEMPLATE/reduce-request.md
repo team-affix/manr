@@ -16,14 +16,16 @@ domains are welcome. -->
 ## Input
 
 <!-- What to reduce: a symbolic expression, or data. For data, one sample per line: input -> output, e.g.
-[3, -1, 2] -> 4. Mark any deliberately wrong labels. -->
+[3, -1, 2] -> 4. Mark any deliberately wrong labels. Free variables are written ?0, ?1, ...: holes reduction may
+bind to any expression. -->
 
 ```
 ```
 
 ## Desired reduction
 
-<!-- The form it should reduce to, or something like it. For data, the model that produced it. -->
+<!-- The form it should reduce to, or something like it. For data, the model that produced it. If the input has free
+variables, give the bindings that reach it, e.g. ?0 = 0. -->
 
 ```
 ```

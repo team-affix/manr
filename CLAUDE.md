@@ -6,9 +6,14 @@ MANR is a domain-specific symbolic expression reduction engine in C++20, the mos
 (abstractive machine learning): find the minimal-description-length symbolic expression that fits a data set.
 
 - **Extension algebra.** Any algebra plus *extension terms*: free variables (`expr::var`, printed `?n`) that may be
-  resolved to any expression content.
+  resolved to any expression content. They are holes at the **syntax level**, not opaque symbols: reduction may bind
+  a `?n` to any expression, and binds it to whatever makes the whole smallest (`(?0 + 1)^2 - ?0^2` reduces to `1`
+  with `?0 = 0`). This is what turns minimization into generalization. A result is sound when it means the same as
+  the input under some binding.
 - **Data as a piecewise.** A data set is turned mechanically into `pw(case(in, out), ..., ?0)`: one branch per point,
-  and an extension term as the catch-all for every unseen input. Reduction then tries to make the piecewise disappear,
+  and an extension term as the catch-all for every unseen input. This is the main use of free variables: binding the
+  catch-all to a model is generalization, and holes inside the data (an unknown label `?1`, a list holding `?2`) lead
+  to free-variable reductions in the domain itself. Reduction then tries to make the piecewise disappear,
   or to shrink it into regions (`when(condition, value)` branches) with one compact expression each.
 - **Objective.** Smallest node count (`expr_size`) for the fixed functor set.
 - **Rules come in two kinds**, both behind the same `detect(e, out)` capability:

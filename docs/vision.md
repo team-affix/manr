@@ -15,9 +15,12 @@ pw(case(input1, label1), case(input2, label2), ..., ?0)
 - **Inputs and labels are expressions of the domain**, not only numbers. An input can be a number, a tuple, a list, a
   graph or a function. A label can be a different kind of object than its input: a list mapped to a number, a graph
   mapped to a polynomial, a function mapped to its derivative.
-- **Free variables (extension terms) stand for what is not known.** The catch-all `?0` is the claim that a general
-  rule exists for every unseen input. Free variables can also sit inside the data or inside a partial model, where
-  part of the answer is known and the rest is left open.
+- **Free variables (extension terms) are holes at the syntax level.** Reduction may bind a `?n` to any expression of
+  the domain, and should bind it to whatever makes the whole expression smallest. This is what turns minimization
+  into generalization: binding the catch-all `?0` to a compact model is the claim that one rule covers every unseen
+  input. Free variables can also sit inside the data or inside a partial model, where part of the answer is known
+  and the rest is left open, and in any expression: `(?0 + 1)^2 - ?0^2` reduces to `1` with `?0 = 0`. A result is
+  sound when it means the same as the input under some binding of the input's free variables.
 - **Reduction looks for the minimal model.** The rules of the domain rewrite the piecewise toward the smallest
   expression with the same meaning on the data. The ideal outcome is that the piecewise disappears into one compact
   expression. The next best is a few regions with one compact expression each, plus the points no rule explains.
@@ -59,7 +62,10 @@ The piecewise module is already domain-free. A domain plugs in through capabilit
 - **Structured inputs and labels.** Lists, graphs and functions as data values, with evaluation over them.
 - **Models with structure.** Recursion, folds and higher-order functions, so a model can be a program and not only a
   formula. Helper functions, composition and application are planned in `docs/plans.md`.
-- **Free variables anywhere.** Holes inside a partial model, not only the catch-all, with detectors that fill them.
+- **Free variables anywhere.** Holes inside a partial model or inside the data, not only the catch-all, with detectors
+  in every domain that bind them. Reducing a piecewise with holes inside it leads to reductions with holes in the
+  domain's own terms (a polynomial, a list, a recurrence), so each domain needs its own binding rules (`plans.md`,
+  free variables).
 - **Composition across domains.** A model in one domain can use another: a graph invariant that is a polynomial, a
   list program whose step is arithmetic.
 - **A front end.** Reading data and expressions from text, so that a domain can be used without writing C++.

@@ -12,9 +12,16 @@ label `reduce-request`) holding:
 - **the desired reduction**: the form it should reduce to, or something like it. For data, the model that produced
   it; for an expression, the simpler form, e.g. `4 * x`.
 
+Either may contain **free variables** (`?n`). They are holes at the syntax level: reduction may bind each to any
+expression, and a request with them asks for the smallest form reachable by choosing the bindings, e.g.
+`or(and(not(x), y), ?0)` to `xor(x, y)` with `?0 = and(x, not(y))`. The desired reduction then gives the bindings
+too. Data's own catch-all `?0` is the common case of the same thing, and holes inside data (a label `?1`, a list
+holding `?2`) are its harder cases.
+
 The desired form is a **guide, not the expected output.** MANR is not asked to print its text. Reduction order is not
 fixed, and many expressions mean the same thing. A result is acceptable when it is **sound** (it means the same as
-the input: the same normal form for an expression, every sample reproduced for data) and **no larger** than the
+the input under some binding of the input's free variables: the same normal form for an expression, every sample
+reproduced for data) and **no larger** than the
 desired form by `expr_size`. A result equivalent to it, or smaller and still sound, is a success. The desired form
 tells the developer (usually Claude) what reduction is really possible, so the work is to make MANR find it: which
 detectors and rules are missing, and which domain they belong to.

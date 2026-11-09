@@ -37,7 +37,12 @@ Push in several directions:
   of the domain, and should bind it to whatever makes the whole expression smallest. That is how reduction
   generalizes: the data piecewise's catch-all `?0` is bound to a model, and the same goes for a `?n` anywhere. So a
   request with free variables asks for the smallest expression reachable by choosing their bindings, and its desired
-  reduction names the bindings too. Make some requests carry them, in every domain:
+  reduction names the bindings too. The piecewise is the case to start from: the data piecewise's catch-all is
+  already a hole, and holes inside it (a label `?1`, a label `2 * ?1 + 1`, an input `cons(?2, nil)`) are the most
+  common requests with free variables. Reducing one leads into free-variable reductions in the domain's own terms
+  (`rule-design.md`, section 5). Make some requests carry them, in every domain:
+  - data with holes inside: `0 -> 1, 1 -> ?1, 2 -> 5, 3 -> 2 * ?2 + 1, 4 -> 17` reduces to `x^2 + 1`, with
+    `?1 = 2` and `?2 = 4`;
   - polynomials: `(?0 + 1)^2 - ?0^2` reduces to `1`, with `?0 = 0`;
   - logic: `or(and(not(x), y), ?0)` reduces to `xor(x, y)`, with `?0 = and(x, not(y))`;
   - several holes, holes inside data (an output that is `?1`, a list holding `?0`), and holes whose best binding is
