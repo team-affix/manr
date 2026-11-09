@@ -177,6 +177,15 @@ The open problems and their causes are in `list.md` (gaps, and the fold families
 - **More compositions**: `filter` over `map`, a fold over a map, and a start for the map-over-filter reading on long
   lists, where no list keeps or removes all of its values.
 
+## Sequences
+
+The open problems are in `seq.md` (gaps). What we plan to build:
+
+- **Bases solved for, not read**, so data that starts past index 0 still reads as a recurrence.
+- **Closed forms of higher order** from the characteristic polynomial's integer roots (`2^n + 3^n`), beside the
+  order-one closing rule.
+- **Recurrences as parts of a model**: a recurrence plus a polynomial, or a recurrence on a region.
+
 ## Core vocabulary
 
 - **Tuples as inputs**, so a model can take several values or several lists (needed by "fold both lists and add 1").

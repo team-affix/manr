@@ -39,6 +39,8 @@ and MCTS is seeded. So a cost that changes is a real change, not noise.
   and 1000 points. Two solvers (best-first and MCTS).
 - `bench/list_bench.cpp`: 26 list-program problems (four of them open): folds, maps and filters, some with a wrong
   label, on short lists and on lists of 20 to 40 elements. Two solvers (best-first and MCTS).
+- `bench/seq_bench.cpp`: 13 integer-sequence problems (one of them open): recurrences of order one to three, powers
+  and their affine shifts, a step that uses the index, a wrong label. Two solvers (best-first and MCTS).
 
 Each problem has a target cost: the cost of a known compact form. A problem is solved when a solver reaches a cost no
 larger than the target. Problems marked `(open)` have a target no solver reaches yet. They are kept so the gate reports

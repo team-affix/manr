@@ -41,6 +41,10 @@ modules/<name>/{hpp,cpp,test}/...             one directory per rule module; pre
                                               generic selection and factor folds over an inner function g),
                                               delegating bodies to polynomial fitting; rule set, solver manifests,
                                               runtime
+  seq/        (seq_)                          integer sequences: recurrences (`rec`), powers (`exp`), evaluator, the
+                                              closing rule from affine recurrences to powers
+  seq_fit/    (seq_)                          composition: the recurrence detector (steps from consecutive terms,
+                                              handed to polynomial fitting), rule set, solver manifests, runtime
 bench/                                        release benchmarks and the regression gate (`make bench_check`), not
                                               tests; committed baselines in bench/baseline/
 modules/test_main.cpp                         GTest entry for the modules binary
@@ -81,6 +85,8 @@ A module depends on core and on other modules' headers; core never depends on a 
 - Polynomial algebra is the first full domain. Read `docs/poly.md` for its rules, detectors and benchmark.
 - Lists are the first program domain. Read `docs/list.md`: detectors recognize a program's shape and hand the rest
   to polynomial fitting.
+- Sequences are the third domain. Read `docs/seq.md`: a recurrence's steps are read off consecutive terms and fitted
+  as polynomials, and a closing rule turns affine recurrences into powers.
 - **Detecting a hard shape is decomposed** (`docs/decomposing-detection.md`): split it into subproblems, each made
   easy by one assumption, and keep each solution generic by handing the rest to another domain's detectors (e.g. a
   fold step as an easy outer combiner over an unknown inner function). Read it before adding a detector.

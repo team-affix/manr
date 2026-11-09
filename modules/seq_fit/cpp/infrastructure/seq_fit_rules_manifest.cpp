@@ -1,0 +1,43 @@
+#include "infrastructure/seq_fit_rules_manifest.hpp"
+
+seq_fit_rules_manifest::seq_fit_rules_manifest(
+    kernel_t& kernel,
+    const std::string& variable,
+    const std::vector<poly_sample>& samples,
+    const poly_fit_limits& fit_limits)
+    : poly_rules_(kernel)
+    , pw_symbols_{.piecewise = kernel.symbols_.intern_symbol("pw"),
+                  .branch = kernel.symbols_.intern_symbol("case"),
+                  .region = kernel.symbols_.intern_symbol("when")}
+    , seq_symbols_{.recurrence = kernel.symbols_.intern_symbol("rec"),
+                   .power = kernel.symbols_.intern_symbol("exp"),
+                   .index = kernel.symbols_.intern_symbol("i"),
+                   .previous = {kernel.symbols_.intern_symbol("p1"), kernel.symbols_.intern_symbol("p2"),
+                                kernel.symbols_.intern_symbol("p3")}}
+    , point_symbol_(kernel.symbols_.intern_symbol("point"))
+    , less_symbol_(kernel.symbols_.intern_symbol("lt"))
+    , fit_(kernel, {variable}, fit_limits, pw_symbols_, point_symbol_, less_symbol_)
+    , first_steps_(kernel, {"i", "p1"}, fit_limits, pw_symbols_, point_symbol_, less_symbol_)
+    , second_steps_(kernel, {"i", "p1", "p2"}, fit_limits, pw_symbols_, point_symbol_, less_symbol_)
+    , third_steps_(kernel, {"i", "p1", "p2", "p3"}, fit_limits, pw_symbols_, point_symbol_, less_symbol_)
+    , evaluator_(fit_.evaluator_, third_steps_.evaluator_, kernel.literals_, kernel.literals_, kernel.exprs_,
+                 seq_symbols_, kernel.poly_symbols_, point_symbol_, k_seq_default_max_index)
+    , conditions_(evaluator_, kernel.literals_, less_symbol_)
+    , pw_evaluator_(evaluator_, conditions_, pw_symbols_)
+    , first_order_(kernel.literals_, first_steps_.converter_, first_steps_.interpolations_, kernel.literals_,
+                   kernel.exprs_, seq_symbols_, fit_.variables_[0], 1)
+    , second_order_(kernel.literals_, second_steps_.converter_, second_steps_.interpolations_, kernel.literals_,
+                    kernel.exprs_, seq_symbols_, fit_.variables_[0], 2)
+    , third_order_(kernel.literals_, third_steps_.converter_, third_steps_.interpolations_, kernel.literals_,
+                   kernel.exprs_, seq_symbols_, fit_.variables_[0], 3)
+    , hypotheses_(fit_.hypotheses_, first_order_, second_order_, third_order_)
+    , assembler_(kernel.exprs_, pw_symbols_)
+    , builder_(kernel.exprs_, kernel.exprs_, assembler_, pw_symbols_)
+    , filter_(pw_evaluator_, pw_symbols_)
+    , binder_(hypotheses_, filter_, assembler_, pw_symbols_)
+    , absorber_(filter_, assembler_, pw_symbols_)
+    , closer_(kernel.expander_, kernel.literals_, kernel.literals_, kernel.exprs_, seq_symbols_,
+              kernel.poly_symbols_)
+    , union_(binder_, absorber_, closer_, poly_rules_.union_)
+    , rules_(union_, kernel.exprs_)
+    , initial_(builder_.build(fit_.converter_.convert(samples), 0)) {}

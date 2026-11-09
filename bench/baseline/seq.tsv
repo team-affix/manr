@@ -1,0 +1,27 @@
+# problem	solver	cost	target	seconds	sound
+#7 powers of two	best-1st	3	3	0.0229366	1
+#7 powers of two	mcts	3	3	0.0240986	1
+#6 Fibonacci	best-1st	7	7	0.0839613	1
+#6 Fibonacci	mcts	7	7	0.0844186	1
+five times powers of 3	best-1st	5	5	0.0163892	1
+five times powers of 3	mcts	5	5	0.0153135	1
+powers of -2	best-1st	3	3	6.71601	1
+powers of -2	mcts	3	3	0.383022	1
+Lucas numbers	best-1st	7	7	0.100603	1
+Lucas numbers	mcts	7	7	0.100286	1
+Pell numbers	best-1st	9	9	0.0384317	1
+Pell numbers	mcts	9	9	0.0385996	1
+tribonacci	best-1st	10	10	0.123713	1
+tribonacci	mcts	10	10	0.123157	1
+factorial	best-1st	6	6	0.0112012	1
+factorial	mcts	6	6	0.0113241	1
+Fibonacci, wrong label	best-1st	12	12	0.103908	1
+Fibonacci, wrong label	mcts	12	12	0.103981	1
+squares	best-1st	3	3	0.0032117	1
+squares	mcts	3	3	0.00333291	1
+powers of two, long	best-1st	3	3	0.194146	1
+powers of two, long	mcts	3	3	0.194821	1
+Mersenne numbers	best-1st	5	5	0.015636	1
+Mersenne numbers	mcts	5	5	0.0157273	1
+Fibonacci from index 1 (open)	best-1st	94	7	0.0143326	1
+Fibonacci from index 1 (open)	mcts	94	7	0.0143464	1

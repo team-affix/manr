@@ -32,7 +32,7 @@ pw(case(input1, label1), case(input2, label2), ..., ?0)
 | Polynomial algebra (done) | integer tuples | integers | a polynomial, or polynomials on regions, compressed (factored, Horner) |
 | Algebra | tuples of elements of an unknown structure | elements | the operation and its laws: a group or ring presentation, an identity |
 | Calculus | functions as expressions | their derivatives, integrals, limits or series | the operator as rules, e.g. the product and chain rules, or a closed form |
-| Sequences | indices | terms | a closed form or a recurrence |
+| Sequences (started, `docs/seq.md`) | indices | terms | a closed form or a recurrence |
 | Lists and programs (started, `docs/list.md`) | lists | lists, numbers or booleans | a program: map, filter, fold, sort, built from a small vocabulary |
 | Graph theory | graphs (edge lists) | numbers, polynomials or graphs | an invariant as a formula or algorithm, e.g. counts in terms of vertices and edges |
 | Logic | assignments | truth values | the smallest formula |
