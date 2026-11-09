@@ -222,8 +222,7 @@ The open problems and their causes are in `list.md` (gaps, and the fold families
   there (`rule-design.md`, refuting is cheaper than confirming).
 - **Booleans** in the vocabulary, for `all` and `any`, generic filter conditions, and list-to-boolean data.
 - **List-valued folds** (`reverse`, `append`), which need a step whose accumulator is a list.
-- **More compositions**: `filter` over `map`, a fold over a map, and a start for the map-over-filter reading on long
-  lists, where no list keeps or removes all of its values.
+- **More compositions**: `filter` over `map`, a fold over a map.
 
 ## Sequences
 

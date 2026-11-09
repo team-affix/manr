@@ -83,8 +83,11 @@ not reproduce as branches.
   as `d` in both directions on lists sorted once (each count is a binary search); the base is a starting list's
   output less its count, with the same early abandoning.
 - **A map over a filter.** `list_map_filter_hypotheses` reads `map(lam(f), filter(lam(c), xs))` by the outer-inner split
-  (`decomposing-detection.md`): every element value is either removed or kept and mapped to `f` of it. A point whose
-  output is as long as its values not known to be removed keeps all of them and pairs them by position; a point
+  (`decomposing-detection.md`): every element value is either removed or kept and mapped to `f` of it. The signature
+  reading starts it from every list at once: a kept value and its image appear in exactly the same lists, so an
+  output value whose set of lists is that of exactly one input value is that value's image (values sharing a set of
+  lists are left alone). This is what reads long random lists, where every list mixes kept and removed values
+  (reduce request #1). Then a point whose output is as long as its values not known to be removed keeps all of them and pairs them by position; a point
   whose output is exactly the images of its values known to be kept removes the rest (an empty output removes
   all). Points are revisited until nothing new is learned. The kept and removed values must be split by a
   threshold, as for the filter detector, and `f`'s values go to the element domain. Plain maps and plain filters
@@ -116,7 +119,7 @@ interpolation. The difference is the order the samples reach the element domain.
 
 ## Benchmark
 
-`bench/list_bench.cpp`, gated by `make bench_check` with its baseline in `bench/baseline/list.tsv`. 38 problems, 35
+`bench/list_bench.cpp`, gated by `make bench_check` with its baseline in `bench/baseline/list.tsv`. 41 problems, 38
 solved by both solvers:
 
 - folds: sum, length, product, sum of squares, alternating sum, digits read as a number, sum over all 781 lists of
@@ -133,6 +136,8 @@ solved by both solvers:
   elements above 10 in long lists without tails
 - reduce requests #2 (largest square) and #3 (product of squares, without tails), and similar problems for the
   generic readings: the smallest of `2h + 1`, the product of `h^2 + 1` from base 3, and two still open (below)
+- reduce request #1 (`map(lam(2 * #0 + 1), filter(lam(lt(#0, 17)), xs))` on 30 lists of 20 to 40 elements), and two
+  similar long compositions: squares of positives, and `3e - 2` over the values above -10
 
 Every result is checked against every sample. The soundness fuzz (`list_fit_soundness.cpp`) performs every rewrite
 along random walks and checks the same.
@@ -167,10 +172,9 @@ accumulator (`#1`):
   is the first detection of each new expression; the affine detector still tries every multiplier from both starts
   on data it cannot fit, and a necessary-condition filter (solving modulo a small prime before the exact solve)
   would cut that.
-- **Composition, beyond a map over a filter.** `list_map_filter_hypotheses` reads `map(lam(f), filter(lam(c), xs))`, but it
-  starts only from points that keep or remove all of their values, so long random lists (where every list mixes
-  kept and removed values) give it nothing to start from. Other compositions (`filter` over `map`, a fold over a
-  map) need their own readings.
+- **Composition, beyond a map over a filter.** Other compositions (`filter` over `map`, a fold over a map) need their
+  own readings. The map-over-filter readings need `f` to be one-to-one on the kept values for the signature reading
+  (`e^2` over both signs merges two values' lists), or a list that keeps or removes all of its values.
 - **Enough element values.** A piece of a body needs more distinct element values than it has coefficients, as in
   polynomial fitting.
 - **Filters are thresholds.** No parity, membership or multi-interval conditions yet.

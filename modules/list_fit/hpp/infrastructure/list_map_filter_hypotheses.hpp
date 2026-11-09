@@ -16,7 +16,11 @@
 // A detector that reads list-to-list data as a composition, `map(f, filter(c, xs))`, split outer-inner
 // (`docs/decomposing-detection.md`): each element value is either removed by the filter or kept and mapped to f of
 // it, so the data gives f's values and the kept and removed values, and both go on to the readings that already
-// exist. A point whose output is as long as its values not known to be removed keeps all of those, and pairs them
+// exist. The signature reading seeds f's values from every list at once: a kept value v and its image f(v) appear in
+// exactly the same lists (the filter keeps or removes by value), so an output value whose set of lists is that of
+// exactly one input value is that value's image; values sharing a set of lists are ambiguous and left alone. This
+// starts the reading on long lists, where every list mixes kept and removed values (reduce request #1). Then a point
+// whose output is as long as its values not known to be removed keeps all of those, and pairs them
 // with the output by position. A point whose output is exactly the images of its values known to be kept removes the
 // rest (an empty output removes all). Points are revisited until
 // nothing new is learned, since each one read can settle another. A point that contradicts what is known (a value
@@ -96,6 +100,25 @@ LIST_MAP_FILTER_HYPOTHESES_TEMPLATE void LIST_MAP_FILTER_HYPOTHESES::propose_hyp
     }
     std::map<integer, integer> images;
     std::set<integer> removed;
+    // the signature reading: each value's set of lists, as one flag per list
+    std::map<integer, std::vector<bool>> input_lists;
+    std::map<integer, std::vector<bool>> output_lists;
+    for (size_t index = 0; index < inputs.size(); ++index) {
+        for (const integer& value : inputs[index])
+            input_lists.try_emplace(value, inputs.size(), false).first->second[index] = true;
+        for (const integer& value : outputs[index])
+            output_lists.try_emplace(value, inputs.size(), false).first->second[index] = true;
+    }
+    std::map<std::vector<bool>, std::vector<integer>> values_by_lists;
+    for (const auto& [value, lists] : input_lists)
+        values_by_lists[lists].push_back(value);
+    for (const auto& [image, lists] : output_lists) {
+        const auto sources = values_by_lists.find(lists);
+        const bool unique = sources != values_by_lists.end() && sources->second.size() == 1;
+        if (!unique)
+            continue;
+        images.emplace(sources->second.front(), image);
+    }
     std::vector<bool> read(inputs.size(), false);
     bool learned = true;
     while (learned) {

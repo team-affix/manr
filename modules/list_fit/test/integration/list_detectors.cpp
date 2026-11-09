@@ -236,6 +236,43 @@ TEST_F(ListDetectorsIntegrationTest, TheMapFilterDetectorReadsAMapOverAFilter) {
     EXPECT_THAT(printed(), Contains("map(lam(#0^2), filter(lam(lt(0, #0)), xs))"));
 }
 
+TEST_F(ListDetectorsIntegrationTest, TheMapFilterDetectorStartsLongListsFromTheListsEachValueAppearsIn) {
+    // every long list mixes kept and removed values, so only the signature reading can start (reduce request #1)
+    rules.map_filters_.propose_hypotheses(
+        points(sample_listed(random_lists(30, 20, 40, -50, 50, 31), [](const std::vector<integer>& list) {
+            std::vector<integer> result;
+            for (const integer& value : list)
+                if (value < 17)
+                    result.push_back(2 * value + 1);
+            return result;
+        })),
+        out);
+    EXPECT_THAT(printed(), Contains("map(lam(2 * #0 + 1), filter(lam(lt(#0, 17)), xs))"));
+}
+
+TEST_F(ListDetectorsIntegrationTest, TheMapFilterDetectorProposesNothingForAFilterThatIsNoThreshold) {
+    rules.map_filters_.propose_hypotheses(
+        points(sample_listed(random_lists(30, 20, 40, -50, 50, 31), [](const std::vector<integer>& list) {
+            std::vector<integer> result;
+            for (const integer& value : list)
+                if (value % 2 == 0)
+                    result.push_back(2 * value + 1);
+            return result;
+        })),
+        out);
+    EXPECT_TRUE(out.empty());
+}
+
+TEST_F(ListDetectorsIntegrationTest, TheMapFilterDetectorPairsNoValueWhoseListsAnotherValueShares) {
+    // 1 and 2 always appear together, so neither 3 nor 5 can be paired by its lists alone, and no list keeps or
+    // removes all of its values: nothing can start
+    rules.map_filters_.propose_hypotheses(
+        points({{.input = {1, 2, -4}, .output = {3, 5}, .output_is_list = true},
+                {.input = {2, 1, -5}, .output = {5, 3}, .output_is_list = true}}),
+        out);
+    EXPECT_TRUE(out.empty());
+}
+
 TEST_F(ListDetectorsIntegrationTest, TheMapFilterDetectorLeavesAPlainMapToTheMapDetector) {
     rules.map_filters_.propose_hypotheses(points(sample_listed(all_lists(-2, 2, 3), doubled)), out);
     EXPECT_TRUE(out.empty());

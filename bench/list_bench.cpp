@@ -276,6 +276,16 @@ int main(int argc, char** argv) {
         {"squares of positives", random_lists(30, 2, 6, -9, 9, 28), true,
          [](const list_t& l) { return map_each(keep(l, [](integer e) { return e > 0; }), [](integer e) { return e * e; }); },
          {}, 11, "map(lam(#0^2), filter(lam(lt(0, #0)), xs))"},
+        // reduce request #1, and similar long compositions for the signature reading of a map over a filter
+        {"#1 long map over filter", random_lists(30, 20, 40, -50, 50, 31), true,
+         [](const list_t& l) { return map_each(keep(l, [](integer e) { return e < 17; }), [](integer e) { return 2 * e + 1; }); },
+         {}, 13, "map(lam(2 * #0 + 1), filter(lam(lt(#0, 17)), xs))"},
+        {"long squares of positives", random_lists(30, 20, 40, -50, 50, 45), true,
+         [](const list_t& l) { return map_each(keep(l, [](integer e) { return e > 0; }), [](integer e) { return e * e; }); },
+         {}, 11, "map(lam(#0^2), filter(lam(lt(0, #0)), xs))"},
+        {"long map over filter above", random_lists(30, 20, 40, -50, 50, 46), true,
+         [](const list_t& l) { return map_each(keep(l, [](integer e) { return e > -10; }), [](integer e) { return 3 * e - 2; }); },
+         {}, 13, "map(lam(3 * #0 - 2), filter(lam(lt(-10, #0)), xs))"},
         // reduce requests #2 and #3, and similar problems for the generic selection and factor folds
         {"#2 largest square", random_lists(30, 2, 6, -9, 9, 32), false,
          [](const list_t& l) { return fold_right(l, 0, [](integer h, integer acc) { return acc < h * h ? h * h : acc; }); },
