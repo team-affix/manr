@@ -62,8 +62,10 @@ By the loop in `extending.md`:
 - **Generality**: besides the issue's problem, add similar problems the fix should also solve (other constants, other
   inner functions, other sizes, no tails, a wrong label), a near miss it must not fit, and one the existing detectors
   already solve, as tests and benchmark problems.
-- `make run_tests`, `make bench_check`, then `make bench_check_full`: no cost may get worse, and the issue's problems
-  must reach their targets under at least one solver. A slowdown warning is investigated, not ignored.
+- `make run_tests`, `make bench_check`, then `make bench_check_full` when the change can reach the large polynomial
+  problems (`extending.md`, the loop; a change confined to another domain runs its own benchmark in full instead):
+  no cost may get worse, and the issue's problems must reach their targets under at least one solver. A slowdown
+  warning is investigated, not ignored.
 - `make bench_baseline`, and update the module docs, `plans.md` and `CLAUDE.md` (if the layout changed).
 
 ## 6. Report

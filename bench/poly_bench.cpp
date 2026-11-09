@@ -2,10 +2,12 @@
 // MCTS) with comparable budgets. A problem is solved when the result is no larger than a known compact form.
 // Every result is checked against the input's normal form.
 //
-//   poly_bench [--fast] [--write FILE] [--check FILE]
+//   poly_bench [--fast] [--serial] [--write FILE] [--check FILE]
 //
 // --fast skips MCTS on the wide problems (minutes each); --write saves the results, --check gates them against a
 // baseline (bench/bench_gate.hpp).
+// Problems are solved in parallel, one per thread; --serial solves them one at a time, for true timings.
+#include <array>
 #include <chrono>
 #include <cstdio>
 #include <random>
@@ -110,6 +112,28 @@ std::string cell(const outcome& o, size_t target) {
     return buffer;
 }
 
+// one problem under all four solvers
+struct solved {
+    size_t input;
+    size_t target;
+    bool skip_mcts;
+    std::array<outcome, 4> results;
+};
+
+solved solve(const problem& p, bool fast) {
+    poly_kernel_manifest sizing{k_poly_default_limits};
+    const size_t input = sizing.sizes_.cost(sizing.parser_.parse(p.text));
+    const size_t target = sizing.sizes_.cost(sizing.parser_.parse(p.target));
+    const bool skip_mcts = fast && p.name.rfind("wide", 0) == 0;
+    const outcome skipped{.cost = input, .best = "(skipped)", .seconds = 0, .sound = true};
+    return solved{.input = input, .target = target, .skip_mcts = skip_mcts, .results = {
+        run_best_first<poly_reduce_manifest>(p.text),
+        skip_mcts ? skipped : run_mcts<poly_reduce_mcts_manifest>(p.text),
+        run_best_first<poly_baseline_manifest>(p.text),
+        skip_mcts ? skipped : run_mcts<poly_baseline_mcts_manifest>(p.text),
+    }};
+}
+
 }
 
 int main(int argc, char** argv) {
@@ -151,24 +175,19 @@ int main(int argc, char** argv) {
     std::printf("cost  *: no larger than target   !: UNSOUND\n\n");
     std::printf("%-28s %5s %6s | %-13s | %-13s | %-13s | %-13s\n", "problem", "input", "target", "full best-1st",
                 "full mcts", "base best-1st", "base mcts");
-    size_t solved[4] = {0, 0, 0, 0};
+    size_t solved_counts[4] = {0, 0, 0, 0};
     std::vector<std::string> notes;
     std::vector<bench_result> gated;
-    for (const problem& p : problems) {
-        poly_kernel_manifest sizing{k_poly_default_limits};
-        const size_t input = sizing.sizes_.cost(sizing.parser_.parse(p.text));
-        const size_t target = sizing.sizes_.cost(sizing.parser_.parse(p.target));
-        const bool skip_mcts = options.fast && p.name.rfind("wide", 0) == 0;
-        const outcome skipped{.cost = input, .best = "(skipped)", .seconds = 0, .sound = true};
-        const outcome results[4] = {
-            run_best_first<poly_reduce_manifest>(p.text),
-            skip_mcts ? skipped : run_mcts<poly_reduce_mcts_manifest>(p.text),
-            run_best_first<poly_baseline_manifest>(p.text),
-            skip_mcts ? skipped : run_mcts<poly_baseline_mcts_manifest>(p.text),
-        };
+    const std::vector<solved> runs = solve_in_parallel(problems, solve, options);
+    for (size_t index = 0; index < problems.size(); ++index) {
+        const problem& p = problems[index];
+        const size_t input = runs[index].input;
+        const size_t target = runs[index].target;
+        const bool skip_mcts = runs[index].skip_mcts;
+        const std::array<outcome, 4>& results = runs[index].results;
         const char* const solvers[4] = {"full best-1st", "full mcts", "base best-1st", "base mcts"};
         for (int config = 0; config < 4; ++config) {
-            solved[config] += results[config].cost <= target ? 1 : 0;
+            solved_counts[config] += results[config].cost <= target ? 1 : 0;
             const bool ran = !(skip_mcts && (config == 1 || config == 3));
             if (ran)
                 gated.push_back(bench_result{.problem = p.name, .solver = solvers[config], .cost = results[config].cost,
@@ -184,7 +203,7 @@ int main(int argc, char** argv) {
                         + "\n    base mcts: " + results[3].best);
     }
     std::printf("\nsolved (of %zu): full best-1st %zu, full mcts %zu, base best-1st %zu, base mcts %zu\n\n",
-                problems.size(), solved[0], solved[1], solved[2], solved[3]);
+                problems.size(), solved_counts[0], solved_counts[1], solved_counts[2], solved_counts[3]);
     for (const std::string& note : notes)
         std::printf("%s\n", note.c_str());
     return finish_bench(options, gated);

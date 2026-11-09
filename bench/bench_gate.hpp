@@ -9,11 +9,14 @@
 #ifndef BENCH_GATE_HPP
 #define BENCH_GATE_HPP
 
+#include <algorithm>
+#include <atomic>
 #include <cstdio>
 #include <fstream>
 #include <map>
 #include <sstream>
 #include <string>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -31,16 +34,19 @@ constexpr double k_slower_floor = 0.25;  // seconds: differences below this are 
 
 struct bench_options {
     bool fast;
+    bool serial;
     std::string write_path;
     std::string check_path;
 };
 
 inline bench_options parse_bench_options(int argc, char** argv) {
-    bench_options options{.fast = false, .write_path = "", .check_path = ""};
+    bench_options options{.fast = false, .serial = false, .write_path = "", .check_path = ""};
     for (int index = 1; index < argc; ++index) {
         const std::string arg = argv[index];
         if (arg == "--fast")
             options.fast = true;
+        else if (arg == "--serial")
+            options.serial = true;
         else if (arg == "--write" && index + 1 < argc)
             options.write_path = argv[++index];
         else if (arg == "--check" && index + 1 < argc)
@@ -123,6 +129,34 @@ inline size_t check_results(const std::string& path, const std::vector<bench_res
     }
     std::printf("gate: %zu compared, %zu failure%s\n", compared, failures, failures == 1 ? "" : "s");
     return failures;
+}
+
+// One worker of `solve_in_parallel`: solves the next unsolved problem until none is left.
+template<typename Problem, typename Result>
+void solve_from_queue(const std::vector<Problem>* problems, Result (*solve)(const Problem&, bool), bool fast,
+                      std::vector<Result>* results, std::atomic<size_t>* next) {
+    for (size_t index = (*next)++; index < problems->size(); index = (*next)++)
+        (*results)[index] = solve((*problems)[index], fast);
+}
+
+// Solves every problem on as many threads as the machine has (one under --serial), and returns the results in the
+// problems' order. Each problem builds its own manifests (its own pool and kernel), so problems share nothing: costs
+// are the same as in a serial run. Seconds are not: under load each problem runs slower (about 1.5 to 2 times here),
+// so parallel timings only compare with parallel timings. --serial gives true timings.
+template<typename Problem, typename Result>
+std::vector<Result> solve_in_parallel(const std::vector<Problem>& problems, Result (*solve)(const Problem&, bool),
+                                      const bench_options& options) {
+    std::vector<Result> results(problems.size());
+    std::atomic<size_t> next{0};
+    const size_t available = options.serial ? 1 : std::thread::hardware_concurrency();
+    const size_t thread_count = std::max<size_t>(1, std::min<size_t>(available, problems.size()));
+    const bool fast = options.fast;
+    std::vector<std::thread> workers;
+    for (size_t worker = 0; worker < thread_count; ++worker)
+        workers.emplace_back(solve_from_queue<Problem, Result>, &problems, solve, fast, &results, &next);
+    for (std::thread& worker : workers)
+        worker.join();
+    return results;
 }
 
 // Writes and checks as the options ask; the process exit code.

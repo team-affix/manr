@@ -3,10 +3,11 @@
 // larger than a known compact form (its cost is given, since recurrences do not parse). Every result is checked by
 // evaluating it at every sample.
 //
-//   seq_bench [--fast] [--write FILE] [--check FILE]
+//   seq_bench [--fast] [--serial] [--write FILE] [--check FILE]
 //
 // --fast skips MCTS on the large data sets; --write saves the results, --check gates them against a baseline
 // (bench/bench_gate.hpp).
+// Problems are solved in parallel, one per thread; --serial solves them one at a time, for true timings.
 #include <chrono>
 #include <cstdio>
 #include <sstream>
@@ -111,6 +112,22 @@ std::string cell(const outcome& o, size_t target) {
     return buffer;
 }
 
+// one problem under both solvers
+struct solved {
+    size_t points;
+    bool skip_mcts;
+    outcome best_first;
+    outcome mcts;
+};
+
+solved solve(const seq_problem& p, bool fast) {
+    const std::vector<poly_sample> samples = sample(p);
+    const bool skip_mcts = fast && samples.size() > k_large;
+    const outcome skipped{.cost = 0, .best = "(skipped)", .seconds = 0, .sound = true};
+    return solved{.points = samples.size(), .skip_mcts = skip_mcts, .best_first = run_best_first(samples),
+                  .mcts = skip_mcts ? skipped : run_mcts(samples)};
+}
+
 }
 
 int main(int argc, char** argv) {
@@ -137,18 +154,18 @@ int main(int argc, char** argv) {
                 k_probing_depth);
     std::printf("cost  *: no larger than target   !: UNSOUND (misses a sample)\n\n");
     std::printf("%-30s %6s %6s | %-15s | %-15s\n", "problem", "points", "target", "best-1st", "mcts");
-    size_t solved[2] = {0, 0};
+    size_t solved_counts[2] = {0, 0};
     std::vector<bench_result> gated;
     std::vector<std::string> notes;
-    for (const seq_problem& p : problems) {
-        const std::vector<poly_sample> samples = sample(p);
-        const bool skip_mcts = options.fast && samples.size() > k_large;
-        const outcome best_first = run_best_first(samples);
-        const outcome mcts = skip_mcts ? outcome{.cost = 0, .best = "(skipped)", .seconds = 0, .sound = true}
-                                       : run_mcts(samples);
-        solved[0] += best_first.cost <= p.target ? 1 : 0;
-        solved[1] += !skip_mcts && mcts.cost <= p.target ? 1 : 0;
-        std::printf("%-30s %6zu %6zu | %s | %s\n", p.name.c_str(), samples.size(), p.target,
+    const std::vector<solved> runs = solve_in_parallel(problems, solve, options);
+    for (size_t index = 0; index < problems.size(); ++index) {
+        const seq_problem& p = problems[index];
+        const bool skip_mcts = runs[index].skip_mcts;
+        const outcome& best_first = runs[index].best_first;
+        const outcome& mcts = runs[index].mcts;
+        solved_counts[0] += best_first.cost <= p.target ? 1 : 0;
+        solved_counts[1] += !skip_mcts && mcts.cost <= p.target ? 1 : 0;
+        std::printf("%-30s %6zu %6zu | %s | %s\n", p.name.c_str(), runs[index].points, p.target,
                     cell(best_first, p.target).c_str(), skip_mcts ? "      (skipped)" : cell(mcts, p.target).c_str());
         std::fflush(stdout);
         gated.push_back(bench_result{.problem = p.name, .solver = "best-1st", .cost = best_first.cost,
@@ -159,7 +176,7 @@ int main(int argc, char** argv) {
         notes.push_back(p.name + "\n    target:   " + p.target_text + "\n    best-1st: " + best_first.best.substr(0, 160)
                         + "\n    mcts:     " + mcts.best.substr(0, 160));
     }
-    std::printf("\nsolved (of %zu): best-1st %zu, mcts %zu\n\n", problems.size(), solved[0], solved[1]);
+    std::printf("\nsolved (of %zu): best-1st %zu, mcts %zu\n\n", problems.size(), solved_counts[0], solved_counts[1]);
     for (const std::string& note : notes)
         std::printf("%s\n", note.c_str());
     return finish_bench(options, gated);

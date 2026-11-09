@@ -39,6 +39,8 @@ and MCTS is seeded. So a cost that changes is a real change, not noise.
   and 1000 points. Two solvers (best-first and MCTS).
 - `bench/list_bench.cpp`: 26 list-program problems (four of them open): folds, maps and filters, some with a wrong
   label, on short lists and on lists of 20 to 40 elements. Two solvers (best-first and MCTS).
+- `bench/logic_bench.cpp`: 12 boolean-function problems: parities, majority, a multiplexer, unseen rows, a wrong
+  label. Two solvers (best-first and MCTS).
 - `bench/seq_bench.cpp`: 13 integer-sequence problems (one of them open): recurrences of order one to three, powers
   and their affine shifts, a step that uses the index, a wrong label. Two solvers (best-first and MCTS).
 
@@ -53,8 +55,8 @@ commit that changes capability, the diff of these files is the record of what ch
 
 ```
 make run_tests          # unit, integration and soundness fuzz tests
-make bench_check        # fast tier: best-first everywhere, MCTS except the largest problems
-make bench_check_full   # every problem under every solver (about 20 minutes)
+make bench_check        # fast tier: best-first everywhere, MCTS except the largest problems (about 30 seconds)
+make bench_check_full   # every problem under every solver (about 6 minutes)
 make bench_baseline     # record the current results as the baseline
 ```
 
@@ -81,7 +83,14 @@ make bench_baseline     # record the current results as the baseline
    domain needs its own fuzz test with its own oracle (`poly_soundness.cpp`, `poly_fit_soundness.cpp`).
 4. **Run `make bench_check`.** If anything gets worse, the fix belongs in the rule, never in the baseline. Look at
    what the losing solver now does on that problem (the benchmark prints every best form) and apply a design rule.
-5. **Run `make bench_check_full` before landing.** MCTS on the large problems only runs here.
+5. **Run `make bench_check_full` before landing, when the change can reach the large problems.** MCTS on the large
+   problems only runs here, and they are almost all polynomial (the wide `poly_bench` problems, minutes each). A
+   change confined to a module no polynomial solver links (a new domain, a list or sequence detector) cannot change
+   them: `make bench_check` plus that domain's own benchmark run in full (`./build/<name>_bench --check
+   bench/baseline/<name>.tsv`) is the gate. Every benchmark solves its problems in parallel, one per thread. Costs
+   are deterministic and the same either way, but seconds are measured under load (about 1.5 to 2 times slower per
+   problem), so the baselines are recorded the same way and slowdown warnings compare like with like. For true
+   timings, run `make bench_timing` (every benchmark with `--serial`).
 6. **Record and commit.** Run `make bench_baseline` and commit the code and the new baseline together.
 7. **Every bug becomes a problem.** A wrong result, a regression or a surprising failure found later becomes a
    corpus problem or a test before it is fixed.
