@@ -133,7 +133,7 @@ LIST_AFFINE_FOLD_HYPOTHESES_TEMPLATE void LIST_AFFINE_FOLD_HYPOTHESES::propose_h
     step.terms.emplace(poly_monomial{.powers = {poly_power{.variable = symbols_.accumulator, .exponent = 1}}},
                        fold.value().multiplier);
     out.push_back(make_functor_.make_functor(symbols_.fold,
-                                             {render_.render(step), make_literal_.make_literal(fold.value().base),
+                                             {make_functor_.make_functor(symbols_.lambda, {make_functor_.make_functor(symbols_.lambda, {render_.render(step)})}), make_literal_.make_literal(fold.value().base),
                                               make_functor_.make_functor(symbols_.input, {})}));
 }
 

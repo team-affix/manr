@@ -88,7 +88,7 @@ LIST_INTEGER_MAP_HYPOTHESES_TEMPLATE void LIST_INTEGER_MAP_HYPOTHESES::propose_h
     propose_element_hypotheses_.propose_hypotheses(convert_samples_.convert(samples), bodies_);
     const expr* list = make_functor_.make_functor(symbols_.input, {});
     for (const expr* body : bodies_)
-        out.push_back(make_functor_.make_functor(symbols_.map, {body, list}));
+        out.push_back(make_functor_.make_functor(symbols_.map, {make_functor_.make_functor(symbols_.lambda, {body}), list}));
 }
 
 #undef LIST_INTEGER_MAP_HYPOTHESES

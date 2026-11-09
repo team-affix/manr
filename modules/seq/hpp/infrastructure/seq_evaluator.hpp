@@ -14,7 +14,8 @@
 constexpr size_t k_seq_default_max_index = 100000;
 
 // The value of a sequence expression at an input, as an interned literal: `rec` runs its recurrence up to the index,
-// handing the step to the step domain at `point(i, p1, p2, ...)` (one coordinate per `previous` variable); `exp`
+// unwrapping its step function's k + 1 `lam` binders and handing the body to the step domain at
+// `point(index, a(j-1), a(j-2), ...)`, one coordinate per `previous` index (`#0`, `#1`, ... in that order); `exp`
 // raises its base. Their arguments are evaluated here, so they may be any expression of the outer domain. Anything
 // else goes to the outer domain (`evaluate_outer_at`), and arithmetic it cannot evaluate (`add`, `sub`, `mul`, `pow`
 // over a recurrence or a power, as in `5 * exp(3, n)`) is evaluated here from its arguments' values. No value at a
@@ -134,6 +135,14 @@ SEQ_EVALUATOR_TEMPLATE std::optional<const expr*> SEQ_EVALUATOR::evaluate_arithm
 SEQ_EVALUATOR_TEMPLATE std::optional<const expr*> SEQ_EVALUATOR::evaluate_recurrence(
     const expr::functor& recurrence, size_t last, const expr* input) {
     const size_t order = recurrence.args.size() - 2;
+    // the step's body, under one `lam` for the index and one per previous term
+    const expr* step = recurrence.args[0];
+    for (size_t binder = 0; binder <= order; ++binder) {
+        const expr::functor* function = std::get_if<expr::functor>(&step->content);
+        if (function == nullptr || function->id != symbols_.lambda || function->args.size() != 1)
+            return std::nullopt;
+        step = function->args[0];
+    }
     std::vector<integer> terms;
     terms.reserve(last + 1);
     for (size_t position = 0; position < order; ++position) {
@@ -149,7 +158,7 @@ SEQ_EVALUATOR_TEMPLATE std::optional<const expr*> SEQ_EVALUATOR::evaluate_recurr
             coordinates.push_back(make_literal_.make_literal(started ? terms[position - back] : integer(0)));
         }
         const std::optional<const expr*> value =
-            evaluate_step_at_.evaluate_at(recurrence.args[0], make_functor_.make_functor(point_symbol_, coordinates));
+            evaluate_step_at_.evaluate_at(step, make_functor_.make_functor(point_symbol_, coordinates));
         if (!value.has_value())
             return std::nullopt;
         const std::optional<integer> term = find_literal_value_.find_value(value.value());

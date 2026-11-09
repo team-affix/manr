@@ -150,7 +150,7 @@ LIST_COUNT_FOLD_HYPOTHESES_TEMPLATE void LIST_COUNT_FOLD_HYPOTHESES::propose_hyp
         piecewise_symbols_.piecewise,
         {make_functor_.make_functor(piecewise_symbols_.region, {condition, render_.render(incremented)}), accumulator});
     out.push_back(make_functor_.make_functor(
-        symbols_.fold, {step, make_literal_.make_literal(best_base), make_functor_.make_functor(symbols_.input, {})}));
+        symbols_.fold, {make_functor_.make_functor(symbols_.lambda, {make_functor_.make_functor(symbols_.lambda, {step})}), make_literal_.make_literal(best_base), make_functor_.make_functor(symbols_.input, {})}));
 }
 
 // The number of elements of the sorted list above the threshold, or below it.

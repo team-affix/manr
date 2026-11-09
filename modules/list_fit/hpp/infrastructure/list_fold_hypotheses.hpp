@@ -72,7 +72,7 @@ LIST_FOLD_HYPOTHESES_TEMPLATE void LIST_FOLD_HYPOTHESES::propose_hypotheses(
     propose_step_hypotheses_.propose_hypotheses(steps, steps_);
     const expr* list = make_functor_.make_functor(symbols_.input, {});
     for (const expr* step : steps_)
-        out.push_back(make_functor_.make_functor(symbols_.fold, {step, base->second, list}));
+        out.push_back(make_functor_.make_functor(symbols_.fold, {make_functor_.make_functor(symbols_.lambda, {make_functor_.make_functor(symbols_.lambda, {step})}), base->second, list}));
 }
 
 #undef LIST_FOLD_HYPOTHESES

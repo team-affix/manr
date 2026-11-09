@@ -81,14 +81,14 @@ LIST_FILTER_HYPOTHESES_TEMPLATE void LIST_FILTER_HYPOTHESES::propose_hypotheses(
     const bool above = *removed.rbegin() < *kept.begin();
     if (above) {
         const expr* condition = make_functor_.make_functor(less_symbol_, {make_literal_.make_literal(*removed.rbegin()), element});
-        out.push_back(make_functor_.make_functor(symbols_.filter, {condition, list}));
+        out.push_back(make_functor_.make_functor(symbols_.filter, {make_functor_.make_functor(symbols_.lambda, {condition}), list}));
         return;
     }
     const bool below = *kept.rbegin() < *removed.begin();
     if (!below)
         return;
     const expr* condition = make_functor_.make_functor(less_symbol_, {element, make_literal_.make_literal(*removed.begin())});
-    out.push_back(make_functor_.make_functor(symbols_.filter, {condition, list}));
+    out.push_back(make_functor_.make_functor(symbols_.filter, {make_functor_.make_functor(symbols_.lambda, {condition}), list}));
 }
 
 // The literal values of a list of literals.

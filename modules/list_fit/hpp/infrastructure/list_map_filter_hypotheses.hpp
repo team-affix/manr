@@ -159,9 +159,9 @@ LIST_MAP_FILTER_HYPOTHESES_TEMPLATE void LIST_MAP_FILTER_HYPOTHESES::propose_hyp
     bodies_.clear();
     propose_element_hypotheses_.propose_hypotheses(convert_samples_.convert(samples), bodies_);
     const expr* filtered =
-        make_functor_.make_functor(symbols_.filter, {condition, make_functor_.make_functor(symbols_.input, {})});
+        make_functor_.make_functor(symbols_.filter, {make_functor_.make_functor(symbols_.lambda, {condition}), make_functor_.make_functor(symbols_.input, {})});
     for (const expr* body : bodies_)
-        out.push_back(make_functor_.make_functor(symbols_.map, {body, filtered}));
+        out.push_back(make_functor_.make_functor(symbols_.map, {make_functor_.make_functor(symbols_.lambda, {body}), filtered}));
 }
 
 // The literal values of a list of literals.

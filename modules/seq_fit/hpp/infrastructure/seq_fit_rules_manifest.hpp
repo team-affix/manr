@@ -29,7 +29,7 @@
 
 // The rules for fitting integer sequences (data over one index variable), on a polynomial kernel: everything
 // polynomial fitting does (`fit_`), plus the recurrences of order 1 to 3 read off consecutive terms, whose steps go to
-// polynomial fitting over `i` and the previous terms (`first_steps_` to `third_steps_`), and the closing rule that
+// polynomial fitting over the index `#0` and the previous terms `#1` to `#3` (`first_steps_` to `third_steps_`), and the closing rule that
 // turns a geometric recurrence into a power. The evaluator runs recurrences and powers and leaves the rest to the
 // polynomial evaluator. `rules_` is what a search injects and `initial_` is where it starts.
 struct seq_fit_rules_manifest {

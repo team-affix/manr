@@ -92,8 +92,10 @@ A module depends on core and on other modules' headers; core never depends on a 
   and coefficient arithmetic is exact and never overflows. Don't use built-in integer types for literal values.
 - Polynomial algebra is the first full domain. Read `docs/poly.md` for its rules, detectors and benchmark.
 - **Bound variables use de Bruijn indices** (`docs/plans.md`, bound variables): any functor that binds a variable
-  refers to it by index, never by name, so binders nest. The list and sequence binders (`e`, `h`, `acc`, `i`,
-  `p1`..`p3`) still use fixed names and are to be converted. Don't add a new named binder.
+  refers to it by index, never by name, so binders nest. Programs take closed functions, `lam(body)`, and an index is
+  a nullary symbol `#k` that the body's domain treats as a variable, so polynomial fitting and rules work on bodies
+  unchanged: `map(lam(#0^2), xs)`, `fold(lam(lam(#0 + #1)), 0, xs)` (head `#0`, accumulator `#1`),
+  `rec(lam(lam(lam(#1 + #2))), 0, 1, n)` (index `#0`, previous terms `#1`...). Don't add a named binder.
 - Lists are the first program domain. Read `docs/list.md`: detectors recognize a program's shape and hand the rest
   to polynomial fitting.
 - Sequences are the third domain. Read `docs/seq.md`: a recurrence's steps are read off consecutive terms and fitted

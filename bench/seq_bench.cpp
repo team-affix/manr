@@ -134,20 +134,20 @@ int main(int argc, char** argv) {
     const bench_options options = parse_bench_options(argc, argv);
     const std::vector<seq_problem> problems{
         {"#7 powers of two", "2*p1", {1}, 0, 25, {}, 3, "exp(2, n)"},
-        {"#6 Fibonacci", "p1 + p2", {0, 1}, 0, 25, {}, 7, "rec(p1 + p2, 0, 1, n)"},
+        {"#6 Fibonacci", "p1 + p2", {0, 1}, 0, 25, {}, 10, "rec(lam(lam(lam(#1 + #2))), 0, 1, n)"},
         {"five times powers of 3", "3*p1", {5}, 0, 20, {}, 5, "5 * exp(3, n)"},
         {"powers of -2", "-2*p1", {1}, 0, 20, {}, 3, "exp(-2, n)"},
-        {"Lucas numbers", "p1 + p2", {2, 1}, 0, 25, {}, 7, "rec(p1 + p2, 2, 1, n)"},
-        {"Pell numbers", "2*p1 + p2", {0, 1}, 0, 20, {}, 9, "rec(2*p1 + p2, 0, 1, n)"},
-        {"tribonacci", "p1 + p2 + p3", {0, 0, 1}, 0, 25, {}, 10, "rec(p1 + p2 + p3, 0, 0, 1, n)"},
-        {"factorial", "i*p1", {1}, 0, 15, {}, 6, "rec(i*p1, 1, n)"},
-        {"Fibonacci, wrong label", "p1 + p2", {0, 1}, 0, 25, {{10, 1}}, 12,
-         "pw(case(point(10), 56), rec(p1 + p2, 0, 1, n))"},
+        {"Lucas numbers", "p1 + p2", {2, 1}, 0, 25, {}, 10, "rec(lam(lam(lam(#1 + #2))), 2, 1, n)"},
+        {"Pell numbers", "2*p1 + p2", {0, 1}, 0, 20, {}, 12, "rec(lam(lam(lam(2*#1 + #2))), 0, 1, n)"},
+        {"tribonacci", "p1 + p2 + p3", {0, 0, 1}, 0, 25, {}, 14, "rec(lam(lam(lam(lam(#1 + #2 + #3)))), 0, 0, 1, n)"},
+        {"factorial", "i*p1", {1}, 0, 15, {}, 8, "rec(lam(lam(#0*#1)), 1, n)"},
+        {"Fibonacci, wrong label", "p1 + p2", {0, 1}, 0, 25, {{10, 1}}, 15,
+         "pw(case(point(10), 56), rec(lam(lam(lam(#1 + #2))), 0, 1, n))"},
         {"squares", "i^2", {0}, 0, 20, {}, 3, "n^2"},
         {"powers of two, long", "2*p1", {1}, 0, 60, {}, 3, "exp(2, n)"},
         {"Mersenne numbers", "2*p1 + 1", {0}, 0, 20, {}, 5, "exp(2, n) - 1"},
         // open: no solver reaches the target yet; kept so the gate reports when one does
-        {"Fibonacci from index 1 (open)", "p1 + p2", {0, 1}, 1, 25, {}, 7, "rec(p1 + p2, 0, 1, n)"},
+        {"Fibonacci from index 1 (open)", "p1 + p2", {0, 1}, 1, 25, {}, 10, "rec(lam(lam(lam(#1 + #2))), 0, 1, n)"},
     };
 
     std::printf("budgets: best-first %zu rewrites; mcts %zu simulations x depth %zu\n", k_rewrites, k_simulations,

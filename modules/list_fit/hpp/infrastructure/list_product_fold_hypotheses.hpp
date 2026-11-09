@@ -155,7 +155,7 @@ LIST_PRODUCT_FOLD_HYPOTHESES_TEMPLATE void LIST_PRODUCT_FOLD_HYPOTHESES::propose
                        best_slope);
     if (best_offset != 0)
         step.terms.emplace(poly_monomial{.powers = {accumulator}}, best_offset);
-    out.push_back(make_functor_.make_functor(symbols_.fold, {render_.render(step), make_literal_.make_literal(best_base),
+    out.push_back(make_functor_.make_functor(symbols_.fold, {make_functor_.make_functor(symbols_.lambda, {make_functor_.make_functor(symbols_.lambda, {render_.render(step)})}), make_literal_.make_literal(best_base),
                                                              make_functor_.make_functor(symbols_.input, {})}));
 }
 

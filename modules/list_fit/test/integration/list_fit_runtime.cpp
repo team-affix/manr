@@ -38,12 +38,12 @@ TEST_F(ListFitRuntimeIntegrationTest, TheDataStartsAsAPiecewiseOfListsWithAnOpen
 }
 
 TEST_F(ListFitRuntimeIntegrationTest, SumsReduceToAFold) {
-    EXPECT_EQ(fit(sample_scalar(lists, sum)), "fold(h + acc, 0, xs)");
+    EXPECT_EQ(fit(sample_scalar(lists, sum)), "fold(lam(lam(#0 + #1)), 0, xs)");
 }
 
 TEST_F(ListFitRuntimeIntegrationTest, LengthsReduceToAFoldThatCounts) {
     EXPECT_EQ(fit(sample_scalar(lists, [](const std::vector<integer>& list) { return integer(list.size()); })),
-              "fold(acc + 1, 0, xs)");
+              "fold(lam(lam(#1 + 1)), 0, xs)");
 }
 
 TEST_F(ListFitRuntimeIntegrationTest, ProductsReduceToAFoldFromOne) {
@@ -53,7 +53,7 @@ TEST_F(ListFitRuntimeIntegrationTest, ProductsReduceToAFoldFromOne) {
                       product *= value;
                   return product;
               })),
-              "fold(h * acc, 1, xs)");
+              "fold(lam(lam(#0 * #1)), 1, xs)");
 }
 
 TEST_F(ListFitRuntimeIntegrationTest, SquaringEveryElementReducesToAMap) {
@@ -63,7 +63,7 @@ TEST_F(ListFitRuntimeIntegrationTest, SquaringEveryElementReducesToAMap) {
                       squares.push_back(value * value);
                   return squares;
               })),
-              "map(e^2, xs)");
+              "map(lam(#0^2), xs)");
 }
 
 TEST_F(ListFitRuntimeIntegrationTest, AbsoluteValuesReduceToAMapOfAPiecewise) {
@@ -74,7 +74,7 @@ TEST_F(ListFitRuntimeIntegrationTest, AbsoluteValuesReduceToAMapOfAPiecewise) {
                       magnitudes.push_back(value < 0 ? integer(-value) : value);
                   return magnitudes;
               })),
-              "map(pw(when(lt(e, 1), -1 * e), e), xs)");
+              "map(lam(pw(when(lt(#0, 1), -1 * #0), #0)), xs)");
 }
 
 TEST_F(ListFitRuntimeIntegrationTest, KeepingThePositivesReducesToAFilter) {
@@ -85,18 +85,18 @@ TEST_F(ListFitRuntimeIntegrationTest, KeepingThePositivesReducesToAFilter) {
                           kept.push_back(value);
                   return kept;
               })),
-              "filter(lt(0, e), xs)");
+              "filter(lam(lt(0, #0)), xs)");
 }
 
 TEST_F(ListFitRuntimeIntegrationTest, AWrongLabelStaysAsTheOnlyBranch) {
     std::vector<list_sample> samples = sample_scalar(lists, sum);
     samples[7].output[0] += 10;
-    EXPECT_EQ(fit(samples), "pw(case(cons(-1, cons(-2, nil)), 7), fold(h + acc, 0, xs))");
+    EXPECT_EQ(fit(samples), "pw(case(cons(-1, cons(-2, nil)), 7), fold(lam(lam(#0 + #1)), 0, xs))");
 }
 
 TEST_F(ListFitRuntimeIntegrationTest, SumsOfLongListsReduceToAFold) {
     // 12 lists of 20 to 40 elements, with their tails
-    EXPECT_EQ(fit(sample_scalar(with_tails(random_lists(12, 20, 40, -50, 50, 1)), sum)), "fold(h + acc, 0, xs)");
+    EXPECT_EQ(fit(sample_scalar(with_tails(random_lists(12, 20, 40, -50, 50, 1)), sum)), "fold(lam(lam(#0 + #1)), 0, xs)");
 }
 
 TEST_F(ListFitRuntimeIntegrationTest, ProductsOfLongListsReduceToAFoldDespiteHugeValues) {
@@ -108,7 +108,7 @@ TEST_F(ListFitRuntimeIntegrationTest, ProductsOfLongListsReduceToAFoldDespiteHug
                   return product;
               }),
                          100),
-              "fold(h * acc, 1, xs)");
+              "fold(lam(lam(#0 * #1)), 1, xs)");
 }
 
 TEST_F(ListFitRuntimeIntegrationTest, MapsOverLongListsReduceWithoutTails) {
@@ -118,7 +118,7 @@ TEST_F(ListFitRuntimeIntegrationTest, MapsOverLongListsReduceWithoutTails) {
                       result.push_back(2 * value * value - 3);
                   return result;
               })),
-              "map(2 * e^2 - 3, xs)");
+              "map(lam(2 * #0^2 - 3), xs)");
 }
 
 TEST_F(ListFitRuntimeIntegrationTest, FiltersOverLongListsReduceWithoutTails) {
@@ -129,11 +129,11 @@ TEST_F(ListFitRuntimeIntegrationTest, FiltersOverLongListsReduceWithoutTails) {
                           kept.push_back(value);
                   return kept;
               })),
-              "filter(lt(e, 17), xs)");
+              "filter(lam(lt(#0, 17)), xs)");
 }
 
 TEST_F(ListFitRuntimeIntegrationTest, SumsOfLongListsReduceToAFoldWithoutTails) {
-    EXPECT_EQ(fit(sample_scalar(random_lists(40, 20, 40, -50, 50, 8), sum)), "fold(h + acc, 0, xs)");
+    EXPECT_EQ(fit(sample_scalar(random_lists(40, 20, 40, -50, 50, 8), sum)), "fold(lam(lam(#0 + #1)), 0, xs)");
 }
 
 TEST_F(ListFitRuntimeIntegrationTest, NumbersFromTheirDigitsReduceToAFoldWithoutTails) {
@@ -143,7 +143,7 @@ TEST_F(ListFitRuntimeIntegrationTest, NumbersFromTheirDigitsReduceToAFoldWithout
                       number = list[index] + 10 * number;
                   return number;
               })),
-              "fold(h + 10 * acc, 0, xs)");
+              "fold(lam(lam(#0 + 10 * #1)), 0, xs)");
 }
 
 TEST_F(ListFitRuntimeIntegrationTest, AlternatingSumsReduceToAFoldWithoutTails) {
@@ -153,7 +153,7 @@ TEST_F(ListFitRuntimeIntegrationTest, AlternatingSumsReduceToAFoldWithoutTails) 
                       total = list[index] - total;
                   return total;
               })),
-              "fold(h - acc, 0, xs)");
+              "fold(lam(lam(#0 - #1)), 0, xs)");
 }
 
 TEST_F(ListFitRuntimeIntegrationTest, AWrongLabelOnTheFirstListWithoutTailsStaysAsTheOnlyBranch) {
@@ -161,7 +161,7 @@ TEST_F(ListFitRuntimeIntegrationTest, AWrongLabelOnTheFirstListWithoutTailsStays
     samples[0].output[0] += 100;
     const std::string best = fit(samples);
     EXPECT_TRUE(best.starts_with("pw(case(")) << best;
-    EXPECT_TRUE(best.ends_with("), fold(h + acc, 0, xs))")) << best;
+    EXPECT_TRUE(best.ends_with("), fold(lam(lam(#0 + #1)), 0, xs))")) << best;
     EXPECT_EQ(best.find("case(", 8), std::string::npos) << best;
 }
 
@@ -172,14 +172,14 @@ TEST_F(ListFitRuntimeIntegrationTest, MaximaReduceToASelectionFold) {
                       largest = std::max(largest, value);
                   return largest;
               })),
-              "fold(pw(when(lt(acc, h), h), acc), 0, xs)");
+              "fold(lam(lam(pw(when(lt(#1, #0), #0), #1))), 0, xs)");
 }
 
 TEST_F(ListFitRuntimeIntegrationTest, MinimaOfLongListsReduceToASelectionFoldWithoutTails) {
     EXPECT_EQ(fit(sample_scalar(random_lists(30, 20, 40, -50, 50, 14), [](const std::vector<integer>& list) {
                   return *std::min_element(list.begin(), list.end());
               })),
-              "fold(pw(when(lt(h, acc), h), acc), 0, xs)");
+              "fold(lam(lam(pw(when(lt(#0, #1), #0), #1))), 0, xs)");
 }
 
 TEST_F(ListFitRuntimeIntegrationTest, ProductsReduceToAFoldWithoutTails) {
@@ -189,14 +189,14 @@ TEST_F(ListFitRuntimeIntegrationTest, ProductsReduceToAFoldWithoutTails) {
                       product *= value;
                   return product;
               })),
-              "fold(h * acc, 1, xs)");
+              "fold(lam(lam(#0 * #1)), 1, xs)");
 }
 
 TEST_F(ListFitRuntimeIntegrationTest, CountsOfLongListsReduceToACountingFoldWithoutTails) {
     EXPECT_EQ(fit(sample_scalar(random_lists(30, 20, 40, -50, 50, 27), [](const std::vector<integer>& list) {
                   return integer(std::count_if(list.begin(), list.end(), [](const integer& value) { return value > 10; }));
               })),
-              "fold(pw(when(lt(10, h), acc + 1), acc), 0, xs)");
+              "fold(lam(lam(pw(when(lt(10, #0), #1 + 1), #1))), 0, xs)");
 }
 
 TEST_F(ListFitRuntimeIntegrationTest, SquaresOfThePositivesReduceToAMapOverAFilter) {
@@ -207,7 +207,7 @@ TEST_F(ListFitRuntimeIntegrationTest, SquaresOfThePositivesReduceToAMapOverAFilt
                           result.push_back(value * value);
                   return result;
               })),
-              "map(e^2, filter(lt(0, e), xs))");
+              "map(lam(#0^2), filter(lam(lt(0, #0)), xs))");
 }
 
 TEST_F(ListFitRuntimeIntegrationTest, LargestSquaresReduceToASelectionFoldOfASquare) {
@@ -217,7 +217,7 @@ TEST_F(ListFitRuntimeIntegrationTest, LargestSquaresReduceToASelectionFoldOfASqu
                       largest = std::max(largest, integer(value * value));
                   return largest;
               })),
-              "fold(pw(when(lt(acc, h^2), h^2), acc), 0, xs)");
+              "fold(lam(lam(pw(when(lt(#1, #0^2), #0^2), #1))), 0, xs)");
 }
 
 TEST_F(ListFitRuntimeIntegrationTest, ProductsOfSquaresReduceToAFoldWithoutTails) {
@@ -227,5 +227,5 @@ TEST_F(ListFitRuntimeIntegrationTest, ProductsOfSquaresReduceToAFoldWithoutTails
                       product *= value * value;
                   return product;
               })),
-              "fold(h^2 * acc, 1, xs)");
+              "fold(lam(lam(#0^2 * #1)), 1, xs)");
 }

@@ -6,15 +6,18 @@
 #include <vector>
 
 // Functor ids of the sequence vocabulary, over an integer index:
-//   `rec(s, b0, ..., b(k-1), n)`   the term at index n of the sequence a with a(j) = bj for j < k and, from k on,
-//                                  a(j) = s with `i` the index j and `p1`, `p2`, ... the terms a(j-1), a(j-2), ...
-//                                  (0 before the start). Its order k is its number of bases, at most `previous`'s
-//                                  size. No value at a negative index.
+//   `rec(f, b0, ..., b(k-1), n)`   the term at index n of the sequence a with a(j) = bj for j < k and, from k on,
+//                                  a(j) = s, where f is the closed step function `lam(...lam(s))`, k + 1 lambdas
+//                                  deep: s sees the index j as `#0` (innermost) and the terms a(j-1), ..., a(j-k) as
+//                                  `#1`, ..., `#k` (0 before the start). Its order k is its number of bases, at most
+//                                  `previous`'s size. No value at a negative index.
 //   `exp(b, n)`                    b to the power n, for n >= 0.
-// The step s belongs to the polynomial domain, over `i` and every `previous` variable.
+// The step's body s belongs to the polynomial domain. `index` and `previous` are the index symbols it sees: `#0`, and
+// `#1`, `#2`, `#3`.
 struct seq_symbols {
     uint32_t recurrence;
     uint32_t power;
+    uint32_t lambda;
     uint32_t index;
     std::vector<uint32_t> previous;
     auto operator<=>(const seq_symbols&) const = default;

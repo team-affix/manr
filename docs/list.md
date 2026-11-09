@@ -4,7 +4,7 @@ The list domain is the first step toward fitting programs rather than formulas (
 piecewise over lists, and the model is a small program that reads the input list.
 
 ```
-pw(case(nil, 0), case(cons(1, nil), 1), case(cons(2, cons(1, nil)), 3), ..., ?0)   ->   fold(h + acc, 0, xs)
+pw(case(nil, 0), case(cons(1, nil), 1), case(cons(2, cons(1, nil)), 3), ..., ?0)   ->   fold(lam(lam(#0 + #1)), 0, xs)
 ```
 
 ## Modules
@@ -22,17 +22,21 @@ To improve how programs are detected, work in `list_fit`. To add list operations
 |---|---|
 | `nil`, `cons(h, t)` | list values |
 | `xs` | the input list |
-| `map(f, l)` | `f`, in the element variable `e`, applied to every element of `l` |
-| `filter(c, l)` | the elements of `l` where the condition `c`, in `e`, holds |
-| `fold(s, b, l)` | right fold: `b` for `nil`; for `cons(h, t)`, `s` with `h` the head and `acc` the fold of `t` |
+| `lam(b)` | a closed function: `b` refers to its argument by de Bruijn index, `#0` for the innermost `lam` |
+| `map(lam(f), l)` | `f` applied to every element of `l`, the element as `#0` |
+| `filter(lam(c), l)` | the elements of `l` where the condition `c` holds, the element as `#0` |
+| `fold(lam(lam(s)), b, l)` | right fold: `b` for `nil`; for `cons(h, t)`, `s` with the head `h` as `#0` (inner `lam`) and the fold of `t` as `#1` (outer `lam`) |
 
-The body variables `e`, `h` and `acc` are fixed names, which do not nest (a fold inside a fold's step rebinds them).
-They are to become de Bruijn indices (`plans.md`, bound variables).
+Every bound variable is a de Bruijn index (`plans.md`, bound variables), so binders nest. The fold binds its
+accumulator outside and its head inside, so the element is `#0` in every program: a body fitted for a map can be a
+fold's inner function as it stands. Sum is `fold(lam(lam(#0 + #1)), 0, xs)`.
 
-`list_evaluator` evaluates a program at an input list. It hands bodies to the element domain at `point(e)` (map,
-filter) or `point(h, acc)` (fold), so a body is anything that domain evaluates: a polynomial, or a piecewise
-polynomial with regions. Programs compose (`fold(h + acc, 0, map(e^2, xs))` evaluates), and the evaluator also
-decides `lt(a, b)` between two integer-valued programs, for regions over lists.
+`list_evaluator` evaluates a program at an input list. It unwraps the function's binders and hands the body to the
+element domain at `point(element)` (map, filter) or `point(head, accumulator)` (fold), binding `#0` and `#1`, so a
+body is anything that domain evaluates: a polynomial in the indices, or a piecewise polynomial with regions. A body
+that is not under the right number of `lam`s has no value. Programs compose
+(`fold(lam(lam(#0 + #1)), 0, map(lam(#0^2), xs))` evaluates), and the evaluator also decides `lt(a, b)` between two
+integer-valued programs, for regions over lists.
 
 ## Detectors
 
@@ -46,16 +50,16 @@ not reproduce as branches.
 
 - **Generic, for elements of any domain.** They hand the element domain data points of expressions.
   - `list_map_hypotheses`: every list-to-list point whose lists have the same length gives one element data point
-    per position, `point(e) -> output element`. Proposes `map(f, xs)`.
+    per position, `point(element) -> output element`. Proposes `map(lam(f), xs)`.
   - `list_fold_hypotheses`: the base is the output for `nil`. Every point `cons(h, t)` whose tail `t` is also in the
     data gives a step data point `point(h, output of t) -> output`, whatever the outputs are (numbers, lists).
-    Proposes `fold(s, b, xs)`.
+    Proposes `fold(lam(lam(s)), b, xs)`.
 - **Integer.** The same reading for integer elements, with the samples ordered by
   value, plus the threshold filter.
   - `list_integer_map_hypotheses`, `list_integer_fold_hypotheses`.
   - `list_filter_hypotheses`: a point is a filtering when its output is its input with every occurrence of some
-    values removed. When every kept value is above every removed one, proposes `filter(lt(d, e), xs)`; when below,
-    `filter(lt(e, d), xs)`.
+    values removed. When every kept value is above every removed one, proposes `filter(lam(lt(d, #0)), xs)`; when below,
+    `filter(lam(lt(#0, d)), xs)`.
 - **Affine folds, from whole lists.** `list_affine_fold_hypotheses` needs no tails and no empty list. It assumes the
   step is affine in the accumulator, `p(h) + c * acc`. Then a list's output is `sum_i c^(i-1) p(x_i) + c^n b`, so
   the value of every tail drops out: once `c` is fixed, the output is linear in `p`'s coefficients and the base `b`,
@@ -65,20 +69,20 @@ not reproduce as branches.
   alternating sums and digits; it does not cover steps where `acc` is multiplied by a function of `h` (product) or
   steps in pieces (maximum).
 - **Extremum folds, from whole lists.** `list_extremum_fold_hypotheses` reads the largest or smallest element with a
-  base, `fold(pw(when(lt(acc, h), h), acc), b, xs)` or with `lt(h, acc)`. A base only shows where an output lies
+  base, `fold(lam(lam(pw(when(lt(#1, #0), #0), #1))), b, xs)` or with `lt(#0, #1)`. A base only shows where an output lies
   beyond every element of its list (always for `nil`), so each such output is a candidate, beside one base that
   leaves every list to its elements (0 when it qualifies). The direction and base reproducing the most lists (more
   than half) are proposed, so a wrong label above its list cannot become the base. It is a direct check, linear in
   the data, and needs no tails.
-- **Product folds, from whole lists.** `list_product_fold_hypotheses` reads `fold((a * h + k) * acc, b, xs)`: the
+- **Product folds, from whole lists.** `list_product_fold_hypotheses` reads `fold(lam(lam((a * #0 + k) * #1)), b, xs)`: the
   output is `b` times one factor per element. Factors are tried simplest first (`a` up to 2 in size, `a = 0` left to
   the affine detector; `k` up to 3), the base is a starting list's output over its product when it divides, and a
   factor is abandoned at its first failure past what the best so far allows. Two starting lists, as for affine.
 - **Count folds, from whole lists.** `list_count_fold_hypotheses` reads a base plus the number of elements above or
-  below a threshold, `fold(pw(when(lt(d, h), acc + 1), acc), b, xs)` or with `lt(h, d)`. Every element value is tried
+  below a threshold, `fold(lam(lam(pw(when(lt(d, #0), #1 + 1), #1))), b, xs)` or with `lt(#0, d)`. Every element value is tried
   as `d` in both directions on lists sorted once (each count is a binary search); the base is a starting list's
   output less its count, with the same early abandoning.
-- **A map over a filter.** `list_map_filter_hypotheses` reads `map(f, filter(c, xs))` by the outer-inner split
+- **A map over a filter.** `list_map_filter_hypotheses` reads `map(lam(f), filter(lam(c), xs))` by the outer-inner split
   (`decomposing-detection.md`): every element value is either removed or kept and mapped to `f` of it. A point whose
   output is as long as its values not known to be removed keeps all of them and pairs them by position; a point
   whose output is exactly the images of its values known to be kept removes the rest (an empty output removes
@@ -88,14 +92,14 @@ not reproduce as branches.
   known at two values, and polynomial fitting proposes nothing it cannot check on a third; 30 random lists of -9 to 9
   are enough.
 - **Selection of a value, from whole lists.** `list_selection_fold_hypotheses` reads the largest (or smallest) value
-  of an unknown inner function, `fold(pw(when(lt(acc, g(h)), g(h)), acc), b, xs)`: the outer-inner split with `max`.
+  of an unknown inner function, `fold(lam(lam(pw(when(lt(#1, g(#0)), g(#0)), #1))), b, xs)`: the outer-inner split with `max`.
   For the largest, `g(v)` is at most the smallest output of any list holding `v`, and that bound is exact wherever
   `v` attains a maximum, so the bounds reproduce every list when the model is right (a direction is refuted when
   they reproduce no more than half). A list whose output is the bound of exactly one of its values pins `g` there;
-  those values go to the element domain, renamed from `e` to `h` (`list_variable_renamer`). The base is the empty
+  those values go to the element domain, whose body in `#0` is the step's `g` as it stands. The base is the empty
   list's output, else 0 when no output lies below it, else the lowest output. The identity and constant bodies are
   left to the extremum and constant detectors. Reduce request #2.
-- **Products of a value, from whole lists.** `list_factor_fold_hypotheses` reads `fold(g(h) * acc, b, xs)` for any
+- **Products of a value, from whole lists.** `list_factor_fold_hypotheses` reads `fold(lam(lam(g(#0) * #1)), b, xs)` for any
   `g`, with `list_factor_fold_solver`: values that occur only in lists whose output is 0 get the factor 0; least
   squares on `log|output|` gives every other factor's magnitude and the base's, rounded; the output signs give the
   factors' signs by elimination mod 2. The result is checked exactly against every list and must reproduce more than
@@ -136,7 +140,8 @@ along random walks and checks the same.
 ## Fold families and how to detect them
 
 Folds over integer lists to integers, grouped by the shape of their step, with the reading that finds each one from
-whole lists:
+whole lists. In this table and the prose around it, `h` is the head (`#0` in the step's body) and `acc` the
+accumulator (`#1`):
 
 | family | step | examples | detection | status |
 |---|---|---|---|---|
@@ -162,7 +167,7 @@ whole lists:
   is the first detection of each new expression; the affine detector still tries every multiplier from both starts
   on data it cannot fit, and a necessary-condition filter (solving modulo a small prime before the exact solve)
   would cut that.
-- **Composition, beyond a map over a filter.** `list_map_filter_hypotheses` reads `map(f, filter(c, xs))`, but it
+- **Composition, beyond a map over a filter.** `list_map_filter_hypotheses` reads `map(lam(f), filter(lam(c), xs))`, but it
   starts only from points that keep or remove all of their values, so long random lists (where every list mixes
   kept and removed values) give it nothing to start from. Other compositions (`filter` over `map`, a fold over a
   map) need their own readings.
@@ -170,7 +175,7 @@ whole lists:
   polynomial fitting.
 - **Filters are thresholds.** No parity, membership or multi-interval conditions yet.
 - **No list-valued folds.** `reverse` or `append` need a fold whose accumulator is a list.
-- **Large expressions are slow to expand.** On the long product, best-first finds `fold(h * acc, 1, xs)` on its first
+- **Large expressions are slow to expand.** On the long product, best-first finds `fold(lam(lam(#0 * #1)), 1, xs)` on its first
   expansion (0.03 s), then spends 37 s using the rest of its budget, because every expansion detects at every
   position of a piecewise of about 15000 nodes. A search that stops at a form it cannot improve, or detection that
   skips the data's subterms, would remove it. The order of step samples also matters here (see above).

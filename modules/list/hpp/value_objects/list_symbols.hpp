@@ -5,17 +5,21 @@
 #include <cstdint>
 
 // Functor ids of the list vocabulary. A list value is `cons(head, tail)` ending in `nil`. A program reads the input
-// list `xs`:
-//   `map(f, l)`            f, in the element variable `e`, applied to every element of l
-//   `filter(c, l)`         the elements of l where the condition c, in `e`, holds
-//   `fold(s, b, l)`        right fold: b for nil; for cons(h, t), s with `h` the head and `acc` the fold of t
-// The bodies `f`, `c` and `s` belong to the element domain, which evaluates them.
+// list `xs`, and takes closed functions, `lam(body)`, whose bound variables are de Bruijn indices: `#0` is bound by
+// the innermost `lam`, `#1` by the one around it.
+//   `map(lam(f), l)`         f applied to every element of l, the element as `#0`
+//   `filter(lam(c), l)`      the elements of l where the condition c holds, the element as `#0`
+//   `fold(lam(lam(s)), b, l)` right fold: b for nil; for cons(h, t), s with the head h as `#0` (inner) and the fold
+//                            of t as `#1` (outer), so the element is `#0` in every program
+// The bodies `f`, `c` and `s` belong to the element domain, which evaluates them. `element`, `head` and
+// `accumulator` are the index symbols each body sees: `#0`, `#0` and `#1`.
 struct list_symbols {
     uint32_t nil;
     uint32_t cons;
     uint32_t map;
     uint32_t filter;
     uint32_t fold;
+    uint32_t lambda;
     uint32_t input;
     uint32_t element;
     uint32_t head;

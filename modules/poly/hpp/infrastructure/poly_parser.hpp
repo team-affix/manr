@@ -11,7 +11,8 @@
 #include "value_objects/integer.hpp"
 #include "value_objects/poly_symbols.hpp"
 
-// Parses infix polynomial text: `+ - * ^`, parentheses, integer literals, identifiers, unary minus. `+ - *` are
+// Parses infix polynomial text: `+ - * ^`, parentheses, integer literals, identifiers (including de Bruijn indices,
+// `#0`, `#1`, ..., which a polynomial treats as variables), unary minus. `+ - *` are
 // left-associative; `^` takes a non-negative integer literal. Integer literals may have any number of digits. `-e` is a negative literal when e is a literal, and
 // `-1 * e` otherwise. Malformed text throws std::invalid_argument.
 template<typename IInternSymbol, typename IMakeFunctor, typename IMakeLiteral, typename IFindLiteralValue>
@@ -110,9 +111,11 @@ POLY_PARSER_TEMPLATE const expr* POLY_PARSER::parse_atom() {
     if (position_ < text_.size() && std::isdigit(static_cast<unsigned char>(text_[position_])))
         return make_literal_.make_literal(parse_integer());
     const size_t begin = position_;
+    const bool index = position_ < text_.size() && text_[position_] == '#';
+    position_ += index ? 1 : 0;
     while (position_ < text_.size() && (std::isalnum(static_cast<unsigned char>(text_[position_])) || text_[position_] == '_'))
         ++position_;
-    if (position_ == begin)
+    if (position_ == begin + (index ? 1 : 0))
         throw std::invalid_argument("expected a term at " + std::to_string(position_) + " in: " + text_);
     return make_functor_.make_functor(intern_symbol_.intern_symbol(text_.substr(begin, position_ - begin)), {});
 }

@@ -14,10 +14,10 @@
 #include "value_objects/seq_symbols.hpp"
 
 // A detector that reads integer sequence data (`point(n) -> a(n)`) as a recurrence of one order k,
-// `rec(s, a(0), ..., a(k-1), n)`. Consecutive terms make every step visible: each index j >= k whose k previous
-// terms are in the data gives the step point `(j, a(j-1), ..., a(j-k)) -> a(j)`, handed to the step domain
-// (polynomial fitting over `i`, `p1`, ..., `pk`), the same split as folds with tails. Each step it proposes becomes a
-// recurrence with the data's first k terms as bases. Needs those terms, and more step points than a step of degree
+// `rec(lam(...lam(s)), a(0), ..., a(k-1), n)`. Consecutive terms make every step visible: each index j >= k whose k
+// previous terms are in the data gives the step point `(j, a(j-1), ..., a(j-k)) -> a(j)`, handed to the step domain
+// (polynomial fitting over `#0`, `#1`, ..., `#k`), the same split as folds with tails. Each step body it proposes,
+// closed under k + 1 lambdas, becomes a recurrence with the data's first k terms as bases. Needs those terms, and more step points than a step of degree
 // one has unknowns; a constant sequence is left to the constant detector.
 template<typename IFindLiteralValue, typename IConvertSamples, typename IProposeStepHypotheses, typename IMakeLiteral,
          typename IMakeFunctor>
@@ -119,6 +119,8 @@ SEQ_RECURRENCE_HYPOTHESES_TEMPLATE void SEQ_RECURRENCE_HYPOTHESES::propose_hypot
     arguments.push_back(make_functor_.make_functor(variable_, {}));
     for (const expr* step : steps_) {
         arguments[0] = step;
+        for (size_t binder = 0; binder <= order_; ++binder)
+            arguments[0] = make_functor_.make_functor(symbols_.lambda, {arguments[0]});
         out.push_back(make_functor_.make_functor(symbols_.recurrence, arguments));
     }
 }

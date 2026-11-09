@@ -11,14 +11,15 @@ list_fit_rules_manifest::list_fit_rules_manifest(
                     .map = kernel.symbols_.intern_symbol("map"),
                     .filter = kernel.symbols_.intern_symbol("filter"),
                     .fold = kernel.symbols_.intern_symbol("fold"),
+                    .lambda = kernel.symbols_.intern_symbol("lam"),
                     .input = kernel.symbols_.intern_symbol("xs"),
-                    .element = kernel.symbols_.intern_symbol("e"),
-                    .head = kernel.symbols_.intern_symbol("h"),
-                    .accumulator = kernel.symbols_.intern_symbol("acc")}
+                    .element = kernel.symbols_.intern_symbol("#0"),
+                    .head = kernel.symbols_.intern_symbol("#0"),
+                    .accumulator = kernel.symbols_.intern_symbol("#1")}
     , point_symbol_(kernel.symbols_.intern_symbol("point"))
     , less_symbol_(kernel.symbols_.intern_symbol("lt"))
-    , element_fit_(kernel, {"e"}, fit_limits, pw_symbols_, point_symbol_, less_symbol_)
-    , step_fit_(kernel, {"h", "acc"}, fit_limits, pw_symbols_, point_symbol_, less_symbol_)
+    , element_fit_(kernel, {"#0"}, fit_limits, pw_symbols_, point_symbol_, less_symbol_)
+    , step_fit_(kernel, {"#0", "#1"}, fit_limits, pw_symbols_, point_symbol_, less_symbol_)
     , values_(kernel.exprs_, list_symbols_)
     , evaluator_(values_, values_, kernel.exprs_, kernel.literals_, element_fit_.pw_evaluator_,
                  element_fit_.conditions_, step_fit_.pw_evaluator_, list_symbols_, point_symbol_, less_symbol_)
@@ -46,12 +47,11 @@ list_fit_rules_manifest::list_fit_rules_manifest(
                    pw_symbols_, less_symbol_)
     , map_filters_(values_, kernel.literals_, element_fit_.converter_, element_fit_.hypotheses_, kernel.literals_,
                    kernel.exprs_, list_symbols_, less_symbol_)
-    , renamer_(kernel.exprs_)
-    , selection_folds_(values_, kernel.literals_, element_fit_.converter_, element_fit_.hypotheses_, renamer_,
+    , selection_folds_(values_, kernel.literals_, element_fit_.converter_, element_fit_.hypotheses_,
                        kernel.literals_, kernel.exprs_, list_symbols_, pw_symbols_, less_symbol_)
     , factor_solver_()
     , factor_folds_(values_, kernel.literals_, factor_solver_, factor_solver_, element_fit_.converter_,
-                    element_fit_.hypotheses_, renamer_, kernel.literals_, kernel.exprs_, list_symbols_,
+                    element_fit_.hypotheses_, kernel.literals_, kernel.exprs_, list_symbols_,
                     kernel.poly_symbols_.mul)
     , hypotheses_(constants_, integer_maps_, integer_folds_, filterings_, maps_, folds_, affine_folds_, extremum_folds_,
                   product_folds_, count_folds_, map_filters_, selection_folds_, factor_folds_)

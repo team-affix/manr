@@ -22,7 +22,6 @@
 #include "infrastructure/list_sample_converter.hpp"
 #include "infrastructure/list_selection_fold_hypotheses.hpp"
 #include "infrastructure/list_values.hpp"
-#include "infrastructure/list_variable_renamer.hpp"
 #include "infrastructure/poly_fit_hypotheses_manifest.hpp"
 #include "infrastructure/poly_kernel_manifest.hpp"
 #include "infrastructure/poly_rules_manifest.hpp"
@@ -51,8 +50,8 @@
 // tails. The map-filter detector reads a filter composed under a map. The selection and factor fold detectors are the
 // generic outer-inner readings (`docs/decomposing-detection.md`): the largest or smallest value, or the product, of an
 // unknown inner function of the elements, handed to the element domain beside the extremum and product detectors.
-// The list detectors hand the element-level part of the problem to polynomial fitting: `element_fit_` over `e` for
-// map bodies, `step_fit_` over `h` and `acc` for fold steps. The full polynomial rule set then compresses the bodies,
+// The list detectors hand the element-level part of the problem to polynomial fitting: `element_fit_` over `#0` for
+// map bodies, `step_fit_` over `#0` (the head) and `#1` (the accumulator) for fold steps. The full polynomial rule set then compresses the bodies,
 // all at every position. `rules_` is what a search injects and `initial_` is where it starts.
 struct list_fit_rules_manifest {
     using kernel_t = poly_kernel_manifest;
@@ -131,19 +130,15 @@ struct list_fit_rules_manifest {
         using list_map_filter_hypotheses<values_t, kernel_t::literals_t, fit_t::converter_t, fit_t::hypotheses_t,
                                          kernel_t::literals_t, expr_pool>::list_map_filter_hypotheses;
     };
-    struct renamer_t : list_variable_renamer<expr_pool> {
-        using list_variable_renamer<expr_pool>::list_variable_renamer;
-    };
     using selection_folds_base_t =
         list_selection_fold_hypotheses<values_t, kernel_t::literals_t, fit_t::converter_t, fit_t::hypotheses_t,
-                                       renamer_t, kernel_t::literals_t, expr_pool>;
+                                       kernel_t::literals_t, expr_pool>;
     struct selection_folds_t : selection_folds_base_t {
         using selection_folds_base_t::selection_folds_base_t;
     };
     using factor_folds_base_t =
         list_factor_fold_hypotheses<values_t, kernel_t::literals_t, list_factor_fold_solver, list_factor_fold_solver,
-                                    fit_t::converter_t, fit_t::hypotheses_t, renamer_t, kernel_t::literals_t,
-                                    expr_pool>;
+                                    fit_t::converter_t, fit_t::hypotheses_t, kernel_t::literals_t, expr_pool>;
     struct factor_folds_t : factor_folds_base_t {
         using factor_folds_base_t::factor_folds_base_t;
     };
@@ -197,7 +192,6 @@ struct list_fit_rules_manifest {
     product_folds_t product_folds_;
     count_folds_t count_folds_;
     map_filters_t map_filters_;
-    renamer_t renamer_;
     selection_folds_t selection_folds_;
     list_factor_fold_solver factor_solver_;
     factor_folds_t factor_folds_;

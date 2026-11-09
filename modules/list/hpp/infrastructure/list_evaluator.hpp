@@ -1,6 +1,7 @@
 #ifndef LIST_EVALUATOR_HPP
 #define LIST_EVALUATOR_HPP
 
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <variant>
@@ -11,8 +12,9 @@
 
 // The value of a list program at an input list, as an interned value: a list (`cons`/`nil` chain) or an element. `xs`
 // is the input; literals and `nil` are themselves; `cons` builds a list from the values of its arguments; `map`,
-// `filter` and `fold` run over the value of their list argument, handing their bodies to the element domain at
-// `point(e)` for map and filter and `point(h, acc)` for fold. Also decides `lt(a, b)` between two values that are
+// `filter` and `fold` run over the value of their list argument, unwrapping their functions' `lam` binders (one for
+// map and filter, two for fold) and handing the bodies to the element domain at `point(element)` for map and filter
+// and `point(head, accumulator)` for fold, which binds `#0` and `#1` in that order. Also decides `lt(a, b)` between two values that are
 // literals, for regions over lists. No value for anything else, or where the element domain has none.
 template<typename IFindElements,
          typename IMakeList,
@@ -107,6 +109,15 @@ LIST_EVALUATOR_TEMPLATE std::optional<const expr*> LIST_EVALUATOR::evaluate_at(c
                          || (f->id == symbols_.fold && f->args.size() == 3);
     if (!program)
         return std::nullopt;
+    // the body under the function's binders: one `lam` for map and filter, two for fold
+    const expr* body = f->args[0];
+    const size_t binders = f->id == symbols_.fold ? 2 : 1;
+    for (size_t binder = 0; binder < binders; ++binder) {
+        const expr::functor* function = std::get_if<expr::functor>(&body->content);
+        if (function == nullptr || function->id != symbols_.lambda || function->args.size() != 1)
+            return std::nullopt;
+        body = function->args[0];
+    }
     const std::optional<const expr*> list = evaluate_at(f->args.back(), input);
     if (!list.has_value())
         return std::nullopt;
@@ -114,13 +125,13 @@ LIST_EVALUATOR_TEMPLATE std::optional<const expr*> LIST_EVALUATOR::evaluate_at(c
     if (!elements.has_value())
         return std::nullopt;
     if (f->id == symbols_.map)
-        return evaluate_map(f->args[0], elements.value());
+        return evaluate_map(body, elements.value());
     if (f->id == symbols_.filter)
-        return evaluate_filter(f->args[0], elements.value());
+        return evaluate_filter(body, elements.value());
     const std::optional<const expr*> base = evaluate_at(f->args[1], input);
     if (!base.has_value())
         return std::nullopt;
-    return evaluate_fold(f->args[0], base.value(), elements.value());
+    return evaluate_fold(body, base.value(), elements.value());
 }
 
 LIST_EVALUATOR_TEMPLATE std::optional<bool> LIST_EVALUATOR::holds_at(const expr* condition, const expr* input) {

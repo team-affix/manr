@@ -25,6 +25,13 @@ struct ListEvaluatorIntegrationTest : ::testing::Test {
     const expr* program(uint32_t id, const std::vector<const expr*>& args) {
         return kernel.exprs_.make_functor(id, args);
     }
+    // a closed function of one or two arguments: `lam(body)`, `lam(lam(body))`
+    const expr* lam(const std::string& body) {
+        return program(symbols.lambda, {parse(body)});
+    }
+    const expr* lam2(const expr* body) {
+        return program(symbols.lambda, {program(symbols.lambda, {body})});
+    }
     std::optional<const expr*> evaluate(const expr* e, const std::vector<int>& input) {
         return rules.evaluator_.evaluate_at(e, list(input));
     }
@@ -37,48 +44,53 @@ TEST_F(ListEvaluatorIntegrationTest, TheInputIsTheInputList) {
 }
 
 TEST_F(ListEvaluatorIntegrationTest, AMapAppliesItsBodyToEveryElement) {
-    EXPECT_EQ(evaluate(program(symbols.map, {parse("e^2 + 1"), xs}), {1, -2, 3}), list({2, 5, 10}));
+    EXPECT_EQ(evaluate(program(symbols.map, {lam("#0^2 + 1"), xs}), {1, -2, 3}), list({2, 5, 10}));
 }
 
 TEST_F(ListEvaluatorIntegrationTest, AFilterKeepsTheElementsWhereItsConditionHolds) {
-    const expr* positive = program(rules.less_symbol_, {parse("0"), parse("e")});
+    const expr* positive = program(symbols.lambda, {program(rules.less_symbol_, {parse("0"), parse("#0")})});
     EXPECT_EQ(evaluate(program(symbols.filter, {positive, xs}), {3, -1, 0, 2}), list({3, 2}));
 }
 
 TEST_F(ListEvaluatorIntegrationTest, AFoldRunsItsStepFromTheRight) {
-    // 2 * acc + h reads the list as binary digits, least significant first
-    EXPECT_EQ(evaluate(program(symbols.fold, {parse("2 * acc + h"), parse("0"), xs}), {1, 1, 0, 1}),
+    // 2 * #1 + #0 (twice the accumulator plus the head) reads the list as binary digits, least significant first
+    EXPECT_EQ(evaluate(program(symbols.fold, {lam2(parse("2 * #1 + #0")), parse("0"), xs}), {1, 1, 0, 1}),
               kernel.literals_.make_literal(11));
 }
 
 TEST_F(ListEvaluatorIntegrationTest, AFoldOfTheEmptyListIsItsBase) {
-    EXPECT_EQ(evaluate(program(symbols.fold, {parse("h + acc"), parse("7"), xs}), {}), kernel.literals_.make_literal(7));
+    EXPECT_EQ(evaluate(program(symbols.fold, {lam2(parse("#0 + #1")), parse("7"), xs}), {}), kernel.literals_.make_literal(7));
 }
 
 TEST_F(ListEvaluatorIntegrationTest, ProgramsCompose) {
-    const expr* squares = program(symbols.map, {parse("e^2"), xs});
-    EXPECT_EQ(evaluate(program(symbols.fold, {parse("h + acc"), parse("0"), squares}), {1, 2, 3}),
+    const expr* squares = program(symbols.map, {lam("#0^2"), xs});
+    EXPECT_EQ(evaluate(program(symbols.fold, {lam2(parse("#0 + #1")), parse("0"), squares}), {1, 2, 3}),
               kernel.literals_.make_literal(14));
 }
 
 TEST_F(ListEvaluatorIntegrationTest, AFoldStepMayBeAPiecewise) {
     const expr* larger = program(rules.pw_symbols_.piecewise,
-                                 {program(rules.pw_symbols_.region, {program(rules.less_symbol_, {parse("acc"), parse("h")}),
-                                                                     parse("h")}),
-                                  parse("acc")});
-    EXPECT_EQ(evaluate(program(symbols.fold, {larger, parse("0"), xs}), {3, 9, 4}), kernel.literals_.make_literal(9));
+                                 {program(rules.pw_symbols_.region, {program(rules.less_symbol_, {parse("#1"), parse("#0")}),
+                                                                     parse("#0")}),
+                                  parse("#1")});
+    EXPECT_EQ(evaluate(program(symbols.fold, {lam2(larger), parse("0"), xs}), {3, 9, 4}), kernel.literals_.make_literal(9));
 }
 
 TEST_F(ListEvaluatorIntegrationTest, AnExtensionTermHasNoValue) {
     EXPECT_EQ(evaluate(kernel.exprs_.make_var(0), {1}), std::nullopt);
 }
 
-TEST_F(ListEvaluatorIntegrationTest, ABodyOutsideTheElementDomainHasNoValue) {
-    EXPECT_EQ(evaluate(program(symbols.map, {parse("h"), xs}), {1}), std::nullopt);
+TEST_F(ListEvaluatorIntegrationTest, ABodyWithAnIndexItsFunctionDoesNotBindHasNoValue) {
+    EXPECT_EQ(evaluate(program(symbols.map, {lam("#1"), xs}), {1}), std::nullopt);
+}
+
+TEST_F(ListEvaluatorIntegrationTest, AProgramWhoseFunctionIsNotALambdaHasNoValue) {
+    EXPECT_EQ(evaluate(program(symbols.map, {parse("#0"), xs}), {1}), std::nullopt);
+    EXPECT_EQ(evaluate(program(symbols.fold, {lam("#0 + #1"), parse("0"), xs}), {1}), std::nullopt);
 }
 
 TEST_F(ListEvaluatorIntegrationTest, ARegionOverListsComparesTheirValues) {
-    const expr* length = program(symbols.fold, {parse("acc + 1"), parse("0"), xs});
+    const expr* length = program(symbols.fold, {lam2(parse("#1 + 1")), parse("0"), xs});
     EXPECT_EQ(rules.evaluator_.holds_at(program(rules.less_symbol_, {length, parse("3")}), list({5, 5})),
               std::optional<bool>{true});
 }

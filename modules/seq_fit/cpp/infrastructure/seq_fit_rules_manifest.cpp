@@ -11,15 +11,16 @@ seq_fit_rules_manifest::seq_fit_rules_manifest(
                   .region = kernel.symbols_.intern_symbol("when")}
     , seq_symbols_{.recurrence = kernel.symbols_.intern_symbol("rec"),
                    .power = kernel.symbols_.intern_symbol("exp"),
-                   .index = kernel.symbols_.intern_symbol("i"),
-                   .previous = {kernel.symbols_.intern_symbol("p1"), kernel.symbols_.intern_symbol("p2"),
-                                kernel.symbols_.intern_symbol("p3")}}
+                   .lambda = kernel.symbols_.intern_symbol("lam"),
+                   .index = kernel.symbols_.intern_symbol("#0"),
+                   .previous = {kernel.symbols_.intern_symbol("#1"), kernel.symbols_.intern_symbol("#2"),
+                                kernel.symbols_.intern_symbol("#3")}}
     , point_symbol_(kernel.symbols_.intern_symbol("point"))
     , less_symbol_(kernel.symbols_.intern_symbol("lt"))
     , fit_(kernel, {variable}, fit_limits, pw_symbols_, point_symbol_, less_symbol_)
-    , first_steps_(kernel, {"i", "p1"}, fit_limits, pw_symbols_, point_symbol_, less_symbol_)
-    , second_steps_(kernel, {"i", "p1", "p2"}, fit_limits, pw_symbols_, point_symbol_, less_symbol_)
-    , third_steps_(kernel, {"i", "p1", "p2", "p3"}, fit_limits, pw_symbols_, point_symbol_, less_symbol_)
+    , first_steps_(kernel, {"#0", "#1"}, fit_limits, pw_symbols_, point_symbol_, less_symbol_)
+    , second_steps_(kernel, {"#0", "#1", "#2"}, fit_limits, pw_symbols_, point_symbol_, less_symbol_)
+    , third_steps_(kernel, {"#0", "#1", "#2", "#3"}, fit_limits, pw_symbols_, point_symbol_, less_symbol_)
     , evaluator_(fit_.evaluator_, third_steps_.evaluator_, kernel.literals_, kernel.literals_, kernel.exprs_,
                  seq_symbols_, kernel.poly_symbols_, point_symbol_, k_seq_default_max_index)
     , conditions_(evaluator_, kernel.literals_, less_symbol_)

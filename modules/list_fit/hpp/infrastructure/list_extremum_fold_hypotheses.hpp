@@ -134,7 +134,7 @@ LIST_EXTREMUM_FOLD_HYPOTHESES_TEMPLATE void LIST_EXTREMUM_FOLD_HYPOTHESES::propo
     const expr* step = make_functor_.make_functor(
         piecewise_symbols_.piecewise, {make_functor_.make_functor(piecewise_symbols_.region, {condition, head}), accumulator});
     out.push_back(make_functor_.make_functor(
-        symbols_.fold, {step, make_literal_.make_literal(best_base), make_functor_.make_functor(symbols_.input, {})}));
+        symbols_.fold, {make_functor_.make_functor(symbols_.lambda, {make_functor_.make_functor(symbols_.lambda, {step})}), make_literal_.make_literal(best_base), make_functor_.make_functor(symbols_.input, {})}));
 }
 
 #undef LIST_EXTREMUM_FOLD_HYPOTHESES

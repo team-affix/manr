@@ -14,11 +14,11 @@
 #include "value_objects/pw_data_point.hpp"
 
 // A detector that reads list-to-integer data as a product of an unknown inner function of the elements,
-// `fold(g(h) * acc, b, xs)`, from whole lists: the outer-inner split with the outer combiner `*`
+// `fold(lam(lam(g(#0) * #1)), b, xs)` (the head is `#0`, the accumulator `#1`), from whole lists: the outer-inner split with the outer combiner `*`
 // (`docs/decomposing-detection.md`). `list_product_fold_hypotheses` is its specific case for linear `g`, kept beside
 // it. The solver (`list_factor_fold_solver`) recovers `g` at each element value and the base; the result is checked
 // exactly against every list, and proposed when it reproduces more than half of them. `g`'s values then go to the
-// element domain, and each body it proposes, in `h`, becomes the fold. A `g` that is the identity, or the same factor
+// element domain, and each body it proposes, in `#0`, is `g` in the step as it stands, since the head is `#0` too. A `g` that is the identity, or the same factor
 // at every value (`c^n`, an affine fold), is left to the specific detectors.
 template<typename IFindElements,
          typename IFindLiteralValue,
@@ -26,7 +26,6 @@ template<typename IFindElements,
          typename IMultiplyFold,
          typename IConvertSamples,
          typename IProposeElementHypotheses,
-         typename IRenameVariable,
          typename IMakeLiteral,
          typename IMakeFunctor>
 struct list_factor_fold_hypotheses {
@@ -36,7 +35,6 @@ struct list_factor_fold_hypotheses {
                                 IMultiplyFold& multiply_fold,
                                 IConvertSamples& convert_samples,
                                 IProposeElementHypotheses& propose_element_hypotheses,
-                                IRenameVariable& rename_variable,
                                 IMakeLiteral& make_literal,
                                 IMakeFunctor& make_functor,
                                 list_symbols symbols,
@@ -49,7 +47,6 @@ private:
     IMultiplyFold& multiply_fold_;
     IConvertSamples& convert_samples_;
     IProposeElementHypotheses& propose_element_hypotheses_;
-    IRenameVariable& rename_variable_;
     IMakeLiteral& make_literal_;
     IMakeFunctor& make_functor_;
     list_symbols symbols_;
@@ -59,11 +56,10 @@ private:
 
 #define LIST_FACTOR_FOLD_HYPOTHESES_TEMPLATE                                                               \
     template<typename IFindElements, typename IFindLiteralValue, typename ISolveFold, typename IMultiplyFold, \
-             typename IConvertSamples, typename IProposeElementHypotheses, typename IRenameVariable,       \
-             typename IMakeLiteral, typename IMakeFunctor>
+             typename IConvertSamples, typename IProposeElementHypotheses, typename IMakeLiteral, typename IMakeFunctor>
 #define LIST_FACTOR_FOLD_HYPOTHESES                                                                    \
     list_factor_fold_hypotheses<IFindElements, IFindLiteralValue, ISolveFold, IMultiplyFold, IConvertSamples, \
-                                IProposeElementHypotheses, IRenameVariable, IMakeLiteral, IMakeFunctor>
+                                IProposeElementHypotheses, IMakeLiteral, IMakeFunctor>
 
 LIST_FACTOR_FOLD_HYPOTHESES_TEMPLATE LIST_FACTOR_FOLD_HYPOTHESES::list_factor_fold_hypotheses(
     IFindElements& find_elements,
@@ -72,7 +68,6 @@ LIST_FACTOR_FOLD_HYPOTHESES_TEMPLATE LIST_FACTOR_FOLD_HYPOTHESES::list_factor_fo
     IMultiplyFold& multiply_fold,
     IConvertSamples& convert_samples,
     IProposeElementHypotheses& propose_element_hypotheses,
-    IRenameVariable& rename_variable,
     IMakeLiteral& make_literal,
     IMakeFunctor& make_functor,
     list_symbols symbols,
@@ -83,7 +78,6 @@ LIST_FACTOR_FOLD_HYPOTHESES_TEMPLATE LIST_FACTOR_FOLD_HYPOTHESES::list_factor_fo
     , multiply_fold_(multiply_fold)
     , convert_samples_(convert_samples)
     , propose_element_hypotheses_(propose_element_hypotheses)
-    , rename_variable_(rename_variable)
     , make_literal_(make_literal)
     , make_functor_(make_functor)
     , symbols_(symbols)
@@ -146,9 +140,8 @@ LIST_FACTOR_FOLD_HYPOTHESES_TEMPLATE void LIST_FACTOR_FOLD_HYPOTHESES::propose_h
         // a constant g makes every output the same: the constant detector reads that
         if (find_literal_value_.find_value(body).has_value())
             continue;
-        const expr* inner = rename_variable_.rename(body, symbols_.element, symbols_.head);
-        const expr* step = make_functor_.make_functor(multiply_symbol_, {inner, accumulator});
-        out.push_back(make_functor_.make_functor(symbols_.fold, {step, base, input}));
+        const expr* step = make_functor_.make_functor(multiply_symbol_, {body, accumulator});
+        out.push_back(make_functor_.make_functor(symbols_.fold, {make_functor_.make_functor(symbols_.lambda, {make_functor_.make_functor(symbols_.lambda, {step})}), base, input}));
     }
 }
 

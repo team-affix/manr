@@ -31,8 +31,8 @@ TEST_F(SeqFitRuntimeIntegrationTest, FibonacciReducesToASecondOrderRecurrence) {
     seq_fit_runtime runtime{"n", recurrence_samples({0, 1}, fibonacci_step, 0, 20),
                             k_poly_default_limits, k_poly_fit_default_limits, 20000};
     run(runtime);
-    EXPECT_EQ(runtime.best(), "rec(p1 + p2, 0, 1, n)");
-    EXPECT_EQ(runtime.best_cost(), 7u);
+    EXPECT_EQ(runtime.best(), "rec(lam(lam(lam(#1 + #2))), 0, 1, n)");
+    EXPECT_EQ(runtime.best_cost(), 10u);
 }
 
 TEST_F(SeqFitRuntimeIntegrationTest, PowersOfTwoReduceToAPower) {

@@ -27,7 +27,7 @@ Some fragments, from `a(f(g(x)))` and `b(f(g(y + 1)))`:
 | `f(g(□))` | 1 | the composition `f ∘ g`: a chain of functions with the input left out. It is neither a subterm (it does not reach the leaves) nor rooted at the top (`a` and `b` differ). Here it occurs twice, applied to `x` and to `y + 1` |
 | `f(g(x))` | 0 | a subterm: the fragment with no cuts. Here it occurs only once |
 | `f(□)` | 1 | a single function node, everything below cut |
-| `□ * □ + □` from `y * y + y` | 1 | the same input used several times: holes that always receive the same argument are one input, `arg(0)` repeated |
+| `□ * □ + □` from `y * y + y` | 1 | the same input used several times: holes that always receive the same argument are one input, `#0` repeated |
 | `□ + □` from `p + q` | 2 | two independent inputs |
 
 So subterms are the special case with arity 0. They are the easiest to find, since interning makes equal subterms
@@ -62,9 +62,9 @@ A new module, `abstraction` (`abs_`), generic over the domain, as the piecewise 
 | expression | meaning |
 |---|---|
 | `lam(b)` | a function whose body `b` refers to its parameters by de Bruijn index |
-| `arg(i)` | the parameter `i` binders out (de Bruijn index) |
+| `#i` | the parameter `i` binders out (de Bruijn index; a nullary symbol, so a body's domain sees a variable) |
 | `app(f, a)` | `f` applied to `a`; several parameters by currying, or `app(f, a, b, ...)` |
-| `let(v, b)` | `b` with `v` bound as `arg(0)`; how a helper is defined once and used many times |
+| `let(v, b)` | `b` with `v` bound as `#0`; how a helper is defined once and used many times |
 
 Design points:
 
@@ -72,14 +72,14 @@ Design points:
   makes two helpers with the same body the same pointer: equal helpers are recognized as one for free, and dedup in
   the search keeps working.
 - **Bound parameters are not free variables.** `expr::var` (`?n`) stays the extension term, an unknown to be
-  resolved. `arg(i)` is a bound parameter. They must never be confused. A helper's body may contain `?n`: every
+  resolved. `#i` is a bound parameter. They must never be confused. A helper's body may contain `?n`: every
   occurrence of a helper then shares that one unknown, which is the correct meaning (`rule-design.md`, section 5).
 - **Evaluation** substitutes arguments into the body and hands the result to the domain's evaluator (`IEvaluateAt`),
   so any domain gets helpers without changing its evaluator. With recursion, evaluation needs a step budget and
   returns nullopt when it runs out, since termination cannot be decided.
-- **The existing binders are helpers already.** `map(f, xs)` with `f` in `e`, and `fold(s, b, xs)` with `s` in `h` and
-  `acc`, are lambdas with named parameters. They move to de Bruijn indices (below, "Bound variables"), and later take
-  any `lam`, so a helper defined once can be mapped, folded and called.
+- **The existing binders are helpers already.** `map(lam(f), xs)` and `fold(lam(lam(s)), b, xs)` take closed
+  lambdas with de Bruijn indices (below, "Bound variables"). Later they take any `lam`, so a helper defined once can
+  be mapped, folded and called.
 
 ### Rules, as pairs
 
@@ -87,7 +87,7 @@ Paired operations mirror each other. Each introduction has an elimination, and e
 
 | introduce | eliminate | fires when |
 |---|---|---|
-| **abstract a fragment**: a fragment occurring k ≥ 2 times becomes `let(lam(body), ...)`, its body with `arg(i)` at its cut edges, and each occurrence becomes `app(helper, its arguments)` | **inline**: replace each call by the body with its arguments substituted (beta-reduction), and drop the `let` when no call is left | the saving is positive (abstract) or negative (inline: a helper used once, or a body smaller than its call) |
+| **abstract a fragment**: a fragment occurring k ≥ 2 times becomes `let(lam(body), ...)`, its body with `#i` at its cut edges, and each occurrence becomes `app(helper, its arguments)` | **inline**: replace each call by the body with its arguments substituted (beta-reduction), and drop the `let` when no call is left | the saving is positive (abstract) or negative (inline: a helper used once, or a body smaller than its call) |
 
 One general rule and several cheaper special cases of it, kept beside it (design rule 7):
 
@@ -133,11 +133,11 @@ where no repetition is visible yet:
 ### Benchmark problems to start from (to write first, per `extending.md`)
 
 - **Polynomial:** data from `g(g(g(x)))` with `g(y) = y^2 + 1`. For `g(g(x))` the expanded `x^4 + 2x^2 + 2` (size 11)
-  still beats the helper form `let(lam(arg(0)^2 + 1), app(arg(0), app(arg(0), x)))` (size 12); one more level of
+  still beats the helper form `let(lam(#0^2 + 1), app(#0, app(#0, x)))` (size 12); one more level of
   nesting expands to degree 8 and the helper wins. A good test of the saving formula.
 - **Polynomial:** a piecewise whose pieces are one shape with different constants.
 - **Lists:** "fold both lists and add 1", over pairs of lists, which needs inputs that are tuples of lists.
-- **Lists:** `map(g, xs)` and `fold(g(h) + acc, 0, xs)` sharing one `g`.
+- **Lists:** `map(lam(g), xs)` and `fold(lam(lam(g(#0) + #1)), 0, xs)` sharing one `g`.
 
 ### Order of work
 
@@ -153,9 +153,10 @@ where no repetition is visible yet:
 
 ## Bound variables: de Bruijn indices everywhere
 
-**Decision: every expression that binds a variable refers to it by de Bruijn index, never by name.** Today the
-binders use fixed names: `map` and `filter` bind `e`, `fold` binds `h` and `acc`, and `rec` binds `i`, `p1`, `p2`,
-`p3`. Fixed names do not nest: a fold inside a fold's step rebinds `h` and `acc`, so the inner body cannot refer to
+**Decision: every expression that binds a variable refers to it by de Bruijn index, never by name.** Built for
+lists and sequences: programs take closed functions `lam(body)`, `map(lam(f), xs)`, `filter(lam(c), xs)`,
+`fold(lam(lam(s)), b, xs)` (head `#0`, accumulator `#1`), and `rec(lam(...lam(s)), b..., n)` (index `#0`, previous
+terms `#1`...). Before, they used fixed names (`e`, `h`, `acc`, `i`, `p1`...), and fixed names do not nest: a fold inside a fold's step rebinds `h` and `acc`, so the inner body cannot refer to
 the outer element, and moving a body under another binder silently captures its variables. With indices, an index
 counts binders outward, so nesting is always well defined, and interning still makes equal bodies one pointer.
 
@@ -170,8 +171,10 @@ counts binders outward, so nesting is always well defined, and interning still m
   need nothing.
 - **Bound is not free.** An index is bound by its binder and nothing substitutes for it. `?n` stays the hole that
   reduction may bind (below).
-- **Order of work:** the `abstraction` module's `arg(i)` and the existing binders share this one representation, so
-  convert `list` and `seq` first (their evaluators, detectors, renamer and tests), then build abstraction on it.
+- **Order of work:** `list` and `seq` are converted. The `abstraction` module builds on the same representation: its
+  `arg(i)` becomes the index symbol `#i`, under the same `lam`.
+- **Still to build:** evaluation of nested binders (a fold inside a fold's step: the step domain does not evaluate
+  programs yet), and the shifting rules, once a rule moves terms across binders.
 
 ## Free variables
 

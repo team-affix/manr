@@ -10,11 +10,11 @@
 #include "value_objects/rewrite.hpp"
 #include "value_objects/seq_symbols.hpp"
 
-// Local rule: closes an affine recurrence of order one, `rec(s, c, n)` whose step s is `r * p1 + d` (r not 0 or 1),
-// into its closed form `a * exp(r, n) + b`, with b = -d / (r - 1) the fixed point and a = c - b; it fires only when b
-// is an integer. The form drops what is trivial: `exp(r, n)` when a is 1, no `+ b` when b is 0, just b when a is 0.
+// Local rule: closes an affine recurrence of order one, `rec(lam(lam(s)), c, n)` whose step body s is `r * #1 + d`
+// (r not 0 or 1; `#1` is the previous term), into its closed form `a * exp(r, n) + b`, with b = -d / (r - 1) the
+// fixed point and a = c - b; it fires only when b is an integer. The form drops what is trivial: `exp(r, n)` when a is 1, no `+ b` when b is 0, just b when a is 0.
 // Both sides have no value at a negative index, and the result is always smaller: the step alone is at least
-// `mul(r, p1)`, plus `add(.., d)` when d is not 0.
+// `lam(lam(mul(r, #1)))`, plus `add(.., d)` when d is not 0.
 template<typename IFindPolynomial, typename IFindLiteralValue, typename IMakeLiteral, typename IMakeFunctor>
 struct seq_power_closer {
     seq_power_closer(IFindPolynomial& find_polynomial,
@@ -58,7 +58,13 @@ SEQ_POWER_CLOSER_TEMPLATE void SEQ_POWER_CLOSER::detect(const expr* e, std::vect
     const std::optional<integer> start = find_literal_value_.find_value(f->args[1]);
     if (!start.has_value())
         return;
-    const auto step = find_polynomial_.find_polynomial(f->args[0]);
+    const expr::functor* outer = std::get_if<expr::functor>(&f->args[0]->content);
+    if (outer == nullptr || outer->id != symbols_.lambda || outer->args.size() != 1)
+        return;
+    const expr::functor* inner = std::get_if<expr::functor>(&outer->args[0]->content);
+    if (inner == nullptr || inner->id != symbols_.lambda || inner->args.size() != 1)
+        return;
+    const auto step = find_polynomial_.find_polynomial(inner->args[0]);
     if (!step.has_value() || step.value().terms.empty() || step.value().terms.size() > 2)
         return;
     integer ratio = 0;

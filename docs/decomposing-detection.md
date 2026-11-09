@@ -72,7 +72,7 @@ What makes the split work:
 - **Selection of a value** (`max(g(h), acc)`) is the outer-inner split with `f = max`. Its hard part is that we don't
   know which element attains each output. The reading narrows it: the candidates are the elements `v` of the list
   whose `g(v)` could equal the output. Lists of one distinct value pin `g(v)` exactly and seed the rest.
-- **Composition of programs**, `map(f, filter(c, xs))`, splits the same way one level up. The outer program is
+- **Composition of programs**, `map(lam(f), filter(lam(c), xs))`, splits the same way one level up. The outer program is
   `map`, so the output's length is at most the input's and each output element is `f` of some input element. When
   the outputs are an order-preserving image of a subsequence, the subsequence gives `c`'s data (kept or removed per
   value) and the pairs give `f`'s data, each handed to the element domain.

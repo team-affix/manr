@@ -39,8 +39,11 @@ struct SeqDetectorsIntegrationTest : ::testing::Test {
     const expr* index() {
         return kernel.parser_.parse("n");
     }
+    // `rec` of the step body `step`, closed under one lambda for the index and one per base
     const expr* recurrence(const std::string& step, const std::vector<int>& bases) {
         std::vector<const expr*> args{kernel.parser_.parse(step)};
+        for (size_t binder = 0; binder <= bases.size(); ++binder)
+            args[0] = kernel.exprs_.make_functor(rules.seq_symbols_.lambda, {args[0]});
         for (const int base : bases)
             args.push_back(literal(base));
         args.push_back(index());
@@ -81,20 +84,20 @@ integer factorial_step(const integer& at, const integer& previous, const integer
 }
 
 TEST_F(SeqDetectorsIntegrationTest, TheEvaluatorRunsARecurrenceFromItsBases) {
-    EXPECT_EQ(value_at(recurrence("p1 + p2", {0, 1}), 10), integer(55));
-    EXPECT_EQ(value_at(recurrence("p1 + p2", {0, 1}), 1), integer(1));
+    EXPECT_EQ(value_at(recurrence("#1 + #2", {0, 1}), 10), integer(55));
+    EXPECT_EQ(value_at(recurrence("#1 + #2", {0, 1}), 1), integer(1));
 }
 
 TEST_F(SeqDetectorsIntegrationTest, TheEvaluatorBindsTheIndexInTheStep) {
-    EXPECT_EQ(value_at(recurrence("i * p1", {1}), 5), integer(120));
+    EXPECT_EQ(value_at(recurrence("#0 * #1", {1}), 5), integer(120));
 }
 
 TEST_F(SeqDetectorsIntegrationTest, TheEvaluatorSeesZeroForTermsBeforeTheStart) {
-    EXPECT_EQ(value_at(recurrence("p1 + p2", {1}), 3), integer(3));
+    EXPECT_EQ(value_at(recurrence("#1 + #2", {1}), 3), integer(3));
 }
 
 TEST_F(SeqDetectorsIntegrationTest, TheEvaluatorHasNoValueAtANegativeIndex) {
-    EXPECT_FALSE(value_at(recurrence("2 * p1", {1}), -1).has_value());
+    EXPECT_FALSE(value_at(recurrence("2 * #1", {1}), -1).has_value());
     EXPECT_FALSE(value_at(power(2), -1).has_value());
 }
 
@@ -114,12 +117,12 @@ TEST_F(SeqDetectorsIntegrationTest, TheEvaluatorLeavesPolynomialsToThePolynomial
 
 TEST_F(SeqDetectorsIntegrationTest, TheSecondOrderDetectorReadsFibonacci) {
     rules.second_order_.propose_hypotheses(points(recurrence_samples({0, 1}, fibonacci_step, 0, 15)), out);
-    EXPECT_THAT(printed(), Contains("rec(p1 + p2, 0, 1, n)"));
+    EXPECT_THAT(printed(), Contains("rec(lam(lam(lam(#1 + #2))), 0, 1, n)"));
 }
 
 TEST_F(SeqDetectorsIntegrationTest, TheFirstOrderDetectorReadsAStepThatUsesTheIndex) {
     rules.first_order_.propose_hypotheses(points(recurrence_samples({1}, factorial_step, 0, 10)), out);
-    EXPECT_THAT(printed(), Contains("rec(i * p1, 1, n)"));
+    EXPECT_THAT(printed(), Contains("rec(lam(lam(#0 * #1)), 1, n)"));
 }
 
 TEST_F(SeqDetectorsIntegrationTest, TheFirstOrderDetectorFindsNoStepForFibonacci) {
@@ -150,25 +153,25 @@ TEST_F(SeqDetectorsIntegrationTest, TheDetectorReadsAroundAWrongLabel) {
     std::vector<poly_sample> samples = recurrence_samples({1}, doubling_step, 0, 20);
     samples[9].output += 1;
     rules.first_order_.propose_hypotheses(points(samples), out);
-    EXPECT_THAT(printed(), Contains("rec(2 * p1, 1, n)"));
+    EXPECT_THAT(printed(), Contains("rec(lam(lam(2 * #1)), 1, n)"));
 }
 
 TEST_F(SeqDetectorsIntegrationTest, TheCloserTurnsAGeometricRecurrenceIntoAPower) {
-    EXPECT_THAT(closed(recurrence("2 * p1", {1})), Contains("exp(2, n)"));
-    EXPECT_THAT(closed(recurrence("3 * p1", {5})), Contains("5 * exp(3, n)"));
+    EXPECT_THAT(closed(recurrence("2 * #1", {1})), Contains("exp(2, n)"));
+    EXPECT_THAT(closed(recurrence("3 * #1", {5})), Contains("5 * exp(3, n)"));
 }
 
 TEST_F(SeqDetectorsIntegrationTest, TheCloserTurnsAnAffineRecurrenceIntoAShiftedPower) {
-    EXPECT_THAT(closed(recurrence("2 * p1 + 1", {0})), Contains("exp(2, n) - 1"));
-    EXPECT_THAT(closed(recurrence("3 * p1 - 4", {5})), Contains("3 * exp(3, n) + 2"));
+    EXPECT_THAT(closed(recurrence("2 * #1 + 1", {0})), Contains("exp(2, n) - 1"));
+    EXPECT_THAT(closed(recurrence("3 * #1 - 4", {5})), Contains("3 * exp(3, n) + 2"));
 }
 
 TEST_F(SeqDetectorsIntegrationTest, TheCloserTurnsARecurrenceStartingAtItsFixedPointIntoTheFixedPoint) {
-    EXPECT_THAT(closed(recurrence("2 * p1 + 1", {-1})), Contains("-1"));
+    EXPECT_THAT(closed(recurrence("2 * #1 + 1", {-1})), Contains("-1"));
 }
 
 TEST_F(SeqDetectorsIntegrationTest, TheCloserKeepsTheMeaning) {
-    const expr* original = recurrence("3 * p1 - 4", {5});
+    const expr* original = recurrence("3 * #1 - 4", {5});
     std::vector<rewrite> rewrites;
     rules.closer_.detect(original, rewrites);
     ASSERT_EQ(rewrites.size(), 1u);
@@ -178,12 +181,12 @@ TEST_F(SeqDetectorsIntegrationTest, TheCloserKeepsTheMeaning) {
 }
 
 TEST_F(SeqDetectorsIntegrationTest, TheCloserLeavesAFractionalFixedPoint) {
-    EXPECT_TRUE(closed(recurrence("3 * p1 + 1", {0})).empty());
+    EXPECT_TRUE(closed(recurrence("3 * #1 + 1", {0})).empty());
 }
 
 TEST_F(SeqDetectorsIntegrationTest, TheCloserLeavesStepsThatAreNotAffineInThePreviousTerm) {
-    EXPECT_TRUE(closed(recurrence("p1 + 1", {0})).empty());
-    EXPECT_TRUE(closed(recurrence("i * p1", {1})).empty());
-    EXPECT_TRUE(closed(recurrence("p1^2", {2})).empty());
-    EXPECT_TRUE(closed(recurrence("p1 + p2", {0, 1})).empty());
+    EXPECT_TRUE(closed(recurrence("#1 + 1", {0})).empty());
+    EXPECT_TRUE(closed(recurrence("#0 * #1", {1})).empty());
+    EXPECT_TRUE(closed(recurrence("#1^2", {2})).empty());
+    EXPECT_TRUE(closed(recurrence("#1 + #2", {0, 1})).empty());
 }
