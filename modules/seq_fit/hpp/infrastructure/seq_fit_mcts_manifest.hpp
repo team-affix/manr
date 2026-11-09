@@ -41,8 +41,7 @@ struct seq_fit_mcts_manifest {
         using search_base_t::search_base_t;
     };
 
-    seq_fit_mcts_manifest(const std::string& variable,
-                           const std::vector<poly_sample>& samples,
+    seq_fit_mcts_manifest(const std::vector<poly_sample>& samples,
                            const poly_limits& limits,
                            const poly_fit_limits& fit_limits,
                            size_t probing_depth,

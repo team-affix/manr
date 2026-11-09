@@ -4,6 +4,11 @@
 #include <cstdint>
 #include <string>
 #include <vector>
+#include "infrastructure/abs_applying_evaluator.hpp"
+#include "infrastructure/abs_binder_merger.hpp"
+#include "infrastructure/abs_binders.hpp"
+#include "infrastructure/abs_closing_hypotheses.hpp"
+#include "infrastructure/abs_function_maker.hpp"
 #include "infrastructure/expr_pool.hpp"
 #include "infrastructure/poly_condition_evaluator.hpp"
 #include "infrastructure/poly_fit_hypotheses_manifest.hpp"
@@ -21,6 +26,7 @@
 #include "infrastructure/seq_power_closer.hpp"
 #include "infrastructure/seq_recurrence_hypotheses.hpp"
 #include "infrastructure/subterm_proposer.hpp"
+#include "value_objects/abs_symbols.hpp"
 #include "value_objects/expr.hpp"
 #include "value_objects/poly_fit_limits.hpp"
 #include "value_objects/poly_sample.hpp"
@@ -29,13 +35,22 @@
 
 // The rules for fitting integer sequences (data over one index variable), on a polynomial kernel: everything
 // polynomial fitting does (`fit_`), plus the recurrences of order 1 to 3 read off consecutive terms, whose steps go to
-// polynomial fitting over the index `#0` and the previous terms `#1` to `#3` (`first_steps_` to `third_steps_`), and the closing rule that
-// turns a geometric recurrence into a power. The evaluator runs recurrences and powers and leaves the rest to the
-// polynomial evaluator. `rules_` is what a search injects and `initial_` is where it starts.
+// polynomial fitting over the index `#0` and the previous terms `#1` to `#3` (`first_steps_` to `third_steps_`), and
+// the closing rule that turns a geometric recurrence into a power. The evaluator runs recurrences and powers and
+// leaves the rest to the polynomial evaluator, and chains of binders merge into one `lams`. The data piecewise is a
+// function of the index: what replaces its catch-all is closed over it, `lam(b)` with the index `#0` in b, and a
+// function is applied to the input when evaluated. `rules_` is what a search injects and `initial_` is where it
+// starts.
 struct seq_fit_rules_manifest {
     using kernel_t = poly_kernel_manifest;
     using fit_t = poly_fit_hypotheses_manifest;
-    using evaluator_base_t = seq_evaluator<fit_t::evaluator_t, fit_t::evaluator_t, kernel_t::literals_t,
+    struct binders_t : abs_binders<kernel_t::literals_t> {
+        using abs_binders<kernel_t::literals_t>::abs_binders;
+    };
+    struct function_maker_t : abs_function_maker<kernel_t::literals_t, expr_pool> {
+        using abs_function_maker<kernel_t::literals_t, expr_pool>::abs_function_maker;
+    };
+    using evaluator_base_t = seq_evaluator<fit_t::evaluator_t, fit_t::evaluator_t, binders_t, kernel_t::literals_t,
                                            kernel_t::literals_t, expr_pool>;
     struct evaluator_t : evaluator_base_t {
         using evaluator_base_t::evaluator_base_t;
@@ -43,8 +58,14 @@ struct seq_fit_rules_manifest {
     struct conditions_t : poly_condition_evaluator<evaluator_t, kernel_t::literals_t> {
         using poly_condition_evaluator<evaluator_t, kernel_t::literals_t>::poly_condition_evaluator;
     };
-    struct pw_evaluator_t : pw_evaluator<evaluator_t, conditions_t> {
+    struct body_evaluator_t : pw_evaluator<evaluator_t, conditions_t> {
         using pw_evaluator<evaluator_t, conditions_t>::pw_evaluator;
+    };
+    struct applying_t : abs_applying_evaluator<binders_t, body_evaluator_t> {
+        using abs_applying_evaluator<binders_t, body_evaluator_t>::abs_applying_evaluator;
+    };
+    struct pw_evaluator_t : pw_evaluator<applying_t, conditions_t> {
+        using pw_evaluator<applying_t, conditions_t>::pw_evaluator;
     };
     using recurrences_base_t = seq_recurrence_hypotheses<kernel_t::literals_t, fit_t::converter_t,
                                                          fit_t::interpolations_t, kernel_t::literals_t, expr_pool>;
@@ -55,6 +76,9 @@ struct seq_fit_rules_manifest {
         using pw_hypotheses_union<fit_t::hypotheses_t, recurrences_t, recurrences_t,
                                   recurrences_t>::pw_hypotheses_union;
     };
+    struct closing_t : abs_closing_hypotheses<hypotheses_t, function_maker_t> {
+        using abs_closing_hypotheses<hypotheses_t, function_maker_t>::abs_closing_hypotheses;
+    };
     struct assembler_t : pw_assembler<expr_pool> {
         using pw_assembler<expr_pool>::pw_assembler;
     };
@@ -64,31 +88,34 @@ struct seq_fit_rules_manifest {
     struct filter_t : pw_branch_filter<pw_evaluator_t> {
         using pw_branch_filter<pw_evaluator_t>::pw_branch_filter;
     };
-    struct binder_t : pw_extension_binder<hypotheses_t, filter_t, assembler_t> {
-        using pw_extension_binder<hypotheses_t, filter_t, assembler_t>::pw_extension_binder;
+    struct binder_t : pw_extension_binder<closing_t, filter_t, assembler_t> {
+        using pw_extension_binder<closing_t, filter_t, assembler_t>::pw_extension_binder;
     };
     struct absorber_t : pw_branch_absorber<filter_t, assembler_t> {
         using pw_branch_absorber<filter_t, assembler_t>::pw_branch_absorber;
     };
-    struct closer_t
-        : seq_power_closer<kernel_t::expander_t, kernel_t::literals_t, kernel_t::literals_t, expr_pool> {
-        using seq_power_closer<kernel_t::expander_t, kernel_t::literals_t, kernel_t::literals_t,
+    struct closer_t : seq_power_closer<binders_t, kernel_t::expander_t, kernel_t::literals_t, kernel_t::literals_t,
+                                       expr_pool> {
+        using seq_power_closer<binders_t, kernel_t::expander_t, kernel_t::literals_t, kernel_t::literals_t,
                                expr_pool>::seq_power_closer;
     };
-    struct union_t : proposer_union<binder_t, absorber_t, closer_t, poly_rules_manifest::union_t> {
-        using proposer_union<binder_t, absorber_t, closer_t, poly_rules_manifest::union_t>::proposer_union;
+    struct merger_t : abs_binder_merger<binders_t, kernel_t::literals_t, expr_pool> {
+        using abs_binder_merger<binders_t, kernel_t::literals_t, expr_pool>::abs_binder_merger;
+    };
+    struct union_t : proposer_union<binder_t, absorber_t, closer_t, merger_t, poly_rules_manifest::union_t> {
+        using proposer_union<binder_t, absorber_t, closer_t, merger_t, poly_rules_manifest::union_t>::proposer_union;
     };
     struct rules_t : subterm_proposer<union_t, expr_pool> {
         using subterm_proposer<union_t, expr_pool>::subterm_proposer;
     };
 
     seq_fit_rules_manifest(kernel_t& kernel,
-                           const std::string& variable,
                            const std::vector<poly_sample>& samples,
                            const poly_fit_limits& fit_limits);
 
     poly_rules_manifest poly_rules_;
     pw_symbols pw_symbols_;
+    abs_symbols abs_symbols_;
     seq_symbols seq_symbols_;
     uint32_t point_symbol_;
     uint32_t less_symbol_;
@@ -96,19 +123,25 @@ struct seq_fit_rules_manifest {
     fit_t first_steps_;
     fit_t second_steps_;
     fit_t third_steps_;
+    binders_t binders_;
+    function_maker_t function_maker_;
     evaluator_t evaluator_;
     conditions_t conditions_;
+    body_evaluator_t body_evaluator_;
+    applying_t applying_;
     pw_evaluator_t pw_evaluator_;
     recurrences_t first_order_;
     recurrences_t second_order_;
     recurrences_t third_order_;
     hypotheses_t hypotheses_;
+    closing_t closing_;
     assembler_t assembler_;
     builder_t builder_;
     filter_t filter_;
     binder_t binder_;
     absorber_t absorber_;
     closer_t closer_;
+    merger_t merger_;
     union_t union_;
     rules_t rules_;
     const expr* initial_;

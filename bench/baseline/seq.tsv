@@ -1,27 +1,27 @@
 # problem	solver	cost	target	seconds	sound
-#7 powers of two	best-1st	3	3	0.0402081	1
-#7 powers of two	mcts	3	3	0.0374051	1
-#6 Fibonacci	best-1st	10	10	0.0958712	1
-#6 Fibonacci	mcts	10	10	0.0957743	1
-five times powers of 3	best-1st	5	5	0.016539	1
-five times powers of 3	mcts	5	5	0.0157467	1
-powers of -2	best-1st	3	3	6.43182	1
-powers of -2	mcts	3	3	0.367469	1
-Lucas numbers	best-1st	10	10	0.154369	1
-Lucas numbers	mcts	10	10	0.106865	1
-Pell numbers	best-1st	12	12	0.0723974	1
-Pell numbers	mcts	12	12	0.0461969	1
-tribonacci	best-1st	14	14	0.131017	1
-tribonacci	mcts	14	14	0.130758	1
-factorial	best-1st	8	8	0.0132146	1
-factorial	mcts	8	8	0.0122585	1
-Fibonacci, wrong label	best-1st	15	15	0.110051	1
-Fibonacci, wrong label	mcts	15	15	0.113053	1
-squares	best-1st	3	3	0.00387752	1
-squares	mcts	3	3	0.00371748	1
-powers of two, long	best-1st	3	3	0.241298	1
-powers of two, long	mcts	3	3	0.202282	1
-Mersenne numbers	best-1st	5	5	0.0291601	1
-Mersenne numbers	mcts	5	5	0.0161795	1
-Fibonacci from index 1 (open)	best-1st	94	10	0.0243229	1
-Fibonacci from index 1 (open)	mcts	94	10	0.0237006	1
+#7 powers of two	best-1st	4	4	0.0407587	1
+#7 powers of two	mcts	4	4	0.0390449	1
+#6 Fibonacci	best-1st	10	10	0.147357	1
+#6 Fibonacci	mcts	10	10	0.125126	1
+five times powers of 3	best-1st	6	6	0.0280419	1
+five times powers of 3	mcts	6	6	0.017793	1
+powers of -2	best-1st	4	4	7.2372	1
+powers of -2	mcts	4	4	0.416968	1
+Lucas numbers	best-1st	10	10	0.141771	1
+Lucas numbers	mcts	10	10	0.118545	1
+Pell numbers	best-1st	12	12	0.0415904	1
+Pell numbers	mcts	12	12	0.0410227	1
+tribonacci	best-1st	13	13	0.16693	1
+tribonacci	mcts	13	13	0.134662	1
+factorial	best-1st	9	9	0.021588	1
+factorial	mcts	9	9	0.0232682	1
+Fibonacci, wrong label	best-1st	15	15	0.136042	1
+Fibonacci, wrong label	mcts	15	15	0.119532	1
+squares	best-1st	4	4	0.00405372	1
+squares	mcts	4	4	0.00393999	1
+powers of two, long	best-1st	4	4	0.235757	1
+powers of two, long	mcts	4	4	0.210733	1
+Mersenne numbers	best-1st	6	6	0.0170406	1
+Mersenne numbers	mcts	6	6	0.0165896	1
+Fibonacci from index 1 (open)	best-1st	95	10	0.0267468	1
+Fibonacci from index 1 (open)	mcts	95	10	0.0226092	1

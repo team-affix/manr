@@ -16,7 +16,7 @@ namespace {
 
 struct PolyInterpolationHypothesesIntegrationTest : ::testing::Test {
     std::vector<std::string> propose(const std::vector<std::string>& variables, const std::vector<poly_sample>& samples) {
-        manifest = std::make_unique<poly_fit_manifest>(variables, samples, k_poly_default_limits,
+        manifest = std::make_unique<poly_fit_manifest>(variables.size(), samples, k_poly_default_limits,
                                                        k_poly_fit_default_limits, 1);
         std::vector<const expr*> out;
         manifest->rule_set_.fit_.interpolations_.propose_hypotheses(manifest->rule_set_.fit_.converter_.convert(samples), out);
@@ -37,13 +37,13 @@ struct PolyInterpolationHypothesesIntegrationTest : ::testing::Test {
 TEST_F(PolyInterpolationHypothesesIntegrationTest, CubicDataGivesItsCubic) {
     const std::vector<std::string> hypotheses =
         propose({"x"}, sample_line(-3, 4, [](integer x) { return integer(x * x * x - x); }, {}));
-    EXPECT_THAT(hypotheses, Contains("x^3 - x"));
+    EXPECT_THAT(hypotheses, Contains("#0^3 - #0"));
 }
 
 TEST_F(PolyInterpolationHypothesesIntegrationTest, AFitStartsPastAnOutlier) {
     const std::vector<std::string> hypotheses =
         propose({"x"}, sample_line(0, 8, [](integer x) { return integer(2 * x * x - 3); }, {{0, 5}}));
-    EXPECT_THAT(hypotheses, Contains("2 * x^2 - 3"));
+    EXPECT_THAT(hypotheses, Contains("2 * #0^2 - 3"));
 }
 
 TEST_F(PolyInterpolationHypothesesIntegrationTest, AFitStartsPastALongRunOfOutliers) {
@@ -52,27 +52,27 @@ TEST_F(PolyInterpolationHypothesesIntegrationTest, AFitStartsPastALongRunOfOutli
         outliers.emplace_back(index, 1);
     const std::vector<std::string> hypotheses =
         propose({"x"}, sample_line(0, 39, [](integer x) { return integer(x * x - 4 * x); }, outliers));
-    EXPECT_THAT(hypotheses, Contains("x^2 - 4 * x"));
+    EXPECT_THAT(hypotheses, Contains("#0^2 - 4 * #0"));
 }
 
 TEST_F(PolyInterpolationHypothesesIntegrationTest, AThousandPointsGiveTheirPolynomial) {
     const std::vector<std::string> hypotheses =
         propose({"x"}, sample_line(-500, 499, [](integer x) { return integer(x * x * x - 2 * x + 5); }, {}));
-    EXPECT_THAT(hypotheses, Contains("x^3 - 2 * x + 5"));
+    EXPECT_THAT(hypotheses, Contains("#0^3 - 2 * #0 + 5"));
 }
 
 TEST_F(PolyInterpolationHypothesesIntegrationTest, TwoVariableDataGivesItsExpandedPolynomial) {
     const std::vector<std::string> hypotheses =
         propose({"x", "y"}, sample_grid(-2, 2, [](integer x, integer y) { return integer((x + y) * (x + y)); }));
-    EXPECT_THAT(hypotheses, Contains("x^2 + 2 * x * y + y^2"));
+    EXPECT_THAT(hypotheses, Contains("#1^2 + 2 * #1 * #0 + #0^2"));
 }
 
 TEST_F(PolyInterpolationHypothesesIntegrationTest, FractionalCoefficientsGiveNoPolynomial) {
     const std::vector<std::string> hypotheses =
         propose({"x"}, sample_line(0, 6, [](integer x) { return integer(x * (x + 1) / 2); }, {}));
-    EXPECT_THAT(hypotheses, Not(Contains("x^2 + x")));
+    EXPECT_THAT(hypotheses, Not(Contains("#0^2 + #0")));
     for (const std::string& hypothesis : hypotheses)
-        EXPECT_EQ(hypothesis.find("x^2"), std::string::npos) << hypothesis;
+        EXPECT_EQ(hypothesis.find("#0^2"), std::string::npos) << hypothesis;
 }
 
 TEST_F(PolyInterpolationHypothesesIntegrationTest, AnInterpolantThatExplainsOnlyItsOwnPointsIsNotProposed) {

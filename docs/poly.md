@@ -12,6 +12,11 @@ Every expression has an exact **normal form**: the expanded sum of monomials, `p
 The normal form is the oracle that high-level detectors read, and `poly_soundness.cpp` checks every rule against it.
 It is also how the benchmark verifies every result.
 
+**Notation.** There are no named variables: inputs and parameters are de Bruijn indices `#k`, and every fitted model
+is a closed function of the data piecewise's inputs, `lam(b)` or `lams(k, b)` (`plans.md`, bound variables). Older
+examples below that name an input (`x`, `xs`, `n`, `a`) mean its index: one input is `#0`; with k inputs the first is
+`#(k-1)` and the last `#0`.
+
 ## Rules
 
 Low-level (`poly_local_rules`, local, syntactic): folding, identities, power folding, like terms, factoring

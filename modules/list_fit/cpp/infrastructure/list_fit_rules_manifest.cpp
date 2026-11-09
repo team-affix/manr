@@ -6,6 +6,10 @@ list_fit_rules_manifest::list_fit_rules_manifest(
     , pw_symbols_{.piecewise = kernel.symbols_.intern_symbol("pw"),
                   .branch = kernel.symbols_.intern_symbol("case"),
                   .region = kernel.symbols_.intern_symbol("when")}
+    , abs_symbols_{.lambda = kernel.symbols_.intern_symbol("lam"),
+                   .lambdas = kernel.symbols_.intern_symbol("lams"),
+                   .application = kernel.symbols_.intern_symbol("app"),
+                   .binding = kernel.symbols_.intern_symbol("let")}
     , list_symbols_{.nil = kernel.symbols_.intern_symbol("nil"),
                     .cons = kernel.symbols_.intern_symbol("cons"),
                     .append = kernel.symbols_.intern_symbol("append"),
@@ -14,7 +18,7 @@ list_fit_rules_manifest::list_fit_rules_manifest(
                     .filter = kernel.symbols_.intern_symbol("filter"),
                     .fold = kernel.symbols_.intern_symbol("fold"),
                     .lambda = kernel.symbols_.intern_symbol("lam"),
-                    .input = kernel.symbols_.intern_symbol("xs"),
+                    .input = kernel.symbols_.intern_symbol("#0"),
                     .element = kernel.symbols_.intern_symbol("#0"),
                     .head = kernel.symbols_.intern_symbol("#0"),
                     .accumulator = kernel.symbols_.intern_symbol("#1")}
@@ -23,9 +27,13 @@ list_fit_rules_manifest::list_fit_rules_manifest(
     , element_fit_(kernel, {"#0"}, fit_limits, pw_symbols_, point_symbol_, less_symbol_)
     , step_fit_(kernel, {"#0", "#1"}, fit_limits, pw_symbols_, point_symbol_, less_symbol_)
     , values_(kernel.exprs_, list_symbols_)
+    , binders_(kernel.literals_, abs_symbols_)
+    , function_maker_(kernel.literals_, kernel.exprs_, abs_symbols_)
     , evaluator_(values_, values_, kernel.exprs_, kernel.literals_, element_fit_.pw_evaluator_,
-                 element_fit_.conditions_, step_fit_.pw_evaluator_, list_symbols_, point_symbol_, less_symbol_)
-    , pw_evaluator_(evaluator_, evaluator_, pw_symbols_)
+                 element_fit_.conditions_, step_fit_.pw_evaluator_, binders_, binders_, list_symbols_, point_symbol_,
+                 less_symbol_)
+    , applying_(binders_, evaluator_)
+    , pw_evaluator_(applying_, evaluator_, pw_symbols_)
     , converter_(values_, kernel.literals_)
     , assembler_(kernel.exprs_, pw_symbols_)
     , builder_(kernel.exprs_, kernel.exprs_, assembler_, pw_symbols_)
@@ -63,7 +71,8 @@ list_fit_rules_manifest::list_fit_rules_manifest(
     , hypotheses_(constants_, integer_maps_, integer_folds_, filterings_, maps_, folds_, affine_folds_, extremum_folds_,
                   product_folds_, count_folds_, map_filters_, selection_folds_, factor_folds_, sum_folds_,
                   listed_folds_, reversals_)
-    , binder_(hypotheses_, filter_, assembler_, pw_symbols_)
+    , closing_(hypotheses_, function_maker_, 1)
+    , binder_(closing_, filter_, assembler_, pw_symbols_)
     , absorber_(filter_, assembler_, pw_symbols_)
     , union_(binder_, absorber_, poly_rules_.union_)
     , rules_(union_, kernel.exprs_)

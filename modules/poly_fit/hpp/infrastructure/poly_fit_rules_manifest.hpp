@@ -1,10 +1,15 @@
 #ifndef POLY_FIT_RULES_MANIFEST_HPP
 #define POLY_FIT_RULES_MANIFEST_HPP
 
+#include <cstddef>
 #include <cstdint>
 #include <string>
 #include <vector>
+#include "infrastructure/abs_applying_evaluator.hpp"
+#include "infrastructure/abs_binders.hpp"
+#include "infrastructure/abs_closing_hypotheses.hpp"
 #include "infrastructure/abs_evaluator.hpp"
+#include "infrastructure/abs_function_maker.hpp"
 #include "infrastructure/abs_indices.hpp"
 #include "infrastructure/abs_reducer.hpp"
 #include "infrastructure/expr_pool.hpp"
@@ -31,21 +36,33 @@
 // The rules for fitting polynomial data, over a kernel: the samples become a piecewise with an open catch-all; the
 // piecewise rules bind it to what `fit_` proposes (constants, interpolated polynomials, and piecewise polynomials
 // split over intervals of one variable, periodic over residues, and over one variable a polynomial iterated with a
-// helper, `let(lam(g(#0)), app(#0, app(#0, x)))`) and drop the branches they reproduce; and the full polynomial rule
+// helper, `let(lam(g(#0)), app(#0, app(#0, #1)))`) and drop the branches they reproduce; and the full polynomial rule
 // set compresses whatever polynomial results, all at every position. Expressions are evaluated through the
 // abstraction reducer, so helpers reduce to polynomials before the polynomial evaluator sees them.
-// `rules_` is what a search injects and `initial_` is where it starts.
+// A piecewise is a function of its `arity` keys: what replaces its catch-all is closed over them, `lam(b)` or
+// `lams(arity, b)` with the first key coordinate `#(arity-1)` and the last `#0` in b, and once no case is left the
+// piecewise is that function. Evaluating a function at an input applies it. `rules_` is what a search injects and
+// `initial_` is where it starts.
 struct poly_fit_rules_manifest {
     using kernel_t = poly_kernel_manifest;
     using fit_t = poly_fit_hypotheses_manifest;
     struct indices_t : abs_indices<symbol_table, expr_pool> {
         using abs_indices<symbol_table, expr_pool>::abs_indices;
     };
-    struct reducer_t : abs_reducer<indices_t, indices_t, expr_pool> {
-        using abs_reducer<indices_t, indices_t, expr_pool>::abs_reducer;
+    struct binders_t : abs_binders<kernel_t::literals_t> {
+        using abs_binders<kernel_t::literals_t>::abs_binders;
     };
-    struct evaluator_t : abs_evaluator<reducer_t, fit_t::evaluator_t> {
-        using abs_evaluator<reducer_t, fit_t::evaluator_t>::abs_evaluator;
+    struct reducer_t : abs_reducer<indices_t, indices_t, binders_t, kernel_t::literals_t, expr_pool> {
+        using abs_reducer<indices_t, indices_t, binders_t, kernel_t::literals_t, expr_pool>::abs_reducer;
+    };
+    struct function_maker_t : abs_function_maker<kernel_t::literals_t, expr_pool> {
+        using abs_function_maker<kernel_t::literals_t, expr_pool>::abs_function_maker;
+    };
+    struct applying_t : abs_applying_evaluator<binders_t, fit_t::pw_evaluator_t> {
+        using abs_applying_evaluator<binders_t, fit_t::pw_evaluator_t>::abs_applying_evaluator;
+    };
+    struct evaluator_t : abs_evaluator<reducer_t, applying_t> {
+        using abs_evaluator<reducer_t, applying_t>::abs_evaluator;
     };
     struct pw_evaluator_t : pw_evaluator<evaluator_t, fit_t::conditions_t> {
         using pw_evaluator<evaluator_t, fit_t::conditions_t>::pw_evaluator;
@@ -58,6 +75,9 @@ struct poly_fit_rules_manifest {
     struct hypotheses_t : pw_hypotheses_union<fit_t::hypotheses_t, iterations_t> {
         using pw_hypotheses_union<fit_t::hypotheses_t, iterations_t>::pw_hypotheses_union;
     };
+    struct closing_t : abs_closing_hypotheses<hypotheses_t, function_maker_t> {
+        using abs_closing_hypotheses<hypotheses_t, function_maker_t>::abs_closing_hypotheses;
+    };
     struct assembler_t : pw_assembler<expr_pool> {
         using pw_assembler<expr_pool>::pw_assembler;
     };
@@ -67,8 +87,8 @@ struct poly_fit_rules_manifest {
     struct filter_t : pw_branch_filter<pw_evaluator_t> {
         using pw_branch_filter<pw_evaluator_t>::pw_branch_filter;
     };
-    struct binder_t : pw_extension_binder<hypotheses_t, filter_t, assembler_t> {
-        using pw_extension_binder<hypotheses_t, filter_t, assembler_t>::pw_extension_binder;
+    struct binder_t : pw_extension_binder<closing_t, filter_t, assembler_t> {
+        using pw_extension_binder<closing_t, filter_t, assembler_t>::pw_extension_binder;
     };
     struct absorber_t : pw_branch_absorber<filter_t, assembler_t> {
         using pw_branch_absorber<filter_t, assembler_t>::pw_branch_absorber;
@@ -81,7 +101,7 @@ struct poly_fit_rules_manifest {
     };
 
     poly_fit_rules_manifest(kernel_t& kernel,
-                            const std::vector<std::string>& variables,
+                            size_t arity,
                             const std::vector<poly_sample>& samples,
                             const poly_fit_limits& fit_limits);
 
@@ -92,11 +112,15 @@ struct poly_fit_rules_manifest {
     fit_t fit_;
     abs_symbols abs_symbols_;
     indices_t indices_;
+    binders_t binders_;
     reducer_t reducer_;
+    function_maker_t function_maker_;
+    applying_t applying_;
     evaluator_t evaluator_;
     pw_evaluator_t pw_evaluator_;
     iterations_t iterations_;
     hypotheses_t hypotheses_;
+    closing_t closing_;
     assembler_t assembler_;
     builder_t builder_;
     filter_t filter_;
@@ -105,6 +129,8 @@ struct poly_fit_rules_manifest {
     union_t union_;
     rules_t rules_;
     const expr* initial_;
+private:
+    static std::vector<std::string> name_inputs(size_t arity);
 };
 
 #endif

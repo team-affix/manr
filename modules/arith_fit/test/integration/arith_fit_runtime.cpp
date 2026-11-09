@@ -23,8 +23,8 @@ TEST_F(ArithFitRuntimeIntegrationTest, LinearDataReducesToItsLineAndThePiecewise
         {{.input = 0, .output = 1}, {.input = 1, .output = 3}, {.input = 2, .output = 5}, {.input = 3, .output = 7}},
         1000};
     drain(runtime);
-    EXPECT_EQ(runtime.best(), "add(mul(2, x), 1)");
-    EXPECT_EQ(runtime.best_cost(), 5u);
+    EXPECT_EQ(runtime.best(), "lam(add(mul(2, #0), 1))");
+    EXPECT_EQ(runtime.best_cost(), 6u);
 }
 
 TEST_F(ArithFitRuntimeIntegrationTest, AnOutlierStaysAsTheOnlyBranch) {
@@ -33,7 +33,7 @@ TEST_F(ArithFitRuntimeIntegrationTest, AnOutlierStaysAsTheOnlyBranch) {
          {.input = 10, .output = 99}},
         1000};
     drain(runtime);
-    EXPECT_EQ(runtime.best(), "pw(case(10, 99), add(mul(2, x), 1))");
+    EXPECT_EQ(runtime.best(), "pw(case(10, 99), lam(add(mul(2, #0), 1)))");
 }
 
 TEST_F(ArithFitRuntimeIntegrationTest, MostlyConstantDataBindsTheCatchAllToTheConstant) {
@@ -41,11 +41,11 @@ TEST_F(ArithFitRuntimeIntegrationTest, MostlyConstantDataBindsTheCatchAllToTheCo
         {{.input = 0, .output = 4}, {.input = 1, .output = 4}, {.input = 2, .output = 4}, {.input = 3, .output = 9}},
         1000};
     drain(runtime);
-    EXPECT_EQ(runtime.best(), "pw(case(3, 9), 4)");
+    EXPECT_EQ(runtime.best(), "pw(case(3, 9), lam(4))");
 }
 
 TEST_F(ArithFitRuntimeIntegrationTest, TheDerivationStartsAtTheDataAndEndsAtTheBest) {
     arith_fit_runtime runtime{{{.input = 0, .output = 0}, {.input = 5, .output = 5}}, 1000};
     drain(runtime);
-    EXPECT_EQ(runtime.derivation(), (std::vector<std::string>{"pw(case(0, 0), case(5, 5), ?0)", "x"}));
+    EXPECT_EQ(runtime.derivation(), (std::vector<std::string>{"pw(case(0, 0), case(5, 5), ?0)", "lam(#0)"}));
 }

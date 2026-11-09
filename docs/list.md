@@ -4,8 +4,13 @@ The list domain is the first step toward fitting programs rather than formulas (
 piecewise over lists, and the model is a small program that reads the input list.
 
 ```
-pw(case(nil, 0), case(cons(1, nil), 1), case(cons(2, cons(1, nil)), 3), ..., ?0)   ->   fold(lam(lam(#0 + #1)), 0, xs)
+pw(case(nil, 0), case(cons(1, nil), 1), case(cons(2, cons(1, nil)), 3), ..., ?0)   ->   lam(fold(lam(lam(#0 + #1)), 0, #0))
 ```
+
+**Notation.** There are no named variables: inputs and parameters are de Bruijn indices `#k`, and every fitted model
+is a closed function of the data piecewise's inputs, `lam(b)` or `lams(k, b)` (`plans.md`, bound variables). Older
+examples below that name an input (`x`, `xs`, `n`, `a`) mean its index: one input is `#0`; with k inputs the first is
+`#(k-1)` and the last `#0`.
 
 ## Modules
 

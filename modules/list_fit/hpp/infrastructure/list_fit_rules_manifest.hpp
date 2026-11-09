@@ -3,6 +3,10 @@
 
 #include <cstdint>
 #include <vector>
+#include "infrastructure/abs_applying_evaluator.hpp"
+#include "infrastructure/abs_binders.hpp"
+#include "infrastructure/abs_closing_hypotheses.hpp"
+#include "infrastructure/abs_function_maker.hpp"
 #include "infrastructure/expr_pool.hpp"
 #include "infrastructure/expr_size.hpp"
 #include "infrastructure/list_affine_fold_hypotheses.hpp"
@@ -39,6 +43,7 @@
 #include "infrastructure/pw_extension_binder.hpp"
 #include "infrastructure/pw_hypotheses_union.hpp"
 #include "infrastructure/subterm_proposer.hpp"
+#include "value_objects/abs_symbols.hpp"
 #include "value_objects/expr.hpp"
 #include "value_objects/list_sample.hpp"
 #include "value_objects/list_symbols.hpp"
@@ -46,8 +51,8 @@
 #include "value_objects/pw_symbols.hpp"
 
 // The rules for fitting list programs over integer elements, on a polynomial kernel: the samples become a piecewise
-// with an open catch-all; the piecewise rules bind it to constants and to the programs the list detectors read off
-// the data (`map`, `fold`, `filter`), and drop the branches they reproduce. The generic map and fold detectors read
+// with an open catch-all; the piecewise rules bind it to constants and to the programs the list detectors read off the
+// data (`map`, `fold`, `filter`), and drop the branches they reproduce. The generic map and fold detectors read
 // elements and results of any domain; beside them, the integer cases (`list_integer_map_hypotheses`,
 // `list_integer_fold_hypotheses`, the threshold filter) cover common integer data directly, and the affine, extremum
 // (largest or smallest element), product and count fold detectors read folds from whole lists when the data holds no
@@ -56,23 +61,32 @@
 // unknown inner function of the elements, handed to the element domain beside the extremum and product detectors, and
 // the sum fold detector the same for the sum (a count on any condition when the inner function is 0 or 1). The listed
 // fold detector reads folds that build lists by enumerating their small steps, and the reverse detector proposes the
-// primitive `reverse(xs)`.
-// The list detectors hand the element-level part of the problem to polynomial fitting: `element_fit_` over `#0` for
-// map bodies, `step_fit_` over `#0` (the head) and `#1` (the accumulator) for fold steps. The full polynomial rule set then compresses the bodies,
-// all at every position. `rules_` is what a search injects and `initial_` is where it starts.
+// primitive `reverse(xs)`. The list detectors hand the element-level part of the problem to polynomial fitting:
+// `element_fit_` over `#0` for map bodies, `step_fit_` over `#0` (the head) and `#1` (the accumulator) for fold steps.
+// The full polynomial rule set then compresses the bodies, all at every position. `rules_` is what a search injects and
+// `initial_` is where it starts.
 struct list_fit_rules_manifest {
     using kernel_t = poly_kernel_manifest;
     using fit_t = poly_fit_hypotheses_manifest;
     struct values_t : list_values<expr_pool> {
         using list_values<expr_pool>::list_values;
     };
+    struct binders_t : abs_binders<kernel_t::literals_t> {
+        using abs_binders<kernel_t::literals_t>::abs_binders;
+    };
+    struct function_maker_t : abs_function_maker<kernel_t::literals_t, expr_pool> {
+        using abs_function_maker<kernel_t::literals_t, expr_pool>::abs_function_maker;
+    };
     using evaluator_base_t = list_evaluator<values_t, values_t, expr_pool, kernel_t::literals_t, fit_t::pw_evaluator_t,
-                                            fit_t::conditions_t, fit_t::pw_evaluator_t>;
+                                            fit_t::conditions_t, fit_t::pw_evaluator_t, binders_t, binders_t>;
     struct evaluator_t : evaluator_base_t {
         using evaluator_base_t::evaluator_base_t;
     };
-    struct pw_evaluator_t : pw_evaluator<evaluator_t, evaluator_t> {
-        using pw_evaluator<evaluator_t, evaluator_t>::pw_evaluator;
+    struct applying_t : abs_applying_evaluator<binders_t, evaluator_t> {
+        using abs_applying_evaluator<binders_t, evaluator_t>::abs_applying_evaluator;
+    };
+    struct pw_evaluator_t : pw_evaluator<applying_t, evaluator_t> {
+        using pw_evaluator<applying_t, evaluator_t>::pw_evaluator;
     };
     struct converter_t : list_sample_converter<values_t, kernel_t::literals_t> {
         using list_sample_converter<values_t, kernel_t::literals_t>::list_sample_converter;
@@ -170,8 +184,11 @@ struct list_fit_rules_manifest {
                                   selection_folds_t, factor_folds_t, sum_folds_t, listed_folds_t,
                                   reversals_t>::pw_hypotheses_union;
     };
-    struct binder_t : pw_extension_binder<hypotheses_t, filter_t, assembler_t> {
-        using pw_extension_binder<hypotheses_t, filter_t, assembler_t>::pw_extension_binder;
+    struct closing_t : abs_closing_hypotheses<hypotheses_t, function_maker_t> {
+        using abs_closing_hypotheses<hypotheses_t, function_maker_t>::abs_closing_hypotheses;
+    };
+    struct binder_t : pw_extension_binder<closing_t, filter_t, assembler_t> {
+        using pw_extension_binder<closing_t, filter_t, assembler_t>::pw_extension_binder;
     };
     struct absorber_t : pw_branch_absorber<filter_t, assembler_t> {
         using pw_branch_absorber<filter_t, assembler_t>::pw_branch_absorber;
@@ -183,17 +200,23 @@ struct list_fit_rules_manifest {
         using subterm_proposer<union_t, expr_pool>::subterm_proposer;
     };
 
-    list_fit_rules_manifest(kernel_t& kernel, const std::vector<list_sample>& samples, const poly_fit_limits& fit_limits);
+    list_fit_rules_manifest(kernel_t& kernel,
+                            const std::vector<list_sample>& samples,
+                            const poly_fit_limits& fit_limits);
 
     poly_rules_manifest poly_rules_;
     pw_symbols pw_symbols_;
+    abs_symbols abs_symbols_;
     list_symbols list_symbols_;
     uint32_t point_symbol_;
     uint32_t less_symbol_;
     fit_t element_fit_;
     fit_t step_fit_;
     values_t values_;
+    binders_t binders_;
+    function_maker_t function_maker_;
     evaluator_t evaluator_;
+    applying_t applying_;
     pw_evaluator_t pw_evaluator_;
     converter_t converter_;
     assembler_t assembler_;
@@ -219,6 +242,7 @@ struct list_fit_rules_manifest {
     listed_folds_t listed_folds_;
     reversals_t reversals_;
     hypotheses_t hypotheses_;
+    closing_t closing_;
     binder_t binder_;
     absorber_t absorber_;
     union_t union_;

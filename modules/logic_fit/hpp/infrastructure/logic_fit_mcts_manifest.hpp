@@ -40,7 +40,7 @@ struct logic_fit_mcts_manifest {
         using search_base_t::search_base_t;
     };
 
-    logic_fit_mcts_manifest(const std::vector<std::string>& variables,
+    logic_fit_mcts_manifest(size_t arity,
                             const std::vector<poly_sample>& samples,
                             const poly_limits& limits,
                             size_t probing_depth,

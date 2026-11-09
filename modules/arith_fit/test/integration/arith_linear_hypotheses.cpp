@@ -11,7 +11,7 @@ struct ArithLinearHypothesesIntegrationTest : ::testing::Test {
     symbol_table symbols{};
     expr_pool pool{};
     arith_symbols vocabulary{
-        .input = symbols.intern_symbol("x"),
+        .input = symbols.intern_symbol("#0"),
         .add = symbols.intern_symbol("add"),
         .sub = symbols.intern_symbol("sub"),
         .mul = symbols.intern_symbol("mul")};

@@ -1,9 +1,14 @@
 #ifndef LOGIC_FIT_RULES_MANIFEST_HPP
 #define LOGIC_FIT_RULES_MANIFEST_HPP
 
+#include <cstddef>
 #include <cstdint>
 #include <string>
 #include <vector>
+#include "infrastructure/abs_applying_evaluator.hpp"
+#include "infrastructure/abs_binders.hpp"
+#include "infrastructure/abs_closing_hypotheses.hpp"
+#include "infrastructure/abs_function_maker.hpp"
 #include "infrastructure/expr_pool.hpp"
 #include "infrastructure/expr_size.hpp"
 #include "infrastructure/logic_cover_hypotheses.hpp"
@@ -24,12 +29,15 @@
 #include "infrastructure/pw_extension_binder.hpp"
 #include "infrastructure/pw_hypotheses_union.hpp"
 #include "infrastructure/subterm_proposer.hpp"
+#include "value_objects/abs_symbols.hpp"
 #include "value_objects/expr.hpp"
 #include "value_objects/logic_symbols.hpp"
 #include "value_objects/poly_sample.hpp"
 #include "value_objects/pw_symbols.hpp"
 
-// The rules for fitting boolean functions to truth-table data over named variables, on a polynomial kernel (for its
+// The rules for fitting boolean functions to truth-table data over `arity` inputs; the data piecewise is a function of
+// them, so what replaces its catch-all is `lam(b)` or `lams(arity, b)`, the first input `#(arity-1)` and the last `#0`
+// in b, on a polynomial kernel (for its
 // pool, literals and printer): the samples (inputs and outputs of 0s and 1s) become a piecewise with an open
 // catch-all; the piecewise rules bind it to constants, parities (`logic_parity_hypotheses`) and factored sums of
 // products (`logic_cover_hypotheses`), and drop the branches they reproduce. `rules_` is what a search injects and
@@ -42,8 +50,17 @@ struct logic_fit_rules_manifest {
     struct evaluator_t : logic_evaluator<kernel_t::literals_t, kernel_t::literals_t> {
         using logic_evaluator<kernel_t::literals_t, kernel_t::literals_t>::logic_evaluator;
     };
-    struct pw_evaluator_t : pw_evaluator<evaluator_t, evaluator_t> {
-        using pw_evaluator<evaluator_t, evaluator_t>::pw_evaluator;
+    struct binders_t : abs_binders<kernel_t::literals_t> {
+        using abs_binders<kernel_t::literals_t>::abs_binders;
+    };
+    struct applying_t : abs_applying_evaluator<binders_t, evaluator_t> {
+        using abs_applying_evaluator<binders_t, evaluator_t>::abs_applying_evaluator;
+    };
+    struct pw_evaluator_t : pw_evaluator<applying_t, evaluator_t> {
+        using pw_evaluator<applying_t, evaluator_t>::pw_evaluator;
+    };
+    struct function_maker_t : abs_function_maker<kernel_t::literals_t, expr_pool> {
+        using abs_function_maker<kernel_t::literals_t, expr_pool>::abs_function_maker;
     };
     struct reader_t : logic_table_reader<kernel_t::literals_t> {
         using logic_table_reader<kernel_t::literals_t>::logic_table_reader;
@@ -60,6 +77,9 @@ struct logic_fit_rules_manifest {
     struct hypotheses_t : pw_hypotheses_union<constants_t, parities_t, covers_t> {
         using pw_hypotheses_union<constants_t, parities_t, covers_t>::pw_hypotheses_union;
     };
+    struct closing_t : abs_closing_hypotheses<hypotheses_t, function_maker_t> {
+        using abs_closing_hypotheses<hypotheses_t, function_maker_t>::abs_closing_hypotheses;
+    };
     struct assembler_t : pw_assembler<expr_pool> {
         using pw_assembler<expr_pool>::pw_assembler;
     };
@@ -69,8 +89,8 @@ struct logic_fit_rules_manifest {
     struct filter_t : pw_branch_filter<pw_evaluator_t> {
         using pw_branch_filter<pw_evaluator_t>::pw_branch_filter;
     };
-    struct binder_t : pw_extension_binder<hypotheses_t, filter_t, assembler_t> {
-        using pw_extension_binder<hypotheses_t, filter_t, assembler_t>::pw_extension_binder;
+    struct binder_t : pw_extension_binder<closing_t, filter_t, assembler_t> {
+        using pw_extension_binder<closing_t, filter_t, assembler_t>::pw_extension_binder;
     };
     struct absorber_t : pw_branch_absorber<filter_t, assembler_t> {
         using pw_branch_absorber<filter_t, assembler_t>::pw_branch_absorber;
@@ -82,17 +102,19 @@ struct logic_fit_rules_manifest {
         using subterm_proposer<union_t, expr_pool>::subterm_proposer;
     };
 
-    logic_fit_rules_manifest(kernel_t& kernel,
-                             const std::vector<std::string>& variables,
-                             const std::vector<poly_sample>& samples);
+    logic_fit_rules_manifest(kernel_t& kernel, size_t arity, const std::vector<poly_sample>& samples);
 
     pw_symbols pw_symbols_;
+    abs_symbols abs_symbols_;
     logic_symbols logic_symbols_;
     uint32_t point_symbol_;
     std::vector<uint32_t> variables_;
     converter_t converter_;
     evaluator_t evaluator_;
+    binders_t binders_;
+    applying_t applying_;
     pw_evaluator_t pw_evaluator_;
+    function_maker_t function_maker_;
     reader_t reader_;
     constants_t constants_;
     logic_parity_solver parity_solver_;
@@ -100,6 +122,7 @@ struct logic_fit_rules_manifest {
     logic_cover_solver cover_solver_;
     covers_t covers_;
     hypotheses_t hypotheses_;
+    closing_t closing_;
     assembler_t assembler_;
     builder_t builder_;
     filter_t filter_;
@@ -109,7 +132,7 @@ struct logic_fit_rules_manifest {
     rules_t rules_;
     const expr* initial_;
 private:
-    static std::vector<uint32_t> intern_variables(kernel_t& kernel, const std::vector<std::string>& variables);
+    static std::vector<uint32_t> intern_inputs(kernel_t& kernel, size_t arity);
 };
 
 #endif

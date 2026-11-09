@@ -92,14 +92,14 @@ outcome finish(Manifest& m, const std::vector<poly_sample>& samples, std::chrono
 
 outcome run_best_first(const std::vector<poly_sample>& samples) {
     const auto start = std::chrono::steady_clock::now();
-    seq_fit_manifest m{"n", samples, k_poly_default_limits, k_poly_fit_default_limits, k_frontier};
+    seq_fit_manifest m{samples, k_poly_default_limits, k_poly_fit_default_limits, k_frontier};
     while (m.search_.rewrites() < k_rewrites && m.search_.next()) {}
     return finish(m, samples, start);
 }
 
 outcome run_mcts(const std::vector<poly_sample>& samples) {
     const auto start = std::chrono::steady_clock::now();
-    seq_fit_mcts_manifest m{"n", samples, k_poly_default_limits, k_poly_fit_default_limits, k_probing_depth,
+    seq_fit_mcts_manifest m{samples, k_poly_default_limits, k_poly_fit_default_limits, k_probing_depth,
                             k_simulations, k_exploration, 1};
     while (m.search_.next()) {}
     return finish(m, samples, start);
@@ -133,21 +133,21 @@ solved solve(const seq_problem& p, bool fast) {
 int main(int argc, char** argv) {
     const bench_options options = parse_bench_options(argc, argv);
     const std::vector<seq_problem> problems{
-        {"#7 powers of two", "2*p1", {1}, 0, 25, {}, 3, "exp(2, n)"},
-        {"#6 Fibonacci", "p1 + p2", {0, 1}, 0, 25, {}, 10, "rec(lam(lam(lam(#1 + #2))), 0, 1, n)"},
-        {"five times powers of 3", "3*p1", {5}, 0, 20, {}, 5, "5 * exp(3, n)"},
-        {"powers of -2", "-2*p1", {1}, 0, 20, {}, 3, "exp(-2, n)"},
-        {"Lucas numbers", "p1 + p2", {2, 1}, 0, 25, {}, 10, "rec(lam(lam(lam(#1 + #2))), 2, 1, n)"},
-        {"Pell numbers", "2*p1 + p2", {0, 1}, 0, 20, {}, 12, "rec(lam(lam(lam(2*#1 + #2))), 0, 1, n)"},
-        {"tribonacci", "p1 + p2 + p3", {0, 0, 1}, 0, 25, {}, 14, "rec(lam(lam(lam(lam(#1 + #2 + #3)))), 0, 0, 1, n)"},
-        {"factorial", "i*p1", {1}, 0, 15, {}, 8, "rec(lam(lam(#0*#1)), 1, n)"},
+        {"#7 powers of two", "2*p1", {1}, 0, 25, {}, 4, "lam(exp(2, #0))"},
+        {"#6 Fibonacci", "p1 + p2", {0, 1}, 0, 25, {}, 10, "lam(rec(lams(3, #1 + #2), 0, 1, #0))"},
+        {"five times powers of 3", "3*p1", {5}, 0, 20, {}, 6, "lam(5 * exp(3, #0))"},
+        {"powers of -2", "-2*p1", {1}, 0, 20, {}, 4, "lam(exp(-2, #0))"},
+        {"Lucas numbers", "p1 + p2", {2, 1}, 0, 25, {}, 10, "lam(rec(lams(3, #1 + #2), 2, 1, #0))"},
+        {"Pell numbers", "2*p1 + p2", {0, 1}, 0, 20, {}, 12, "lam(rec(lams(3, 2*#1 + #2), 0, 1, #0))"},
+        {"tribonacci", "p1 + p2 + p3", {0, 0, 1}, 0, 25, {}, 13, "lam(rec(lams(4, #1 + #2 + #3), 0, 0, 1, #0))"},
+        {"factorial", "i*p1", {1}, 0, 15, {}, 9, "lam(rec(lam(lam(#0*#1)), 1, #0))"},
         {"Fibonacci, wrong label", "p1 + p2", {0, 1}, 0, 25, {{10, 1}}, 15,
-         "pw(case(point(10), 56), rec(lam(lam(lam(#1 + #2))), 0, 1, n))"},
-        {"squares", "i^2", {0}, 0, 20, {}, 3, "n^2"},
-        {"powers of two, long", "2*p1", {1}, 0, 60, {}, 3, "exp(2, n)"},
-        {"Mersenne numbers", "2*p1 + 1", {0}, 0, 20, {}, 5, "exp(2, n) - 1"},
+         "pw(case(point(10), 56), lam(rec(lams(3, #1 + #2), 0, 1, #0)))"},
+        {"squares", "i^2", {0}, 0, 20, {}, 4, "lam(#0^2)"},
+        {"powers of two, long", "2*p1", {1}, 0, 60, {}, 4, "lam(exp(2, #0))"},
+        {"Mersenne numbers", "2*p1 + 1", {0}, 0, 20, {}, 6, "exp(2, n) - 1"},
         // open: no solver reaches the target yet; kept so the gate reports when one does
-        {"Fibonacci from index 1 (open)", "p1 + p2", {0, 1}, 1, 25, {}, 10, "rec(lam(lam(lam(#1 + #2))), 0, 1, n)"},
+        {"Fibonacci from index 1 (open)", "p1 + p2", {0, 1}, 1, 25, {}, 10, "lam(rec(lams(3, #1 + #2), 0, 1, #0))"},
     };
 
     std::printf("budgets: best-first %zu rewrites; mcts %zu simulations x depth %zu\n", k_rewrites, k_simulations,

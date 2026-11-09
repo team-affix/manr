@@ -6,8 +6,13 @@ to a small formula (`docs/vision.md`). It was built for reduce requests #9 (pari
 
 ```
 pw(case(point(0, 0, 0), 0), case(point(1, 0, 0), 0), ..., case(point(1, 1, 1), 1), ?0)
-    ->   or(and(a, or(b, c)), and(b, c))
+    ->   lams(3, or(and(#2, or(#1, #0)), and(#1, #0)))
 ```
+
+**Notation.** There are no named variables: inputs and parameters are de Bruijn indices `#k`, and every fitted model
+is a closed function of the data piecewise's inputs, `lam(b)` or `lams(k, b)` (`plans.md`, bound variables). Older
+examples below that name an input (`x`, `xs`, `n`, `a`) mean its index: one input is `#0`; with k inputs the first is
+`#(k-1)` and the last `#0`.
 
 ## Modules
 

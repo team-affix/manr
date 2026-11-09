@@ -162,28 +162,24 @@ polynomial fit rule set. The first helper detector is built too (item 6, iterati
 
 ## Bound variables: de Bruijn indices everywhere
 
-**Decision: every expression that binds a variable refers to it by de Bruijn index, never by name.** Built for
-lists and sequences: programs take closed functions `lam(body)`, `map(lam(f), xs)`, `filter(lam(c), xs)`,
-`fold(lam(lam(s)), b, xs)` (head `#0`, accumulator `#1`), and `rec(lam(...lam(s)), b..., n)` (index `#0`, previous
-terms `#1`...). Before, they used fixed names (`e`, `h`, `acc`, `i`, `p1`...), and fixed names do not nest: a fold inside a fold's step rebinds `h` and `acc`, so the inner body cannot refer to
-the outer element, and moving a body under another binder silently captures its variables. With indices, an index
-counts binders outward, so nesting is always well defined, and interning still makes equal bodies one pointer.
+**Built.** There are no named variables anywhere: inputs, program parameters and helpers are all de Bruijn indices,
+nullary symbols `#k` that a body's domain treats as variables (so polynomial fitting and the polynomial rules work on
+bodies unchanged). Binders are explicit and local:
 
-- **One numbering for every binder.** A binder that binds several values (`fold`: the head and the accumulator;
-  `rec`: the index and the previous terms) numbers them in a fixed order, documented with the functor.
-- **The index must look like a variable to the body's domain**, so polynomial fitting, evaluation and the
-  polynomial rules keep working on bodies unchanged: e.g. one nullary functor per index (`#0`, `#1`, ...), which the
-  polynomial domain treats as an ordinary variable. A body proposed by fitting over points binds its point's
-  coordinates to the innermost indices.
-- **Moving a term across a binder shifts its indices.** Any rule that moves a subterm into or out of a binder (map
-  fusion, abstraction, inlining) shifts the indices that point past the binder. Rules that rewrite a body in place
-  need nothing.
-- **Bound is not free.** An index is bound by its binder and nothing substitutes for it. `?n` stays the hole that
-  reduction may bind (below).
-- **Order of work:** `list` and `seq` are converted. The `abstraction` module builds on the same representation: its
-  `arg(i)` becomes the index symbol `#i`, under the same `lam`.
-- **Still to build:** evaluation of nested binders (a fold inside a fold's step: the step domain does not evaluate
-  programs yet), and the shifting rules, once a rule moves terms across binders.
+- `lam(b)` binds one argument, `#0` in b. `lams(k, b)` binds k at once and means `k` nested `lam`s: the first
+  argument is `#(k-1)`, the last `#0`. `abs_binder_merger` merges chains of 3+ `lam`s (or a `lams` and another binder)
+  into one `lams`, since that is smaller.
+- **A piecewise is a function of its keys.** Its cases map key tuples to outputs, and what replaces its catch-all is
+  closed over the piecewise's own inputs (`abs_closing_hypotheses` wraps every proposed body in `lam`/`lams`). So
+  once no case is left, the piecewise is that closed function. There is no root or global scope: a piecewise anywhere
+  is a function, and evaluating a function at an input applies it (`abs_applying_evaluator`).
+- Programs take closed functions: `map(lam(f), l)`, `filter(lam(c), l)`, `fold(lam(lam(s)), b, l)` (the accumulator
+  bound outside, the head inside, so the element is `#0` everywhere), `rec(lams(k + 1, s), b..., n)` (index `#0`,
+  previous terms `#1`...). Helpers: `let(v, b)` is `app(lam(b), v)`, the helper `#0` in its scope.
+- Moving a term across a binder shifts its indices (`abs_reducer`).
+- Free variables `?n` are not indices: they are holes (below).
+- **Still to build:** fitting a piecewise nested under other binders (the detectors fit in the piecewise's own
+  inputs, so a nested piecewise needs the scope passed to them), and evaluating programs nested in steps.
 
 ## Free variables
 

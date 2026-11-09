@@ -8,18 +8,23 @@
 #include <vector>
 #include "value_objects/abs_symbols.hpp"
 #include "value_objects/expr.hpp"
+#include "value_objects/integer.hpp"
 
 constexpr size_t k_abs_default_max_reductions = 10000;
 
 // Reduces an expression to one without helpers: every `let(v, b)` and every `app(lam(b), a)` is beta-reduced, b with
-// its `#0` replaced by the argument, by capture-free de Bruijn substitution (an index that points past a binder is
+// its `#0` replaced by the argument (`app(lams(k, b), a)` takes the outermost of its k binders: `#(k-1)`, leaving
+// `lams(k-1, ..)`),
+// by capture-free de Bruijn substitution (an index that points past a binder is
 // shifted as the term moves). Everything else is kept, and reduced inside, so the result is an ordinary expression of
 // the domain, ready for its evaluator. An `app` whose function is not a lambda stays. Nothing when a reduction does not
 // finish within `max_reductions` beta steps (recursion may not terminate). Results are memoized per expression.
-template<typename IFindIndex, typename IMakeIndex, typename IMakeFunctor>
+template<typename IFindIndex, typename IMakeIndex, typename ICountBinders, typename IMakeLiteral, typename IMakeFunctor>
 struct abs_reducer {
     abs_reducer(IFindIndex& find_index,
                 IMakeIndex& make_index,
+                ICountBinders& count_binders,
+                IMakeLiteral& make_literal,
                 IMakeFunctor& make_functor,
                 abs_symbols symbols,
                 size_t max_reductions = k_abs_default_max_reductions);
@@ -29,25 +34,34 @@ private:
     std::optional<const expr*> apply(const expr* body, const expr* argument, size_t& budget);
     const expr* shift(const expr* e, int amount, size_t cutoff);
     const expr* substitute(const expr* e, size_t index, const expr* value);
+    size_t count_bound(const expr::functor& f, const expr* e, size_t position) const;
 
     IFindIndex& find_index_;
     IMakeIndex& make_index_;
+    ICountBinders& count_binders_;
+    IMakeLiteral& make_literal_;
     IMakeFunctor& make_functor_;
     abs_symbols symbols_;
     size_t max_reductions_;
     std::unordered_map<const expr*, const expr*> reduced_;
 };
 
-#define ABS_REDUCER_TEMPLATE template<typename IFindIndex, typename IMakeIndex, typename IMakeFunctor>
-#define ABS_REDUCER          abs_reducer<IFindIndex, IMakeIndex, IMakeFunctor>
+#define ABS_REDUCER_TEMPLATE                                                                         \
+    template<typename IFindIndex, typename IMakeIndex, typename ICountBinders, typename IMakeLiteral, \
+             typename IMakeFunctor>
+#define ABS_REDUCER abs_reducer<IFindIndex, IMakeIndex, ICountBinders, IMakeLiteral, IMakeFunctor>
 
 ABS_REDUCER_TEMPLATE ABS_REDUCER::abs_reducer(IFindIndex& find_index,
                                                IMakeIndex& make_index,
+                                               ICountBinders& count_binders,
+                                               IMakeLiteral& make_literal,
                                                IMakeFunctor& make_functor,
                                                abs_symbols symbols,
                                                size_t max_reductions)
     : find_index_(find_index)
     , make_index_(make_index)
+    , count_binders_(count_binders)
+    , make_literal_(make_literal)
     , make_functor_(make_functor)
     , symbols_(symbols)
     , max_reductions_(max_reductions)
@@ -80,11 +94,16 @@ ABS_REDUCER_TEMPLATE std::optional<const expr*> ABS_REDUCER::reduce_within(const
         args.push_back(reduced.value());
     }
     const bool application = f->id == symbols_.application && args.size() == 2;
-    const expr::functor* function = application ? std::get_if<expr::functor>(&args[0]->content) : nullptr;
-    const bool redex = function != nullptr && function->id == symbols_.lambda && function->args.size() == 1;
-    if (redex)
-        return apply(function->args[0], args[1], budget);
-    return make_functor_.make_functor(f->id, args);
+    const size_t binders = application ? count_binders_.count_binders(args[0]) : 0;
+    if (binders == 0)
+        return make_functor_.make_functor(f->id, args);
+    // the outermost binder takes the argument; a `lams` keeps the rest
+    const expr* body = std::get<expr::functor>(args[0]->content).args.back();
+    const expr* rest = binders == 1   ? body
+                       : binders == 2 ? make_functor_.make_functor(symbols_.lambda, {body})
+                                      : make_functor_.make_functor(
+                                            symbols_.lambdas, {make_literal_.make_literal(integer(binders - 1)), body});
+    return apply(rest, args[1], budget);
 }
 
 // The lambda body with the argument for `#0`, reduced: shift(substitute(body, 0, shift(argument, 1, 0)), -1, 0).
@@ -108,10 +127,8 @@ ABS_REDUCER_TEMPLATE const expr* ABS_REDUCER::shift(const expr* e, int amount, s
         return e;
     std::vector<const expr*> args;
     args.reserve(f->args.size());
-    for (size_t position = 0; position < f->args.size(); ++position) {
-        const bool bound = f->id == symbols_.lambda || (f->id == symbols_.binding && position == 1);
-        args.push_back(shift(f->args[position], amount, bound ? cutoff + 1 : cutoff));
-    }
+    for (size_t position = 0; position < f->args.size(); ++position)
+        args.push_back(shift(f->args[position], amount, cutoff + count_bound(*f, e, position)));
     return make_functor_.make_functor(f->id, args);
 }
 
@@ -126,11 +143,20 @@ ABS_REDUCER_TEMPLATE const expr* ABS_REDUCER::substitute(const expr* e, size_t i
     std::vector<const expr*> args;
     args.reserve(f->args.size());
     for (size_t position = 0; position < f->args.size(); ++position) {
-        const bool bound = f->id == symbols_.lambda || (f->id == symbols_.binding && position == 1);
-        args.push_back(bound ? substitute(f->args[position], index + 1, shift(value, 1, 0))
-                             : substitute(f->args[position], index, value));
+        const size_t bound = count_bound(*f, e, position);
+        const expr* shifted = bound == 0 ? value : shift(value, static_cast<int>(bound), 0);
+        args.push_back(substitute(f->args[position], index + bound, shifted));
     }
     return make_functor_.make_functor(f->id, args);
+}
+
+// How many binders the argument at `position` sits under, introduced by e itself: a `lam`'s body 1, a `lams(k, b)`'s
+// body k, a `let`'s second argument 1, anything else 0.
+ABS_REDUCER_TEMPLATE size_t ABS_REDUCER::count_bound(const expr::functor& f, const expr* e, size_t position) const {
+    const bool body = position + 1 == f.args.size();
+    if (f.id == symbols_.binding)
+        return position == 1 ? 1 : 0;
+    return body ? count_binders_.count_binders(e) : 0;
 }
 
 #undef ABS_REDUCER

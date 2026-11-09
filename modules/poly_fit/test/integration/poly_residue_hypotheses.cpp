@@ -12,7 +12,7 @@ namespace {
 
 struct PolyResidueHypothesesIntegrationTest : ::testing::Test {
     std::vector<std::string> propose(const std::vector<poly_sample>& samples) {
-        manifest = std::make_unique<poly_fit_manifest>(std::vector<std::string>{"x"}, samples, k_poly_default_limits,
+        manifest = std::make_unique<poly_fit_manifest>(1, samples, k_poly_default_limits,
                                                        k_poly_fit_default_limits, 1);
         std::vector<const expr*> out;
         manifest->rule_set_.fit_.residues_.propose_hypotheses(manifest->rule_set_.fit_.converter_.convert(samples),
@@ -33,12 +33,12 @@ struct PolyResidueHypothesesIntegrationTest : ::testing::Test {
 
 TEST_F(PolyResidueHypothesesIntegrationTest, AParityIsAConstantPerResidue) {
     EXPECT_EQ(propose(sample_line(-6, 6, [](integer x) { return integer(x % 2 == 0 ? 1 : 0); }, {})),
-              std::vector<std::string>{"pw(when(eq(mod(x, 2), 1), 0), 1)"});
+              std::vector<std::string>{"pw(when(eq(mod(#0, 2), 1), 0), 1)"});
 }
 
 TEST_F(PolyResidueHypothesesIntegrationTest, EachResidueMayHaveItsOwnPolynomial) {
     EXPECT_EQ(propose(sample_line(-6, 6, [](integer x) { return integer(x % 3 == 0 ? x * x : integer(2)); }, {})),
-              std::vector<std::string>{"pw(when(eq(mod(x, 3), 0), x^2), 2)"});
+              std::vector<std::string>{"pw(when(eq(mod(#0, 3), 0), #0^2), 2)"});
 }
 
 TEST_F(PolyResidueHypothesesIntegrationTest, APolynomialIsLeftToInterpolation) {

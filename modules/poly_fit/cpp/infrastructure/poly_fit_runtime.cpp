@@ -2,12 +2,12 @@
 #include <sstream>
 
 poly_fit_runtime::poly_fit_runtime(
-    const std::vector<std::string>& variables,
+    size_t arity,
     const std::vector<poly_sample>& samples,
     const poly_limits& limits,
     const poly_fit_limits& fit_limits,
     size_t frontier_capacity)
-    : manifest_(variables, samples, limits, fit_limits, frontier_capacity) {}
+    : manifest_(arity, samples, limits, fit_limits, frontier_capacity) {}
 
 bool poly_fit_runtime::next() {
     return manifest_.search_.next();

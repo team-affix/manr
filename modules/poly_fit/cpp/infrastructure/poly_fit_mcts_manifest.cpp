@@ -1,7 +1,7 @@
 #include "infrastructure/poly_fit_mcts_manifest.hpp"
 
 poly_fit_mcts_manifest::poly_fit_mcts_manifest(
-    const std::vector<std::string>& variables,
+    size_t arity,
     const std::vector<poly_sample>& samples,
     const poly_limits& limits,
     const poly_fit_limits& fit_limits,
@@ -10,7 +10,7 @@ poly_fit_mcts_manifest::poly_fit_mcts_manifest(
     double exploration_constant,
     uint32_t seed)
     : kernel_(limits)
-    , rule_set_(kernel_, variables, samples, fit_limits)
+    , rule_set_(kernel_, arity, samples, fit_limits)
     , visits_()
     , values_()
     , rng_(seed)

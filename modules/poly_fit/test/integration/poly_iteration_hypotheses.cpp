@@ -15,7 +15,7 @@ namespace {
 
 struct PolyIterationHypothesesIntegrationTest : ::testing::Test {
     std::vector<std::string> propose(const std::vector<poly_sample>& samples) {
-        manifest = std::make_unique<poly_fit_manifest>(std::vector<std::string>{"x"}, samples, k_poly_default_limits,
+        manifest = std::make_unique<poly_fit_manifest>(1, samples, k_poly_default_limits,
                                                        k_poly_fit_default_limits, 1);
         std::vector<const expr*> out;
         manifest->rule_set_.iterations_.propose_hypotheses(manifest->rule_set_.fit_.converter_.convert(samples), out);
@@ -40,7 +40,7 @@ integer square_plus_one(const integer& y) {
 TEST_F(PolyIterationHypothesesIntegrationTest, AThreefoldIterateIsReadWithAHelper) {
     const std::vector<poly_sample> samples =
         sample_line(-6, 6, [](integer x) { return square_plus_one(square_plus_one(square_plus_one(x))); }, {});
-    EXPECT_THAT(propose(samples), Contains("let(lam(#0^2 + 1), app(#0, app(#0, app(#0, x))))"));
+    EXPECT_THAT(propose(samples), Contains("let(lam(#0^2 + 1), app(#0, app(#0, app(#0, #1))))"));
 }
 
 TEST_F(PolyIterationHypothesesIntegrationTest, ANegativeLeadingCoefficientIsRead) {
@@ -49,7 +49,7 @@ TEST_F(PolyIterationHypothesesIntegrationTest, ANegativeLeadingCoefficientIsRead
         const integer once = -x * x + 3;
         return integer(-once * once + 3);
     }, {});
-    EXPECT_THAT(propose(samples), Contains("let(lam(-1 * #0^2 + 3), app(#0, app(#0, x)))"));
+    EXPECT_THAT(propose(samples), Contains("let(lam(-1 * #0^2 + 3), app(#0, app(#0, #1)))"));
 }
 
 TEST_F(PolyIterationHypothesesIntegrationTest, APolynomialThatIsNoIterateProposesNothing) {

@@ -13,20 +13,22 @@
 
 // The value of a list program at an input list, as an interned value: a list (`cons`/`nil` chain) or an element. `xs`
 // is the input; literals and `nil` are themselves; `cons` builds a list from the values of its arguments; `map`,
-// `filter` and `fold` run over the value of their list argument, unwrapping their functions' `lam` binders (one for
-// map and filter, two for fold) and handing the bodies to the element domain at `point(element)` for map and filter
-// and `point(head, accumulator)` for fold, which binds `#0` and `#1` in that order. A fold step the element domain
-// cannot evaluate, such as one building a list (`append(#1, cons(#0, nil))`), is evaluated here instead, with the head
-// and the accumulator substituted for `#0` and `#1` (a nested `lam` is not entered: its indices are its own).
-// `append` joins the values of two lists, and `reverse` reverses one. Also decides `lt(a, b)` between two values that are
-// literals, for regions over lists. No value for anything else, or where the element domain has none.
+// `filter` and `fold` run over the value of their list argument, unwrapping their functions' binders (one for map and
+// filter, two for fold, as `lam`s or a `lams`) and handing the bodies to the element domain at `point(element)` for map
+// and filter and `point(head, accumulator)` for fold, which binds `#0` and `#1` in that order. A fold step the element
+// domain cannot evaluate, such as one building a list (`append(#1, cons(#0, nil))`), is evaluated here instead, with
+// the head and the accumulator substituted for `#0` and `#1` (a nested binder is not entered: its indices are its own).
+// `append` joins the values of two lists, and `reverse` reverses one. Also decides `lt(a, b)` between two values that
+// are literals, for regions over lists. No value for anything else, or where the element domain has none.
 template<typename IFindElements,
          typename IMakeList,
          typename IMakeFunctor,
          typename IFindLiteralValue,
          typename IEvaluateElementAt,
          typename IHoldsAtElement,
-         typename IEvaluateStepAt>
+         typename IEvaluateStepAt,
+         typename IFindBody,
+         typename ICountBinders>
 struct list_evaluator {
     list_evaluator(IFindElements& find_elements,
                    IMakeList& make_list,
@@ -35,6 +37,8 @@ struct list_evaluator {
                    IEvaluateElementAt& evaluate_element_at,
                    IHoldsAtElement& holds_at_element,
                    IEvaluateStepAt& evaluate_step_at,
+                   IFindBody& find_body,
+                   ICountBinders& count_binders,
                    list_symbols symbols,
                    uint32_t point_symbol,
                    uint32_t less_symbol);
@@ -54,6 +58,8 @@ private:
     IEvaluateElementAt& evaluate_element_at_;
     IHoldsAtElement& holds_at_element_;
     IEvaluateStepAt& evaluate_step_at_;
+    IFindBody& find_body_;
+    ICountBinders& count_binders_;
     list_symbols symbols_;
     uint32_t point_symbol_;
     uint32_t less_symbol_;
@@ -61,10 +67,11 @@ private:
 
 #define LIST_EVALUATOR_TEMPLATE                                                                               \
     template<typename IFindElements, typename IMakeList, typename IMakeFunctor, typename IFindLiteralValue, \
-             typename IEvaluateElementAt, typename IHoldsAtElement, typename IEvaluateStepAt>
+             typename IEvaluateElementAt, typename IHoldsAtElement, typename IEvaluateStepAt, typename IFindBody, \
+             typename ICountBinders>
 #define LIST_EVALUATOR                                                                                       \
     list_evaluator<IFindElements, IMakeList, IMakeFunctor, IFindLiteralValue, IEvaluateElementAt, IHoldsAtElement, \
-                   IEvaluateStepAt>
+                   IEvaluateStepAt, IFindBody, ICountBinders>
 
 LIST_EVALUATOR_TEMPLATE LIST_EVALUATOR::list_evaluator(
     IFindElements& find_elements,
@@ -74,6 +81,8 @@ LIST_EVALUATOR_TEMPLATE LIST_EVALUATOR::list_evaluator(
     IEvaluateElementAt& evaluate_element_at,
     IHoldsAtElement& holds_at_element,
     IEvaluateStepAt& evaluate_step_at,
+    IFindBody& find_body,
+    ICountBinders& count_binders,
     list_symbols symbols,
     uint32_t point_symbol,
     uint32_t less_symbol)
@@ -84,6 +93,8 @@ LIST_EVALUATOR_TEMPLATE LIST_EVALUATOR::list_evaluator(
     , evaluate_element_at_(evaluate_element_at)
     , holds_at_element_(holds_at_element)
     , evaluate_step_at_(evaluate_step_at)
+    , find_body_(find_body)
+    , count_binders_(count_binders)
     , symbols_(symbols)
     , point_symbol_(point_symbol)
     , less_symbol_(less_symbol) {}
@@ -138,15 +149,11 @@ LIST_EVALUATOR_TEMPLATE std::optional<const expr*> LIST_EVALUATOR::evaluate_at(c
                          || (f->id == symbols_.fold && f->args.size() == 3);
     if (!program)
         return std::nullopt;
-    // the body under the function's binders: one `lam` for map and filter, two for fold
-    const expr* body = f->args[0];
-    const size_t binders = f->id == symbols_.fold ? 2 : 1;
-    for (size_t binder = 0; binder < binders; ++binder) {
-        const expr::functor* function = std::get_if<expr::functor>(&body->content);
-        if (function == nullptr || function->id != symbols_.lambda || function->args.size() != 1)
-            return std::nullopt;
-        body = function->args[0];
-    }
+    // the body under the function's binders: one for map and filter, two for fold
+    const std::optional<const expr*> function_body = find_body_.find_body(f->args[0], f->id == symbols_.fold ? 2 : 1);
+    if (!function_body.has_value())
+        return std::nullopt;
+    const expr* body = function_body.value();
     const std::optional<const expr*> list = evaluate_at(f->args.back(), input);
     if (!list.has_value())
         return std::nullopt;
@@ -224,11 +231,11 @@ LIST_EVALUATOR_TEMPLATE std::optional<const expr*> LIST_EVALUATOR::evaluate_fold
     return accumulated;
 }
 
-// The body with the head for `#0` and the accumulator for `#1`, outside any nested `lam`.
+// The body with the head for `#0` and the accumulator for `#1`, outside any nested binder.
 LIST_EVALUATOR_TEMPLATE const expr* LIST_EVALUATOR::substitute(
     const expr* body, const expr* head, const expr* accumulator) {
     const expr::functor* f = std::get_if<expr::functor>(&body->content);
-    if (f == nullptr || f->id == symbols_.lambda)
+    if (f == nullptr || count_binders_.count_binders(body) > 0)
         return body;
     if (f->args.empty() && f->id == symbols_.head)
         return head;

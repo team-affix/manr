@@ -11,15 +11,15 @@
 #include "value_objects/poly_limits.hpp"
 #include "value_objects/poly_sample.hpp"
 
-// Fits boolean functions to truth-table data under best-first search. `variables` names the inputs in the order each
-// sample lists them.
+// Fits boolean functions to truth-table data under best-first search. `arity` is the number of inputs each sample
+// lists.
 struct logic_fit_manifest {
     using rule_set_t = logic_fit_rules_manifest;
     struct search_t : best_first_search<rule_set_t::rules_t, expr_size> {
         using best_first_search<rule_set_t::rules_t, expr_size>::best_first_search;
     };
 
-    logic_fit_manifest(const std::vector<std::string>& variables,
+    logic_fit_manifest(size_t arity,
                        const std::vector<poly_sample>& samples,
                        const poly_limits& limits,
                        size_t frontier_capacity);

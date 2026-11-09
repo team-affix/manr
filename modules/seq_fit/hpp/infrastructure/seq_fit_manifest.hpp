@@ -12,15 +12,14 @@
 #include "value_objects/poly_limits.hpp"
 #include "value_objects/poly_sample.hpp"
 
-// Fits integer sequences under best-first search. `variable` names the index each sample gives as its one input.
+// Fits integer sequences under best-first search. Each sample gives the index as its one input.
 struct seq_fit_manifest {
     using rule_set_t = seq_fit_rules_manifest;
     struct search_t : best_first_search<rule_set_t::rules_t, expr_size> {
         using best_first_search<rule_set_t::rules_t, expr_size>::best_first_search;
     };
 
-    seq_fit_manifest(const std::string& variable,
-                      const std::vector<poly_sample>& samples,
+    seq_fit_manifest(const std::vector<poly_sample>& samples,
                       const poly_limits& limits,
                       const poly_fit_limits& fit_limits,
                       size_t frontier_capacity);

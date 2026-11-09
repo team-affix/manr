@@ -41,7 +41,7 @@ struct poly_fit_mcts_manifest {
         using search_base_t::search_base_t;
     };
 
-    poly_fit_mcts_manifest(const std::vector<std::string>& variables,
+    poly_fit_mcts_manifest(size_t arity,
                            const std::vector<poly_sample>& samples,
                            const poly_limits& limits,
                            const poly_fit_limits& fit_limits,

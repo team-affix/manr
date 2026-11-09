@@ -13,7 +13,7 @@
 // Pull loop: call `next()` until it returns false (or until satisfied), reading `best()` along the way. Results
 // print as infix polynomials, with any piecewise left in prefix form.
 struct poly_fit_runtime {
-    poly_fit_runtime(const std::vector<std::string>& variables,
+    poly_fit_runtime(size_t arity,
                      const std::vector<poly_sample>& samples,
                      const poly_limits& limits,
                      const poly_fit_limits& fit_limits,

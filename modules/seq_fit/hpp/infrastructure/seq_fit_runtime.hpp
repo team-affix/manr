@@ -13,8 +13,7 @@
 // Pull loop: call `next()` until it returns false (or until satisfied), reading `best()` along the way. Results
 // print as infix polynomials, with recurrences, powers and any piecewise in prefix form.
 struct seq_fit_runtime {
-    seq_fit_runtime(const std::string& variable,
-                     const std::vector<poly_sample>& samples,
+    seq_fit_runtime(const std::vector<poly_sample>& samples,
                      const poly_limits& limits,
                      const poly_fit_limits& fit_limits,
                      size_t frontier_capacity);

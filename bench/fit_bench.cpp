@@ -105,14 +105,14 @@ outcome finish(Manifest& m, const std::vector<poly_sample>& samples, std::chrono
 
 outcome run_best_first(const fit_problem& p, const std::vector<poly_sample>& samples) {
     const auto start = std::chrono::steady_clock::now();
-    poly_fit_manifest m{p.variables, samples, k_poly_default_limits, k_poly_fit_default_limits, k_frontier};
+    poly_fit_manifest m{p.variables.size(), samples, k_poly_default_limits, k_poly_fit_default_limits, k_frontier};
     while (m.search_.rewrites() < k_rewrites && m.search_.next()) {}
     return finish(m, samples, start);
 }
 
 outcome run_mcts(const fit_problem& p, const std::vector<poly_sample>& samples) {
     const auto start = std::chrono::steady_clock::now();
-    poly_fit_mcts_manifest m{p.variables, samples, k_poly_default_limits, k_poly_fit_default_limits,
+    poly_fit_mcts_manifest m{p.variables.size(), samples, k_poly_default_limits, k_poly_fit_default_limits,
                              k_probing_depth, k_simulations, k_exploration, 1};
     while (m.search_.next()) {}
     return finish(m, samples, start);
@@ -146,49 +146,49 @@ solved solve(const fit_problem& p, bool fast) {
 int main(int argc, char** argv) {
     const bench_options options = parse_bench_options(argc, argv);
     const std::vector<fit_problem> problems{
-        {"cubic", {"x"}, {{"x^3 - x", INT_MAX}}, 0, -3, 4, {}, 5, "x^3 - x"},
-        {"power of linear", {"x"}, {{"(2*x - 1)^3", INT_MAX}}, 0, -3, 4, {}, 7, "(2*x - 1)^3"},
-        {"horner quintic", {"x"}, {{"x^5 + 2*x^4 + 3*x^3 + 4*x^2 + 5*x + 6", INT_MAX}}, 0, -3, 5, {}, 19,
-         "((((x+2)*x+3)*x+4)*x+5)*x+6"},
-        {"one outlier", {"x"}, {{"x^2 + 1", INT_MAX}}, 0, 0, 8, {{3, 7}}, 10, "pw(case(point(3), 17), x^2 + 1)"},
+        {"cubic", {"x"}, {{"x^3 - x", INT_MAX}}, 0, -3, 4, {}, 6, "lam(#0^3 - #0)"},
+        {"power of linear", {"x"}, {{"(2*x - 1)^3", INT_MAX}}, 0, -3, 4, {}, 8, "lam((2*#0 - 1)^3)"},
+        {"horner quintic", {"x"}, {{"x^5 + 2*x^4 + 3*x^3 + 4*x^2 + 5*x + 6", INT_MAX}}, 0, -3, 5, {}, 20,
+         "lam(((((#0+2)*#0+3)*#0+4)*#0+5)*#0+6)"},
+        {"one outlier", {"x"}, {{"x^2 + 1", INT_MAX}}, 0, 0, 8, {{3, 7}}, 11, "pw(case(point(3), 17), lam(#0^2 + 1))"},
         {"outlier run", {"x"}, {{"x^2 - 4*x", INT_MAX}}, 0, 0, 39,
-         {{0, 1}, {1, 1}, {2, 1}, {3, 1}, {4, 1}, {5, 1}, {6, 1}, {7, 1}, {8, 1}, {9, 1}, {10, 1}, {11, 1}}, 101,
-         "12 cases + x^2 - 4*x"},
+         {{0, 1}, {1, 1}, {2, 1}, {3, 1}, {4, 1}, {5, 1}, {6, 1}, {7, 1}, {8, 1}, {9, 1}, {10, 1}, {11, 1}}, 102,
+         "12 cases + #0^2 - 4*#0"},
         {"scattered outliers", {"x"}, {{"x^2 + 1", INT_MAX}}, 0, 0, 39, {{3, 5}, {10, 5}, {17, 5}, {24, 5}, {31, 5}, {38, 5}},
-         30, "6 cases + x^2 + 1"},
-        {"cubic 1000", {"x"}, {{"x^3 - 2*x + 5", INT_MAX}}, 0, -500, 499, {}, 9, "x^3 - 2*x + 5"},
-        {"two-variable square", {"x", "y"}, {{"(x + y)^2", INT_MAX}}, 0, -2, 2, {}, 5, "(x + y)^2"},
-        {"two-variable product", {"x", "y"}, {{"(x - y + 2)*(x + 2*y)", INT_MAX}}, 0, -2, 2, {{4, 3}}, 17,
-         "pw(case(point(2, -2), -9), (x - y + 2)*(x + 2*y))"},
-        {"three-variable cube", {"x", "y", "z"}, {{"(x + y + z)^3", INT_MAX}}, 0, -1, 2, {}, 7, "(x + y + z)^3"},
-        {"three-variable mixed", {"x", "y", "z"}, {{"x*y*z + x^2 - z", INT_MAX}}, 0, -1, 2, {}, 11, "x*y*z + x^2 - z"},
-        {"two pieces", {"x"}, {{"x^2", 0}, {"3*x + 1", INT_MAX}}, 0, -10, 9, {}, 13,
-         "pw(when(lt(x, 0), x^2), 3*x + 1)"},
-        {"two pieces 400", {"x"}, {{"x^2", 0}, {"3*x + 1", INT_MAX}}, 0, -200, 199, {}, 13,
-         "pw(when(lt(x, 0), x^2), 3*x + 1)"},
-        {"absolute value", {"x"}, {{"-1*x", 0}, {"x", INT_MAX}}, 0, -10, 10, {}, 9, "pw(when(lt(x, 1), -1*x), x)"},
-        {"three pieces", {"x"}, {{"5", 10}, {"x^2 - 7", 20}, {"(x - 1)^3", INT_MAX}}, 0, 0, 29, {}, 20,
-         "pw(when(lt(x, 10), 5), when(lt(x, 20), x^2 - 7), (x - 1)^3)"},
-        {"pieces with outlier", {"x"}, {{"x^2", 0}, {"3*x + 1", INT_MAX}}, 0, -10, 9, {{4, 3}}, 17,
-         "pw(case(point(-6), 39), when(lt(x, 0), x^2), 3*x + 1)"},
-        {"split on x", {"x", "y"}, {{"x*y", 1}, {"x + y^2", INT_MAX}}, 0, -3, 3, {}, 13, "pw(when(lt(x, 1), x*y), y^2 + x)"},
-        {"split on y", {"x", "y"}, {{"x - y", 0}, {"(x + y)^2", INT_MAX}}, 1, -3, 3, {}, 13,
-         "pw(when(lt(y, 0), x - y), (x + y)^2)"},
-        {"sign flip at zero", {"x", "y"}, {{"x - y", 0}, {"x + y", INT_MAX}}, 0, -3, 3, {}, 11,
+         31, "6 cases + #0^2 + 1"},
+        {"cubic 1000", {"x"}, {{"x^3 - 2*x + 5", INT_MAX}}, 0, -500, 499, {}, 10, "lam(#0^3 - 2*#0 + 5)"},
+        {"two-variable square", {"x", "y"}, {{"(x + y)^2", INT_MAX}}, 0, -2, 2, {}, 7, "lams(2, (#1 + #0)^2)"},
+        {"two-variable product", {"x", "y"}, {{"(x - y + 2)*(x + 2*y)", INT_MAX}}, 0, -2, 2, {{4, 3}}, 19,
+         "pw(case(point(2, -2), -9), lams(2, (#1 - #0 + 2)*(#1 + 2*#0)))"},
+        {"three-variable cube", {"x", "y", "z"}, {{"(x + y + z)^3", INT_MAX}}, 0, -1, 2, {}, 9, "lams(3, (#2 + #1 + #0)^3)"},
+        {"three-variable mixed", {"x", "y", "z"}, {{"x*y*z + x^2 - z", INT_MAX}}, 0, -1, 2, {}, 13, "lams(3, #2*#1*#0 + #2^2 - #0)"},
+        {"two pieces", {"x"}, {{"x^2", 0}, {"3*x + 1", INT_MAX}}, 0, -10, 9, {}, 14,
+         "lam(pw(when(lt(#0, 0), #0^2), 3*#0 + 1))"},
+        {"two pieces 400", {"x"}, {{"x^2", 0}, {"3*x + 1", INT_MAX}}, 0, -200, 199, {}, 14,
+         "lam(pw(when(lt(#0, 0), #0^2), 3*#0 + 1))"},
+        {"absolute value", {"x"}, {{"-1*x", 0}, {"x", INT_MAX}}, 0, -10, 10, {}, 10, "lam(pw(when(lt(#0, 1), -1*#0), #0))"},
+        {"three pieces", {"x"}, {{"5", 10}, {"x^2 - 7", 20}, {"(x - 1)^3", INT_MAX}}, 0, 0, 29, {}, 21,
+         "lam(pw(when(lt(#0, 10), 5), when(lt(#0, 20), #0^2 - 7), (#0 - 1)^3))"},
+        {"pieces with outlier", {"x"}, {{"x^2", 0}, {"3*x + 1", INT_MAX}}, 0, -10, 9, {{4, 3}}, 19,
+         "pw(case(point(-6), 39), lam(pw(when(lt(#0, 0), #0^2), 3*#0 + 1)))"},
+        {"split on x", {"x", "y"}, {{"x*y", 1}, {"x + y^2", INT_MAX}}, 0, -3, 3, {}, 15, "lams(2, pw(when(lt(#1, 1), #1*#0), #0^2 + #1))"},
+        {"split on y", {"x", "y"}, {{"x - y", 0}, {"(x + y)^2", INT_MAX}}, 1, -3, 3, {}, 15,
+         "lams(2, pw(when(lt(#0, 0), #1 - #0), (#1 + #0)^2))"},
+        {"sign flip at zero", {"x", "y"}, {{"x - y", 0}, {"x + y", INT_MAX}}, 0, -3, 3, {}, 13,
          "pw(when(lt(x, 0), x - y), x + y)"},
         // reduce request #8, and similar iterated polynomials, read with a helper by the iteration detector
-        {"#8 g(g(g(x))), g = y^2 + 1", {"x"}, {{"x^8 + 4*x^6 + 8*x^4 + 8*x^2 + 5", INT_MAX}}, 0, -6, 6, {}, 14,
-         "let(lam(#0^2 + 1), app(#0, app(#0, app(#0, x))))"},
-        {"g(g(x)), g = y^3 - y", {"x"}, {{"(x^3 - x)^3 - (x^3 - x)", INT_MAX}}, 0, -6, 6, {}, 12,
-         "let(lam(#0^3 - #0), app(#0, app(#0, x)))"},
+        {"#8 g(g(g(x))), g = y^2 + 1", {"x"}, {{"x^8 + 4*x^6 + 8*x^4 + 8*x^2 + 5", INT_MAX}}, 0, -6, 6, {}, 15,
+         "lam(let(lam(#0^2 + 1), app(#0, app(#0, app(#0, #1)))))"},
+        {"g(g(x)), g = y^3 - y", {"x"}, {{"(x^3 - x)^3 - (x^3 - x)", INT_MAX}}, 0, -6, 6, {}, 13,
+         "lam(let(lam(#0^3 - #0), app(#0, app(#0, #1))))"},
         {"g(g(g(x))), g = y^2 + y", {"x"}, {{"((x^2 + x)^2 + x^2 + x)^2 + (x^2 + x)^2 + x^2 + x", INT_MAX}}, 0, -6, 6, {},
-         14, "let(lam(#0^2 + #0), app(#0, app(#0, app(#0, x))))"},
-        {"g(g(x)), g = y^2 - 2", {"x"}, {{"(x^2 - 2)^2 - 2", INT_MAX}}, 0, -6, 6, {}, 9,
+         15, "lam(let(lam(#0^2 + #0), app(#0, app(#0, app(#0, #1)))))"},
+        {"g(g(x)), g = y^2 - 2", {"x"}, {{"(x^2 - 2)^2 - 2", INT_MAX}}, 0, -6, 6, {}, 10,
          "(x^2 - 2)^2 - 2 (smaller than the helper form, 12)"},
         // every third point an outlier: once open, now read as a period-3 piecewise by the residue detector
         {"dense outliers", {"x"}, {{"x^2 + 1", INT_MAX}}, 0, 0, 29,
-         {{1, 2}, {4, 2}, {7, 2}, {10, 2}, {13, 2}, {16, 2}, {19, 2}, {22, 2}, {25, 2}, {28, 2}}, 46,
-         "10 cases + x^2 + 1"},
+         {{1, 2}, {4, 2}, {7, 2}, {10, 2}, {13, 2}, {16, 2}, {19, 2}, {22, 2}, {25, 2}, {28, 2}}, 47,
+         "10 cases + #0^2 + 1"},
     };
 
     std::printf("budgets: best-first %zu rewrites; mcts %zu simulations x depth %zu\n", k_rewrites, k_simulations,

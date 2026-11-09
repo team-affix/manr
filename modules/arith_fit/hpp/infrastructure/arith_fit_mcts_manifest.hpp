@@ -6,6 +6,10 @@
 #include <random>
 #include <unordered_map>
 #include <vector>
+#include "infrastructure/abs_applying_evaluator.hpp"
+#include "infrastructure/abs_binders.hpp"
+#include "infrastructure/abs_closing_hypotheses.hpp"
+#include "infrastructure/abs_function_maker.hpp"
 #include "infrastructure/arith_evaluator.hpp"
 #include "infrastructure/arith_linear_hypotheses.hpp"
 #include "infrastructure/arith_literals.hpp"
@@ -30,6 +34,7 @@
 #include "infrastructure/uct_value_manifest.hpp"
 #include "infrastructure/value_table.hpp"
 #include "infrastructure/visits_table.hpp"
+#include "value_objects/abs_symbols.hpp"
 #include "value_objects/arith_sample.hpp"
 #include "value_objects/arith_symbols.hpp"
 #include "value_objects/expr.hpp"
@@ -47,14 +52,23 @@ struct arith_fit_mcts_manifest {
     struct evaluator_t : arith_evaluator<literals_t, literals_t> {
         using arith_evaluator<literals_t, literals_t>::arith_evaluator;
     };
+    struct function_maker_t : abs_function_maker<literals_t, expr_pool> {
+        using abs_function_maker<literals_t, expr_pool>::abs_function_maker;
+    };
     struct assembler_t : pw_assembler<expr_pool> {
         using pw_assembler<expr_pool>::pw_assembler;
     };
     struct builder_t : pw_builder<expr_pool, expr_pool, assembler_t> {
         using pw_builder<expr_pool, expr_pool, assembler_t>::pw_builder;
     };
-    struct filter_t : pw_branch_filter<evaluator_t> {
-        using pw_branch_filter<evaluator_t>::pw_branch_filter;
+    struct binders_t : abs_binders<literals_t> {
+        using abs_binders<literals_t>::abs_binders;
+    };
+    struct applying_t : abs_applying_evaluator<binders_t, evaluator_t> {
+        using abs_applying_evaluator<binders_t, evaluator_t>::abs_applying_evaluator;
+    };
+    struct filter_t : pw_branch_filter<applying_t> {
+        using pw_branch_filter<applying_t>::pw_branch_filter;
     };
     struct lines_t : arith_linear_hypotheses<literals_t, literals_t, expr_pool> {
         using arith_linear_hypotheses<literals_t, literals_t, expr_pool>::arith_linear_hypotheses;
@@ -65,8 +79,11 @@ struct arith_fit_mcts_manifest {
     struct hypotheses_t : pw_hypotheses_union<constants_t, lines_t> {
         using pw_hypotheses_union<constants_t, lines_t>::pw_hypotheses_union;
     };
-    struct binder_t : pw_extension_binder<hypotheses_t, filter_t, assembler_t> {
-        using pw_extension_binder<hypotheses_t, filter_t, assembler_t>::pw_extension_binder;
+    struct closing_t : abs_closing_hypotheses<hypotheses_t, function_maker_t> {
+        using abs_closing_hypotheses<hypotheses_t, function_maker_t>::abs_closing_hypotheses;
+    };
+    struct binder_t : pw_extension_binder<closing_t, filter_t, assembler_t> {
+        using pw_extension_binder<closing_t, filter_t, assembler_t>::pw_extension_binder;
     };
     struct absorber_t : pw_branch_absorber<filter_t, assembler_t> {
         using pw_branch_absorber<filter_t, assembler_t>::pw_branch_absorber;
@@ -111,15 +128,20 @@ struct arith_fit_mcts_manifest {
     expr_size sizes_;
     arith_symbols arith_symbols_;
     pw_symbols pw_symbols_;
+    abs_symbols abs_symbols_;
     literals_t literals_;
+    function_maker_t function_maker_;
     converter_t converter_;
     evaluator_t evaluator_;
+    binders_t binders_;
+    applying_t applying_;
     assembler_t assembler_;
     builder_t builder_;
     filter_t filter_;
     constants_t constants_;
     lines_t lines_;
     hypotheses_t hypotheses_;
+    closing_t closing_;
     binder_t binder_;
     absorber_t absorber_;
     simplifier_t simplifier_;

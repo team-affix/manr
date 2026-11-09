@@ -116,14 +116,14 @@ outcome finish(Manifest& m, const std::vector<poly_sample>& samples, std::chrono
 
 outcome run_best_first(const logic_problem& p, const std::vector<poly_sample>& samples) {
     const auto start = std::chrono::steady_clock::now();
-    logic_fit_manifest m{p.variables, samples, k_poly_default_limits, k_frontier};
+    logic_fit_manifest m{p.variables.size(), samples, k_poly_default_limits, k_frontier};
     while (m.search_.rewrites() < k_rewrites && m.search_.next()) {}
     return finish(m, samples, start);
 }
 
 outcome run_mcts(const logic_problem& p, const std::vector<poly_sample>& samples) {
     const auto start = std::chrono::steady_clock::now();
-    logic_fit_mcts_manifest m{p.variables, samples, k_poly_default_limits, k_probing_depth, k_simulations,
+    logic_fit_mcts_manifest m{p.variables.size(), samples, k_poly_default_limits, k_probing_depth, k_simulations,
                               k_exploration, 1};
     while (m.search_.next()) {}
     return finish(m, samples, start);
@@ -154,21 +154,21 @@ solved solve(const logic_problem& p, bool) {
 int main(int argc, char** argv) {
     const bench_options options = parse_bench_options(argc, argv);
     const std::vector<logic_problem> problems{
-        {"#9 parity of 4 bits", {"a", "b", "c", "d"}, parity, {}, {}, 7, "xor(xor(a, b), xor(c, d))"},
-        {"#10 majority of 3 bits", {"a", "b", "c"}, majority, {}, {}, 9, "or(and(a, b), and(c, or(a, b)))"},
-        {"parity of 3 bits", {"a", "b", "c"}, parity, {}, {}, 5, "xor(xor(a, b), c)"},
-        {"parity of 6 bits", {"a", "b", "c", "d", "e", "f"}, parity, {}, {}, 11, "xor of six"},
-        {"equivalence", {"a", "b"}, equivalence, {}, {}, 4, "not(xor(a, b))"},
-        {"implication", {"a", "b"}, implication, {}, {}, 4, "or(not(a), b)"},
-        {"and of 3 bits", {"a", "b", "c"}, conjunction, {}, {}, 5, "and(and(a, b), c)"},
-        {"multiplexer", {"s", "a", "b"}, multiplexer, {}, {}, 8, "or(and(s, a), and(not(s), b))"},
-        {"majority, two rows unseen", {"a", "b", "c"}, majority, {0, 7}, {}, 9, "or(and(a, b), and(c, or(a, b)))"},
-        {"parity of 4, wrong label", {"a", "b", "c", "d"}, parity, {}, {5}, 15,
-         "pw(case(point(1, 0, 1, 0), 1), xor(xor(a, b), xor(c, d)))"},
-        {"exactly one of 3", {"a", "b", "c"}, exactly_one, {}, {}, 12,
-         "pw(case(point(1, 1, 1), 0), xor(xor(a, b), c))"},
-        {"majority of 5 bits", {"a", "b", "c", "d", "e"}, majority, {}, {}, 37,
-         "the factored sum of the 10 triples; shares maj(c, d, e) twice, which helpers would compress"},
+        {"#9 parity of 4 bits", {"a", "b", "c", "d"}, parity, {}, {}, 9, "lams(4, xor(xor(#3, #2), xor(#1, #0)))"},
+        {"#10 majority of 3 bits", {"a", "b", "c"}, majority, {}, {}, 11, "lams(3, or(and(#2, #1), and(#0, or(#2, #1))))"},
+        {"parity of 3 bits", {"a", "b", "c"}, parity, {}, {}, 7, "lams(3, xor(xor(#2, #1), #0))"},
+        {"parity of 6 bits", {"a", "b", "c", "d", "e", "f"}, parity, {}, {}, 13, "lams(6, xor of six)"},
+        {"equivalence", {"a", "b"}, equivalence, {}, {}, 6, "lams(2, not(xor(#1, #0)))"},
+        {"implication", {"a", "b"}, implication, {}, {}, 6, "lams(2, or(not(#1), #0))"},
+        {"and of 3 bits", {"a", "b", "c"}, conjunction, {}, {}, 7, "lams(3, and(and(#2, #1), #0))"},
+        {"multiplexer", {"s", "a", "b"}, multiplexer, {}, {}, 10, "lams(3, or(and(#2, #1), and(not(#2), #0)))"},
+        {"majority, two rows unseen", {"a", "b", "c"}, majority, {0, 7}, {}, 11, "lams(3, or(and(#2, #1), and(#0, or(#2, #1))))"},
+        {"parity of 4, wrong label", {"a", "b", "c", "d"}, parity, {}, {5}, 17,
+         "pw(case(point(1, 0, 1, 0), 1), lams(4, xor(xor(#3, #2), xor(#1, #0))))"},
+        {"exactly one of 3", {"a", "b", "c"}, exactly_one, {}, {}, 14,
+         "pw(case(point(1, 1, 1), 0), lams(3, xor(xor(#2, #1), #0)))"},
+        {"majority of 5 bits", {"a", "b", "c", "d", "e"}, majority, {}, {}, 39,
+         "the factored sum of the 10 triples; shares maj(#2, #1, #0) twice, which helpers would compress"},
     };
 
     std::printf("budgets: best-first %zu rewrites; mcts %zu simulations x depth %zu\n", k_rewrites, k_simulations,

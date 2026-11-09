@@ -10,14 +10,16 @@
 #include "value_objects/rewrite.hpp"
 #include "value_objects/seq_symbols.hpp"
 
-// Local rule: closes an affine recurrence of order one, `rec(lam(lam(s)), c, n)` whose step body s is `r * #1 + d`
-// (r not 0 or 1; `#1` is the previous term), into its closed form `a * exp(r, n) + b`, with b = -d / (r - 1) the
-// fixed point and a = c - b; it fires only when b is an integer. The form drops what is trivial: `exp(r, n)` when a is 1, no `+ b` when b is 0, just b when a is 0.
-// Both sides have no value at a negative index, and the result is always smaller: the step alone is at least
-// `lam(lam(mul(r, #1)))`, plus `add(.., d)` when d is not 0.
-template<typename IFindPolynomial, typename IFindLiteralValue, typename IMakeLiteral, typename IMakeFunctor>
+// Local rule: closes an affine recurrence of order one, `rec(lam(lam(s)), c, n)` (or `lams(2, s)`) whose step body s is
+// `r * #1 + d` (r not 0 or 1; `#1` is the previous term), into its closed form `a * exp(r, n) + b`, with b = -d / (r -
+// 1) the fixed point and a = c - b; it fires only when b is an integer. The form drops what is trivial: `exp(r, n)`
+// when a is 1, no `+ b` when b is 0, just b when a is 0. Both sides have no value at a negative index, and the result
+// is always smaller: the step alone is at least `lam(lam(mul(r, #1)))`, plus `add(.., d)` when d is not 0.
+template<typename IFindBody, typename IFindPolynomial, typename IFindLiteralValue, typename IMakeLiteral,
+         typename IMakeFunctor>
 struct seq_power_closer {
-    seq_power_closer(IFindPolynomial& find_polynomial,
+    seq_power_closer(IFindBody& find_body,
+                     IFindPolynomial& find_polynomial,
                      IFindLiteralValue& find_literal_value,
                      IMakeLiteral& make_literal,
                      IMakeFunctor& make_functor,
@@ -25,6 +27,7 @@ struct seq_power_closer {
                      poly_symbols arithmetic_symbols);
     void detect(const expr* e, std::vector<rewrite>& out);
 private:
+    IFindBody& find_body_;
     IFindPolynomial& find_polynomial_;
     IFindLiteralValue& find_literal_value_;
     IMakeLiteral& make_literal_;
@@ -33,18 +36,21 @@ private:
     poly_symbols arithmetic_symbols_;
 };
 
-#define SEQ_POWER_CLOSER_TEMPLATE \
-    template<typename IFindPolynomial, typename IFindLiteralValue, typename IMakeLiteral, typename IMakeFunctor>
-#define SEQ_POWER_CLOSER seq_power_closer<IFindPolynomial, IFindLiteralValue, IMakeLiteral, IMakeFunctor>
+#define SEQ_POWER_CLOSER_TEMPLATE                                                                      \
+    template<typename IFindBody, typename IFindPolynomial, typename IFindLiteralValue, typename IMakeLiteral, \
+             typename IMakeFunctor>
+#define SEQ_POWER_CLOSER seq_power_closer<IFindBody, IFindPolynomial, IFindLiteralValue, IMakeLiteral, IMakeFunctor>
 
 SEQ_POWER_CLOSER_TEMPLATE SEQ_POWER_CLOSER::seq_power_closer(
+    IFindBody& find_body,
     IFindPolynomial& find_polynomial,
     IFindLiteralValue& find_literal_value,
     IMakeLiteral& make_literal,
     IMakeFunctor& make_functor,
     seq_symbols symbols,
     poly_symbols arithmetic_symbols)
-    : find_polynomial_(find_polynomial)
+    : find_body_(find_body)
+    , find_polynomial_(find_polynomial)
     , find_literal_value_(find_literal_value)
     , make_literal_(make_literal)
     , make_functor_(make_functor)
@@ -58,13 +64,10 @@ SEQ_POWER_CLOSER_TEMPLATE void SEQ_POWER_CLOSER::detect(const expr* e, std::vect
     const std::optional<integer> start = find_literal_value_.find_value(f->args[1]);
     if (!start.has_value())
         return;
-    const expr::functor* outer = std::get_if<expr::functor>(&f->args[0]->content);
-    if (outer == nullptr || outer->id != symbols_.lambda || outer->args.size() != 1)
+    const std::optional<const expr*> body = find_body_.find_body(f->args[0], 2);
+    if (!body.has_value())
         return;
-    const expr::functor* inner = std::get_if<expr::functor>(&outer->args[0]->content);
-    if (inner == nullptr || inner->id != symbols_.lambda || inner->args.size() != 1)
-        return;
-    const auto step = find_polynomial_.find_polynomial(inner->args[0]);
+    const auto step = find_polynomial_.find_polynomial(body.value());
     if (!step.has_value() || step.value().terms.empty() || step.value().terms.size() > 2)
         return;
     integer ratio = 0;

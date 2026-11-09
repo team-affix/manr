@@ -5,9 +5,14 @@ The sequence domain fits integer sequences, data over one index variable, with a
 #7 (powers of two).
 
 ```
-pw(case(point(0), 0), case(point(1), 1), case(point(2), 1), ..., ?0)   ->   rec(lam(lam(lam(#1 + #2))), 0, 1, n)
-pw(case(point(0), 1), case(point(1), 2), case(point(2), 4), ..., ?0)   ->   exp(2, n)
+pw(case(point(0), 0), case(point(1), 1), case(point(2), 1), ..., ?0)   ->   lam(rec(lams(3, #1 + #2), 0, 1, #0))
+pw(case(point(0), 1), case(point(1), 2), case(point(2), 4), ..., ?0)   ->   lam(exp(2, #0))
 ```
+
+**Notation.** There are no named variables: inputs and parameters are de Bruijn indices `#k`, and every fitted model
+is a closed function of the data piecewise's inputs, `lam(b)` or `lams(k, b)` (`plans.md`, bound variables). Older
+examples below that name an input (`x`, `xs`, `n`, `a`) mean its index: one input is `#0`; with k inputs the first is
+`#(k-1)` and the last `#0`.
 
 ## Modules
 

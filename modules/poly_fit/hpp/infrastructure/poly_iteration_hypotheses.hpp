@@ -16,14 +16,15 @@
 
 constexpr size_t k_poly_fit_default_max_iterated_degree = 16;
 
-// A detector that reads data over one variable as a polynomial iterated k times, `g(g(...g(x)))`, and proposes it
-// with a helper: `let(lam(g(#0)), app(#0, app(#0, ... x)))`, `#0` being the helper in the `let`'s scope and the
-// parameter inside the helper's `lam`. For each degree d >= 2 and count k >= 2 with d^k at most `max_degree` and
-// below the number of samples, the data is interpolated at degree n = d^k; a polynomial P reproducing every sample is
-// then solved for g with g^k = P, exactly: g's leading coefficient is the integer root of P's of order
-// (d^k - 1) / (d - 1), and each next coefficient of g, from the top, is the one making the next coefficient of g^k
-// match P's (it enters that coefficient linearly), found by trying 0 and 1 and dividing. The whole g^k is checked
-// against P before anything is proposed. Whether the helper form is smaller than P is the search's choice.
+// A detector that reads data over one input as a polynomial iterated k times, `g(g(...g(x)))`, and proposes it with a
+// helper: `let(lam(g(#0)), app(#0, app(#0, ... #1)))`, the body of the model's `lam`: in the `let`'s scope `#0` is the
+// helper and `#1` the input (`#0` outside it), and inside the helper's `lam` `#0` is its parameter. For each degree d
+// >= 2 and count k >= 2 with d^k at most `max_degree` and below the number of samples, the data is interpolated at
+// degree n = d^k; a polynomial P reproducing every sample is then solved for g with g^k = P, exactly: g's leading
+// coefficient is the integer root of P's of order (d^k - 1) / (d - 1), and each next coefficient of g, from the top, is
+// the one making the next coefficient of g^k match P's (it enters that coefficient linearly), found by trying 0 and 1
+// and dividing. The whole g^k is checked against P before anything is proposed. Whether the helper form is smaller than
+// P is the search's choice.
 template<typename IFindSamples,
          typename IInterpolate,
          typename IEvaluatePolynomial,
@@ -37,7 +38,6 @@ struct poly_iteration_hypotheses {
                               IRender& render,
                               IMakeIndex& make_index,
                               IMakeFunctor& make_functor,
-                              uint32_t variable,
                               abs_symbols symbols,
                               size_t max_degree = k_poly_fit_default_max_iterated_degree);
     void propose_hypotheses(const std::vector<pw_data_point>& points, std::vector<const expr*>& out);
@@ -55,7 +55,6 @@ private:
     IRender& render_;
     IMakeIndex& make_index_;
     IMakeFunctor& make_functor_;
-    uint32_t variable_;
     abs_symbols symbols_;
     size_t max_degree_;
 };
@@ -73,7 +72,6 @@ POLY_ITERATION_HYPOTHESES_TEMPLATE POLY_ITERATION_HYPOTHESES::poly_iteration_hyp
     IRender& render,
     IMakeIndex& make_index,
     IMakeFunctor& make_functor,
-    uint32_t variable,
     abs_symbols symbols,
     size_t max_degree)
     : find_samples_(find_samples)
@@ -82,7 +80,6 @@ POLY_ITERATION_HYPOTHESES_TEMPLATE POLY_ITERATION_HYPOTHESES::poly_iteration_hyp
     , render_(render)
     , make_index_(make_index)
     , make_functor_(make_functor)
-    , variable_(variable)
     , symbols_(symbols)
     , max_degree_(max_degree) {}
 
@@ -128,7 +125,8 @@ POLY_ITERATION_HYPOTHESES_TEMPLATE void POLY_ITERATION_HYPOTHESES::propose_hypot
                 body.terms.emplace(monomial, root.value()[power]);
             }
             const expr* helper = make_index_.make_index(0);
-            const expr* calls = make_functor_.make_functor(variable_, {});
+            // the input, one binder further out than the helper
+            const expr* calls = make_index_.make_index(1);
             for (size_t call = 0; call < count; ++call)
                 calls = make_functor_.make_functor(symbols_.application, {helper, calls});
             const expr* function = make_functor_.make_functor(symbols_.lambda, {render_.render(body)});

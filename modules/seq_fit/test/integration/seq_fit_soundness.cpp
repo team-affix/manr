@@ -19,7 +19,7 @@ struct SeqFitSoundnessIntegrationTest : ::testing::Test {
 
     // Performs every rewrite of each expression on `walks` random walks of `depth` steps; the number checked.
     size_t walk(const std::vector<poly_sample>& samples, int walks, int depth) {
-        seq_fit_manifest manifest{"n", samples, k_poly_default_limits, k_poly_fit_default_limits, 1};
+        seq_fit_manifest manifest{samples, k_poly_default_limits, k_poly_fit_default_limits, 1};
         seq_fit_rules_manifest& rules = manifest.rule_set_;
         const std::vector<pw_data_point> points = rules.fit_.converter_.convert(samples);
         size_t checked = 0;

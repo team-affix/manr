@@ -2,12 +2,11 @@
 #include <sstream>
 
 seq_fit_runtime::seq_fit_runtime(
-    const std::string& variable,
     const std::vector<poly_sample>& samples,
     const poly_limits& limits,
     const poly_fit_limits& fit_limits,
     size_t frontier_capacity)
-    : manifest_(variable, samples, limits, fit_limits, frontier_capacity) {}
+    : manifest_(samples, limits, fit_limits, frontier_capacity) {}
 
 bool seq_fit_runtime::next() {
     return manifest_.search_.next();

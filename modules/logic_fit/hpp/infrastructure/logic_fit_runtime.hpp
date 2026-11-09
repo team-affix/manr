@@ -12,7 +12,7 @@
 // Pull loop: call `next()` until it returns false (or until satisfied), reading `best()` along the way. Results
 // print in prefix form.
 struct logic_fit_runtime {
-    logic_fit_runtime(const std::vector<std::string>& variables,
+    logic_fit_runtime(size_t arity,
                       const std::vector<poly_sample>& samples,
                       const poly_limits& limits,
                       size_t frontier_capacity);

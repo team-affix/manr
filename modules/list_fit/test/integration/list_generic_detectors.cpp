@@ -58,7 +58,7 @@ TEST_F(ListGenericDetectorsIntegrationTest, TheMapDetectorFindsPolynomialBodiesO
                                 return result;
                             })),
                             out);
-    EXPECT_THAT(printed(), Contains("map(lam(3 * #0 - 1), xs)"));
+    EXPECT_THAT(printed(), Contains("map(lam(3 * #0 - 1), #0)"));
 }
 
 TEST_F(ListGenericDetectorsIntegrationTest, TheFoldDetectorFindsPolynomialStepsOnIntegerData) {
@@ -69,7 +69,7 @@ TEST_F(ListGenericDetectorsIntegrationTest, TheFoldDetectorFindsPolynomialStepsO
                                  return total;
                              })),
                              out);
-    EXPECT_THAT(printed(), Contains("fold(lam(lam(#0^2 + #1)), 0, xs)"));
+    EXPECT_THAT(printed(), Contains("fold(lam(lam(#0^2 + #1)), 0, #0)"));
 }
 
 TEST_F(ListGenericDetectorsIntegrationTest, TheMapDetectorHandsElementsOfAnyDomainToTheElementDomain) {
@@ -87,7 +87,7 @@ TEST_F(ListGenericDetectorsIntegrationTest, TheMapDetectorHandsElementsOfAnyDoma
     maps.propose_hypotheses({{.input = list({one, two, one}), .output = list({two, one, two})}}, out);
     EXPECT_EQ(handed, (std::vector<pw_data_point>{{.input = point({one}), .output = two},
                                                   {.input = point({two}), .output = one}}));
-    EXPECT_EQ(printed(), std::vector<std::string>{"map(lam(#0), xs)"});
+    EXPECT_EQ(printed(), std::vector<std::string>{"map(lam(#0), #0)"});
 }
 
 TEST_F(ListGenericDetectorsIntegrationTest, TheFoldDetectorHandsResultsOfAnyDomainToTheStepDomain) {

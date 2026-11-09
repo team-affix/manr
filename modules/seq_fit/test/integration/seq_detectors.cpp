@@ -14,7 +14,7 @@ using ::testing::Contains;
 namespace {
 
 struct SeqDetectorsIntegrationTest : ::testing::Test {
-    seq_fit_manifest manifest{"n", {}, k_poly_default_limits, k_poly_fit_default_limits, 1};
+    seq_fit_manifest manifest{{}, k_poly_default_limits, k_poly_fit_default_limits, 1};
     seq_fit_rules_manifest& rules = manifest.rule_set_;
     poly_kernel_manifest& kernel = manifest.kernel_;
     std::vector<const expr*> out{};
@@ -37,7 +37,7 @@ struct SeqDetectorsIntegrationTest : ::testing::Test {
         return kernel.literals_.make_literal(value);
     }
     const expr* index() {
-        return kernel.parser_.parse("n");
+        return kernel.parser_.parse("#0");
     }
     // `rec` of the step body `step`, closed under one lambda for the index and one per base
     const expr* recurrence(const std::string& step, const std::vector<int>& bases) {
@@ -112,17 +112,17 @@ TEST_F(SeqDetectorsIntegrationTest, TheEvaluatorEvaluatesArithmeticOverAPower) {
 }
 
 TEST_F(SeqDetectorsIntegrationTest, TheEvaluatorLeavesPolynomialsToThePolynomialDomain) {
-    EXPECT_EQ(value_at(kernel.parser_.parse("n^2 + 1"), 3), integer(10));
+    EXPECT_EQ(value_at(kernel.parser_.parse("#0^2 + 1"), 3), integer(10));
 }
 
 TEST_F(SeqDetectorsIntegrationTest, TheSecondOrderDetectorReadsFibonacci) {
     rules.second_order_.propose_hypotheses(points(recurrence_samples({0, 1}, fibonacci_step, 0, 15)), out);
-    EXPECT_THAT(printed(), Contains("rec(lam(lam(lam(#1 + #2))), 0, 1, n)"));
+    EXPECT_THAT(printed(), Contains("rec(lam(lam(lam(#1 + #2))), 0, 1, #0)"));
 }
 
 TEST_F(SeqDetectorsIntegrationTest, TheFirstOrderDetectorReadsAStepThatUsesTheIndex) {
     rules.first_order_.propose_hypotheses(points(recurrence_samples({1}, factorial_step, 0, 10)), out);
-    EXPECT_THAT(printed(), Contains("rec(lam(lam(#0 * #1)), 1, n)"));
+    EXPECT_THAT(printed(), Contains("rec(lam(lam(#0 * #1)), 1, #0)"));
 }
 
 TEST_F(SeqDetectorsIntegrationTest, TheFirstOrderDetectorFindsNoStepForFibonacci) {
@@ -153,17 +153,17 @@ TEST_F(SeqDetectorsIntegrationTest, TheDetectorReadsAroundAWrongLabel) {
     std::vector<poly_sample> samples = recurrence_samples({1}, doubling_step, 0, 20);
     samples[9].output += 1;
     rules.first_order_.propose_hypotheses(points(samples), out);
-    EXPECT_THAT(printed(), Contains("rec(lam(lam(2 * #1)), 1, n)"));
+    EXPECT_THAT(printed(), Contains("rec(lam(lam(2 * #1)), 1, #0)"));
 }
 
 TEST_F(SeqDetectorsIntegrationTest, TheCloserTurnsAGeometricRecurrenceIntoAPower) {
-    EXPECT_THAT(closed(recurrence("2 * #1", {1})), Contains("exp(2, n)"));
-    EXPECT_THAT(closed(recurrence("3 * #1", {5})), Contains("5 * exp(3, n)"));
+    EXPECT_THAT(closed(recurrence("2 * #1", {1})), Contains("exp(2, #0)"));
+    EXPECT_THAT(closed(recurrence("3 * #1", {5})), Contains("5 * exp(3, #0)"));
 }
 
 TEST_F(SeqDetectorsIntegrationTest, TheCloserTurnsAnAffineRecurrenceIntoAShiftedPower) {
-    EXPECT_THAT(closed(recurrence("2 * #1 + 1", {0})), Contains("exp(2, n) - 1"));
-    EXPECT_THAT(closed(recurrence("3 * #1 - 4", {5})), Contains("3 * exp(3, n) + 2"));
+    EXPECT_THAT(closed(recurrence("2 * #1 + 1", {0})), Contains("exp(2, #0) - 1"));
+    EXPECT_THAT(closed(recurrence("3 * #1 - 4", {5})), Contains("3 * exp(3, #0) + 2"));
 }
 
 TEST_F(SeqDetectorsIntegrationTest, TheCloserTurnsARecurrenceStartingAtItsFixedPointIntoTheFixedPoint) {

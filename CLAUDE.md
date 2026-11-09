@@ -33,8 +33,9 @@ core/test/{unit,integration}, main.cpp
 modules/<name>/{hpp,cpp,test}/...             one directory per rule module; prefix every file with the module's
                                               domain prefix, since every module's hpp/ is on the include path
   piecewise/  (pw_)                           the extension algebra over data sets, generic over the domain
-  abstraction/ (abs_)                         helpers, generic over the domain: `lam`, `app`, `let`, de Bruijn
-                                              indices, a reducer (beta-reduction with shifting) and an evaluator
+  abstraction/ (abs_)                         binders and helpers, generic over the domain: `lam`, `lams`, `app`,
+                                              `let`, de Bruijn indices, a reducer (beta-reduction with shifting),
+                                              closing of fitted bodies, applying evaluation, the binder merger
   arith/      (arith_)                        integer arithmetic: literals, evaluator, simplifier
   arith_fit/  (arith_)                        composition: linear-fit detector, manifest, runtime
   poly/       (poly_)                         polynomial algebra over Z: normal form oracle, rules, detectors
@@ -93,11 +94,15 @@ A module depends on core and on other modules' headers; core never depends on a 
 - Integers are `integer` (`core/hpp/value_objects/integer.hpp`, Boost's `cpp_int`): arbitrary precision, so literal
   and coefficient arithmetic is exact and never overflows. Don't use built-in integer types for literal values.
 - Polynomial algebra is the first full domain. Read `docs/poly.md` for its rules, detectors and benchmark.
-- **Bound variables use de Bruijn indices** (`docs/plans.md`, bound variables): any functor that binds a variable
-  refers to it by index, never by name, so binders nest. Programs take closed functions, `lam(body)`, and an index is
-  a nullary symbol `#k` that the body's domain treats as a variable, so polynomial fitting and rules work on bodies
-  unchanged: `map(lam(#0^2), xs)`, `fold(lam(lam(#0 + #1)), 0, xs)` (head `#0`, accumulator `#1`),
-  `rec(lam(lam(lam(#1 + #2))), 0, 1, n)` (index `#0`, previous terms `#1`...). Don't add a named binder.
+- **No named variables: every variable is a de Bruijn index** (`docs/plans.md`, bound variables), inputs included.
+  An index is a nullary symbol `#k` that a body's domain treats as a variable, so polynomial fitting and rules work on
+  bodies unchanged. Binders are explicit and local: `lam(b)` binds one, `lams(k, b)` binds k at once (the first
+  argument `#(k-1)`, the last `#0`), and a rule merges chains of 3+ `lam`s into one `lams`. **A piecewise is a
+  function of its keys**: there is no root or global scope, and what replaces a piecewise's catch-all is closed over
+  the piecewise's own inputs (`abs_closing_hypotheses`), so a fitted piecewise becomes e.g. `lam(#0^2 + 1)`,
+  `lams(2, (#1 + #0)^2)`, `lam(map(lam(#0^2), #0))`, `lam(fold(lam(lam(#0 + #1)), 0, #0))` (head `#0`,
+  accumulator `#1`), `lam(rec(lams(3, #1 + #2), 0, 1, #0))`. Evaluating a function at an input applies it
+  (`abs_applying_evaluator`). Free variables `?n` are unchanged. Don't add a named variable.
 - Lists are the first program domain. Read `docs/list.md`: detectors recognize a program's shape and hand the rest
   to polynomial fitting.
 - Sequences are the third domain. Read `docs/seq.md`: a recurrence's steps are read off consecutive terms and fitted

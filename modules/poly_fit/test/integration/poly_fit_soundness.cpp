@@ -20,7 +20,7 @@ struct PolyFitSoundnessIntegrationTest : ::testing::Test {
 
     // Performs every rewrite of each expression on `walks` random walks of `depth` steps; the number checked.
     size_t walk(const std::vector<std::string>& variables, const std::vector<poly_sample>& samples, int walks, int depth) {
-        poly_fit_manifest manifest{variables, samples, k_poly_default_limits, k_poly_fit_default_limits, 1};
+        poly_fit_manifest manifest{variables.size(), samples, k_poly_default_limits, k_poly_fit_default_limits, 1};
         poly_fit_rules_manifest& rules = manifest.rule_set_;
         const std::vector<pw_data_point> points = rules.fit_.converter_.convert(samples);
         size_t checked = 0;

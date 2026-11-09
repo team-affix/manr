@@ -9,7 +9,7 @@
 namespace {
 
 struct PolyPointEvaluatorIntegrationTest : ::testing::Test {
-    poly_fit_manifest manifest{{"x", "y"}, {}, k_poly_default_limits, k_poly_fit_default_limits, 1};
+    poly_fit_manifest manifest{2, {}, k_poly_default_limits, k_poly_fit_default_limits, 1};
     poly_kernel_manifest& kernel = manifest.kernel_;
 
     const expr* point(int x, int y) {
@@ -28,16 +28,16 @@ struct PolyPointEvaluatorIntegrationTest : ::testing::Test {
 }
 
 TEST_F(PolyPointEvaluatorIntegrationTest, EveryShapeOfTheSamePolynomialHasTheSameValue) {
-    EXPECT_EQ(evaluate(kernel.parser_.parse("(x + y)^2 - 3*x"), point(2, -5)), integer(3));
-    EXPECT_EQ(evaluate(kernel.parser_.parse("x^2 + 2*x*y + y^2 - 3*x"), point(2, -5)), integer(3));
+    EXPECT_EQ(evaluate(kernel.parser_.parse("(#1 + #0)^2 - 3*#1"), point(2, -5)), integer(3));
+    EXPECT_EQ(evaluate(kernel.parser_.parse("#1^2 + 2*#1*#0 + #0^2 - 3*#1"), point(2, -5)), integer(3));
 }
 
 TEST_F(PolyPointEvaluatorIntegrationTest, AnExtensionTermOrAnotherVariableHasNoValue) {
     EXPECT_FALSE(evaluate(kernel.exprs_.make_var(0), point(1, 1)).has_value());
-    EXPECT_FALSE(evaluate(kernel.parser_.parse("x + z"), point(1, 1)).has_value());
+    EXPECT_FALSE(evaluate(kernel.parser_.parse("#1 + z"), point(1, 1)).has_value());
 }
 
 TEST_F(PolyPointEvaluatorIntegrationTest, APointOfTheWrongArityHasNoValue) {
     const expr* one = kernel.exprs_.make_functor(manifest.rule_set_.point_symbol_, {kernel.literals_.make_literal(1)});
-    EXPECT_FALSE(evaluate(kernel.parser_.parse("x"), one).has_value());
+    EXPECT_FALSE(evaluate(kernel.parser_.parse("#1"), one).has_value());
 }

@@ -1,49 +1,49 @@
 # problem	solver	cost	target	seconds	sound
-cubic	best-1st	5	5	0.0173082	1
-cubic	mcts	5	5	0.00365366	1
-power of linear	best-1st	7	7	0.0348412	1
-power of linear	mcts	7	7	0.0624087	1
-horner quintic	best-1st	19	19	0.0502408	1
-horner quintic	mcts	19	19	0.181278	1
-one outlier	best-1st	10	10	0.00138257	1
-one outlier	mcts	10	10	0.00170146	1
-outlier run	best-1st	17	101	0.0272775	1
-outlier run	mcts	17	101	0.0194322	1
-scattered outliers	best-1st	30	30	0.00443867	1
-scattered outliers	mcts	30	30	0.00482859	1
-cubic 1000	best-1st	9	9	0.0703068	1
-cubic 1000	mcts	9	9	0.0629045	1
-two-variable square	best-1st	5	5	0.0478165	1
-two-variable square	mcts	5	5	0.0506672	1
-two-variable product	best-1st	17	17	0.0898698	1
-two-variable product	mcts	17	17	0.142854	1
-three-variable cube	best-1st	7	7	0.199431	1
-three-variable cube	mcts	7	7	1.18952	1
-three-variable mixed	best-1st	9	11	0.102065	1
-three-variable mixed	mcts	9	11	0.0987828	1
-two pieces	best-1st	13	13	0.00495676	1
-two pieces	mcts	13	13	0.00515425	1
-two pieces 400	best-1st	13	13	0.0138156	1
-two pieces 400	mcts	13	13	0.0135181	1
-absolute value	best-1st	9	9	0.00519686	1
-absolute value	mcts	9	9	0.00534299	1
-three pieces	best-1st	20	20	0.0407615	1
-three pieces	mcts	20	20	0.0534467	1
-pieces with outlier	best-1st	17	17	0.00470178	1
-pieces with outlier	mcts	17	17	0.00502766	1
-split on x	best-1st	13	13	0.261376	1
-split on x	mcts	13	13	0.223517	1
-split on y	best-1st	13	13	0.303939	1
-split on y	mcts	13	13	0.313621	1
-sign flip at zero	best-1st	11	11	0.291711	1
-sign flip at zero	mcts	11	11	0.24	1
-#8 g(g(g(x))), g = y^2 + 1	best-1st	14	14	0.44027	1
-#8 g(g(g(x))), g = y^2 + 1	mcts	14	14	0.0822696	1
-g(g(x)), g = y^3 - y	best-1st	12	12	0.0289311	1
-g(g(x)), g = y^3 - y	mcts	12	12	1.24636	1
-g(g(g(x))), g = y^2 + y	best-1st	14	14	0.0279324	1
-g(g(g(x))), g = y^2 + y	mcts	14	14	0.0259264	1
-g(g(x)), g = y^2 - 2	best-1st	9	9	0.0221952	1
-g(g(x)), g = y^2 - 2	mcts	9	9	0.0238622	1
-dense outliers	best-1st	17	46	0.0499104	1
-dense outliers	mcts	17	46	0.014403	1
+cubic	best-1st	6	6	0.0191648	1
+cubic	mcts	6	6	0.00387199	1
+power of linear	best-1st	8	8	0.0374655	1
+power of linear	mcts	8	8	0.0630499	1
+horner quintic	best-1st	20	20	0.0812354	1
+horner quintic	mcts	20	20	0.225672	1
+one outlier	best-1st	11	11	0.00149409	1
+one outlier	mcts	11	11	0.00207758	1
+outlier run	best-1st	18	102	0.0297584	1
+outlier run	mcts	18	102	0.0221555	1
+scattered outliers	best-1st	31	31	0.00498526	1
+scattered outliers	mcts	31	31	0.00486451	1
+cubic 1000	best-1st	10	10	0.116508	1
+cubic 1000	mcts	10	10	0.0405919	1
+two-variable square	best-1st	7	7	0.0482778	1
+two-variable square	mcts	7	7	0.045263	1
+two-variable product	best-1st	19	19	0.0713297	1
+two-variable product	mcts	19	19	0.14944	1
+three-variable cube	best-1st	9	9	0.132307	1
+three-variable cube	mcts	9	9	1.11386	1
+three-variable mixed	best-1st	11	13	0.0943291	1
+three-variable mixed	mcts	11	13	0.128191	1
+two pieces	best-1st	14	14	0.00555519	1
+two pieces	mcts	14	14	0.00532712	1
+two pieces 400	best-1st	14	14	0.0130393	1
+two pieces 400	mcts	14	14	0.0125696	1
+absolute value	best-1st	10	10	0.00530389	1
+absolute value	mcts	10	10	0.00507471	1
+three pieces	best-1st	21	21	0.0295748	1
+three pieces	mcts	21	21	0.0347551	1
+pieces with outlier	best-1st	19	19	0.00587848	1
+pieces with outlier	mcts	19	19	0.00556939	1
+split on x	best-1st	15	15	0.273384	1
+split on x	mcts	15	15	0.219994	1
+split on y	best-1st	15	15	0.313269	1
+split on y	mcts	15	15	0.318417	1
+sign flip at zero	best-1st	13	13	0.379737	1
+sign flip at zero	mcts	13	13	0.23554	1
+#8 g(g(g(x))), g = y^2 + 1	best-1st	15	15	0.408636	1
+#8 g(g(g(x))), g = y^2 + 1	mcts	15	15	0.110353	1
+g(g(x)), g = y^3 - y	best-1st	13	13	0.0311172	1
+g(g(x)), g = y^3 - y	mcts	13	13	1.28378	1
+g(g(g(x))), g = y^2 + y	best-1st	15	15	0.0376039	1
+g(g(g(x))), g = y^2 + y	mcts	15	15	0.0238329	1
+g(g(x)), g = y^2 - 2	best-1st	10	10	0.0238255	1
+g(g(x)), g = y^2 - 2	mcts	10	10	0.0148026	1
+dense outliers	best-1st	18	47	0.0838411	1
+dense outliers	mcts	18	47	0.0237196	1

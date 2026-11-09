@@ -1,7 +1,7 @@
 #include "infrastructure/logic_fit_mcts_manifest.hpp"
 
 logic_fit_mcts_manifest::logic_fit_mcts_manifest(
-    const std::vector<std::string>& variables,
+    size_t arity,
     const std::vector<poly_sample>& samples,
     const poly_limits& limits,
     size_t probing_depth,
@@ -9,7 +9,7 @@ logic_fit_mcts_manifest::logic_fit_mcts_manifest(
     double exploration_constant,
     uint32_t seed)
     : kernel_(limits)
-    , rule_set_(kernel_, variables, samples)
+    , rule_set_(kernel_, arity, samples)
     , visits_()
     , values_()
     , rng_(seed)

@@ -43,7 +43,7 @@ std::vector<integer> doubled(const std::vector<integer>& list) {
 
 TEST_F(ListDetectorsIntegrationTest, TheIntegerMapDetectorHandsElementPairsToTheElementDomain) {
     rules.integer_maps_.propose_hypotheses(points(sample_listed(all_lists(-2, 2, 2), doubled)), out);
-    EXPECT_THAT(printed(), Contains("map(lam(2 * #0), xs)"));
+    EXPECT_THAT(printed(), Contains("map(lam(2 * #0), #0)"));
 }
 
 TEST_F(ListDetectorsIntegrationTest, TheIntegerMapDetectorIgnoresOutputsOfAnotherLength) {
@@ -62,7 +62,7 @@ TEST_F(ListDetectorsIntegrationTest, TheIntegerFoldDetectorReadsStepsOffListsAnd
                                         return total;
                                     })),
                                     out);
-    EXPECT_THAT(printed(), Contains("fold(lam(lam(#0^2 + #1)), 0, xs)"));
+    EXPECT_THAT(printed(), Contains("fold(lam(lam(#0^2 + #1)), 0, #0)"));
 }
 
 TEST_F(ListDetectorsIntegrationTest, TheIntegerFoldDetectorNeedsTheEmptyList) {
@@ -83,7 +83,7 @@ TEST_F(ListDetectorsIntegrationTest, TheFilterDetectorKeepsValuesBelowAThreshold
                                              return kept;
                                          })),
                                          out);
-    EXPECT_EQ(printed(), std::vector<std::string>{"filter(lam(lt(#0, 1)), xs)"});
+    EXPECT_EQ(printed(), std::vector<std::string>{"filter(lam(lt(#0, 1)), #0)"});
 }
 
 TEST_F(ListDetectorsIntegrationTest, TheFilterDetectorProposesNothingWhenNoThresholdSeparatesTheValues) {
@@ -106,7 +106,7 @@ TEST_F(ListDetectorsIntegrationTest, TheExtremumFoldDetectorReadsTheLargestEleme
                                                  return largest;
                                              })),
                                              out);
-    EXPECT_EQ(printed(), std::vector<std::string>{"fold(lam(lam(pw(when(lt(#1, #0), #0), #1))), 0, xs)"});
+    EXPECT_EQ(printed(), std::vector<std::string>{"fold(lam(lam(pw(when(lt(#1, #0), #0), #1))), 0, #0)"});
 }
 
 TEST_F(ListDetectorsIntegrationTest, TheExtremumFoldDetectorReadsTheSmallestElementWithoutTails) {
@@ -115,7 +115,7 @@ TEST_F(ListDetectorsIntegrationTest, TheExtremumFoldDetectorReadsTheSmallestElem
             return *std::min_element(list.begin(), list.end());
         })),
         out);
-    EXPECT_EQ(printed(), std::vector<std::string>{"fold(lam(lam(pw(when(lt(#0, #1), #0), #1))), 0, xs)"});
+    EXPECT_EQ(printed(), std::vector<std::string>{"fold(lam(lam(pw(when(lt(#0, #1), #0), #1))), 0, #0)"});
 }
 
 TEST_F(ListDetectorsIntegrationTest, TheExtremumFoldDetectorTakesTheBaseFromOutputsBeyondEveryElement) {
@@ -124,7 +124,7 @@ TEST_F(ListDetectorsIntegrationTest, TheExtremumFoldDetectorTakesTheBaseFromOutp
             return std::max(integer(2), *std::max_element(list.begin(), list.end()));
         })),
         out);
-    EXPECT_EQ(printed(), std::vector<std::string>{"fold(lam(lam(pw(when(lt(#1, #0), #0), #1))), 2, xs)"});
+    EXPECT_EQ(printed(), std::vector<std::string>{"fold(lam(lam(pw(when(lt(#1, #0), #0), #1))), 2, #0)"});
 }
 
 TEST_F(ListDetectorsIntegrationTest, TheExtremumFoldDetectorProposesNothingForSums) {
@@ -144,7 +144,7 @@ TEST_F(ListDetectorsIntegrationTest, TheExtremumFoldDetectorDoesNotTakeAWrongLab
     });
     samples[0].output[0] += 100;
     rules.extremum_folds_.propose_hypotheses(points(samples), out);
-    EXPECT_EQ(printed(), std::vector<std::string>{"fold(lam(lam(pw(when(lt(#1, #0), #0), #1))), 0, xs)"});
+    EXPECT_EQ(printed(), std::vector<std::string>{"fold(lam(lam(pw(when(lt(#1, #0), #0), #1))), 0, #0)"});
 }
 
 TEST_F(ListDetectorsIntegrationTest, TheProductFoldDetectorReadsAProductWithoutTails) {
@@ -156,7 +156,7 @@ TEST_F(ListDetectorsIntegrationTest, TheProductFoldDetectorReadsAProductWithoutT
             return product;
         })),
         out);
-    EXPECT_EQ(printed(), std::vector<std::string>{"fold(lam(lam(#0 * #1)), 1, xs)"});
+    EXPECT_EQ(printed(), std::vector<std::string>{"fold(lam(lam(#0 * #1)), 1, #0)"});
 }
 
 TEST_F(ListDetectorsIntegrationTest, TheProductFoldDetectorReadsALinearFactorAndABase) {
@@ -168,7 +168,7 @@ TEST_F(ListDetectorsIntegrationTest, TheProductFoldDetectorReadsALinearFactorAnd
             return product;
         })),
         out);
-    EXPECT_EQ(printed(), std::vector<std::string>{"fold(lam(lam(-1 * #0 * #1 + 2 * #1)), 3, xs)"});
+    EXPECT_EQ(printed(), std::vector<std::string>{"fold(lam(lam(-1 * #0 * #1 + 2 * #1)), 3, #0)"});
 }
 
 TEST_F(ListDetectorsIntegrationTest, TheProductFoldDetectorStartsPastAWrongLabelOnTheFirstList) {
@@ -180,7 +180,7 @@ TEST_F(ListDetectorsIntegrationTest, TheProductFoldDetectorStartsPastAWrongLabel
     });
     samples[0].output[0] += 1;
     rules.product_folds_.propose_hypotheses(points(samples), out);
-    EXPECT_EQ(printed(), std::vector<std::string>{"fold(lam(lam(#0 * #1)), 1, xs)"});
+    EXPECT_EQ(printed(), std::vector<std::string>{"fold(lam(lam(#0 * #1)), 1, #0)"});
 }
 
 TEST_F(ListDetectorsIntegrationTest, TheProductFoldDetectorProposesNothingForSums) {
@@ -200,7 +200,7 @@ TEST_F(ListDetectorsIntegrationTest, TheCountFoldDetectorCountsElementsAboveAThr
             return integer(std::count_if(list.begin(), list.end(), [](const integer& value) { return value > 2; }));
         })),
         out);
-    EXPECT_EQ(printed(), std::vector<std::string>{"fold(lam(lam(pw(when(lt(2, #0), #1 + 1), #1))), 0, xs)"});
+    EXPECT_EQ(printed(), std::vector<std::string>{"fold(lam(lam(pw(when(lt(2, #0), #1 + 1), #1))), 0, #0)"});
 }
 
 TEST_F(ListDetectorsIntegrationTest, TheCountFoldDetectorCountsElementsBelowAThresholdFromABase) {
@@ -209,7 +209,7 @@ TEST_F(ListDetectorsIntegrationTest, TheCountFoldDetectorCountsElementsBelowAThr
             return 5 + integer(std::count_if(list.begin(), list.end(), [](const integer& value) { return value < -1; }));
         })),
         out);
-    EXPECT_EQ(printed(), std::vector<std::string>{"fold(lam(lam(pw(when(lt(#0, -1), #1 + 1), #1))), 5, xs)"});
+    EXPECT_EQ(printed(), std::vector<std::string>{"fold(lam(lam(pw(when(lt(#0, -1), #1 + 1), #1))), 5, #0)"});
 }
 
 TEST_F(ListDetectorsIntegrationTest, TheCountFoldDetectorProposesNothingForSums) {
@@ -233,7 +233,7 @@ TEST_F(ListDetectorsIntegrationTest, TheMapFilterDetectorReadsAMapOverAFilter) {
             return result;
         })),
         out);
-    EXPECT_THAT(printed(), Contains("map(lam(#0^2), filter(lam(lt(0, #0)), xs))"));
+    EXPECT_THAT(printed(), Contains("map(lam(#0^2), filter(lam(lt(0, #0)), #0))"));
 }
 
 TEST_F(ListDetectorsIntegrationTest, TheMapFilterDetectorStartsLongListsFromTheListsEachValueAppearsIn) {
@@ -247,7 +247,7 @@ TEST_F(ListDetectorsIntegrationTest, TheMapFilterDetectorStartsLongListsFromTheL
             return result;
         })),
         out);
-    EXPECT_THAT(printed(), Contains("map(lam(2 * #0 + 1), filter(lam(lt(#0, 17)), xs))"));
+    EXPECT_THAT(printed(), Contains("map(lam(2 * #0 + 1), filter(lam(lt(#0, 17)), #0))"));
 }
 
 TEST_F(ListDetectorsIntegrationTest, TheMapFilterDetectorProposesNothingForAFilterThatIsNoThreshold) {
@@ -282,7 +282,7 @@ TEST_F(ListDetectorsIntegrationTest, TheSumFoldDetectorReadsACountOfEvens) {
             return count;
         })),
         out);
-    EXPECT_THAT(printed(), Contains("fold(lam(lam(pw(when(eq(mod(#0, 2), 1), 0 + #1), 1 + #1))), 0, xs)"));
+    EXPECT_THAT(printed(), Contains("fold(lam(lam(pw(when(eq(mod(#0, 2), 1), 0 + #1), 1 + #1))), 0, #0)"));
 }
 
 TEST_F(ListDetectorsIntegrationTest, TheSumFoldDetectorLeavesAPlainSumToTheAffineDetector) {
@@ -303,7 +303,7 @@ TEST_F(ListDetectorsIntegrationTest, TheReverseDetectorProposesThePrimitive) {
             return std::vector<integer>(list.rbegin(), list.rend());
         })),
         out);
-    EXPECT_EQ(printed(), std::vector<std::string>{"reverse(xs)"});
+    EXPECT_EQ(printed(), std::vector<std::string>{"reverse(#0)"});
 }
 
 TEST_F(ListDetectorsIntegrationTest, TheReverseDetectorLeavesTheIdentityAlone) {
@@ -319,7 +319,7 @@ TEST_F(ListDetectorsIntegrationTest, TheListedFoldDetectorReadsAReverse) {
             return std::vector<integer>(list.rbegin(), list.rend());
         })),
         out);
-    EXPECT_THAT(printed(), Contains("fold(lam(lam(append(#1, cons(#0, nil)))), nil, xs)"));
+    EXPECT_THAT(printed(), Contains("fold(lam(lam(append(#1, cons(#0, nil)))), nil, #0)"));
 }
 
 TEST_F(ListDetectorsIntegrationTest, TheListedFoldDetectorReadsADuplicationOfEachElement) {
@@ -333,7 +333,7 @@ TEST_F(ListDetectorsIntegrationTest, TheListedFoldDetectorReadsADuplicationOfEac
             return result;
         })),
         out);
-    EXPECT_THAT(printed(), Contains("fold(lam(lam(cons(#0, cons(#0, #1)))), nil, xs)"));
+    EXPECT_THAT(printed(), Contains("fold(lam(lam(cons(#0, cons(#0, #1)))), nil, #0)"));
 }
 
 TEST_F(ListDetectorsIntegrationTest, TheListedFoldDetectorRefutesDoublingStepsOnLongListsByLength) {
@@ -343,7 +343,7 @@ TEST_F(ListDetectorsIntegrationTest, TheListedFoldDetectorRefutesDoublingStepsOn
             return std::vector<integer>(list.rbegin(), list.rend());
         })),
         out);
-    EXPECT_THAT(printed(), Contains("fold(lam(lam(append(#1, cons(#0, nil)))), nil, xs)"));
+    EXPECT_THAT(printed(), Contains("fold(lam(lam(append(#1, cons(#0, nil)))), nil, #0)"));
 }
 
 TEST_F(ListDetectorsIntegrationTest, TheListedFoldDetectorProposesNothingForASort) {
@@ -384,7 +384,7 @@ TEST_F(ListDetectorsIntegrationTest, TheSelectionFoldDetectorReadsTheLargestSqua
             return largest;
         })),
         out);
-    EXPECT_THAT(printed(), Contains("fold(lam(lam(pw(when(lt(#1, #0^2), #0^2), #1))), 0, xs)"));
+    EXPECT_THAT(printed(), Contains("fold(lam(lam(pw(when(lt(#1, #0^2), #0^2), #1))), 0, #0)"));
 }
 
 TEST_F(ListDetectorsIntegrationTest, TheSelectionFoldDetectorReadsTheSmallestOfAnAffineFunction) {
@@ -397,7 +397,7 @@ TEST_F(ListDetectorsIntegrationTest, TheSelectionFoldDetectorReadsTheSmallestOfA
         })),
         out);
     // without the empty list the data shows no base; any base at or above every output fits, and the highest is taken
-    EXPECT_THAT(printed(), Contains("fold(lam(lam(pw(when(lt(2 * #0 + 1, #1), 2 * #0 + 1), #1))), 7, xs)"));
+    EXPECT_THAT(printed(), Contains("fold(lam(lam(pw(when(lt(2 * #0 + 1, #1), 2 * #0 + 1), #1))), 7, #0)"));
 }
 
 TEST_F(ListDetectorsIntegrationTest, TheSelectionFoldDetectorLeavesTheLargestElementToTheExtremumDetector) {
@@ -430,7 +430,7 @@ TEST_F(ListDetectorsIntegrationTest, TheFactorFoldDetectorReadsAProductOfSquares
             return product;
         })),
         out);
-    EXPECT_THAT(printed(), Contains("fold(lam(lam(#0^2 * #1)), 1, xs)"));
+    EXPECT_THAT(printed(), Contains("fold(lam(lam(#0^2 * #1)), 1, #0)"));
 }
 
 TEST_F(ListDetectorsIntegrationTest, TheFactorFoldDetectorLeavesAPlainProductToTheProductDetector) {

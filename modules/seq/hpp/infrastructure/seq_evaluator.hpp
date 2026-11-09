@@ -14,17 +14,18 @@
 constexpr size_t k_seq_default_max_index = 100000;
 
 // The value of a sequence expression at an input, as an interned literal: `rec` runs its recurrence up to the index,
-// unwrapping its step function's k + 1 `lam` binders and handing the body to the step domain at
+// unwrapping its step function's k + 1 binders (`lam`s or a `lams`) and handing the body to the step domain at
 // `point(index, a(j-1), a(j-2), ...)`, one coordinate per `previous` index (`#0`, `#1`, ... in that order); `exp`
 // raises its base. Their arguments are evaluated here, so they may be any expression of the outer domain. Anything
 // else goes to the outer domain (`evaluate_outer_at`), and arithmetic it cannot evaluate (`add`, `sub`, `mul`, `pow`
 // over a recurrence or a power, as in `5 * exp(3, n)`) is evaluated here from its arguments' values. No value at a
 // negative index or one above `max_index`, or where a domain has none.
-template<typename IEvaluateOuterAt, typename IEvaluateStepAt, typename IFindLiteralValue, typename IMakeLiteral,
-         typename IMakeFunctor>
+template<typename IEvaluateOuterAt, typename IEvaluateStepAt, typename IFindBody, typename IFindLiteralValue,
+         typename IMakeLiteral, typename IMakeFunctor>
 struct seq_evaluator {
     seq_evaluator(IEvaluateOuterAt& evaluate_outer_at,
                   IEvaluateStepAt& evaluate_step_at,
+                  IFindBody& find_body,
                   IFindLiteralValue& find_literal_value,
                   IMakeLiteral& make_literal,
                   IMakeFunctor& make_functor,
@@ -40,6 +41,7 @@ private:
 
     IEvaluateOuterAt& evaluate_outer_at_;
     IEvaluateStepAt& evaluate_step_at_;
+    IFindBody& find_body_;
     IFindLiteralValue& find_literal_value_;
     IMakeLiteral& make_literal_;
     IMakeFunctor& make_functor_;
@@ -50,14 +52,15 @@ private:
 };
 
 #define SEQ_EVALUATOR_TEMPLATE                                                                       \
-    template<typename IEvaluateOuterAt, typename IEvaluateStepAt, typename IFindLiteralValue, \
+    template<typename IEvaluateOuterAt, typename IEvaluateStepAt, typename IFindBody, typename IFindLiteralValue, \
              typename IMakeLiteral, typename IMakeFunctor>
 #define SEQ_EVALUATOR \
-    seq_evaluator<IEvaluateOuterAt, IEvaluateStepAt, IFindLiteralValue, IMakeLiteral, IMakeFunctor>
+    seq_evaluator<IEvaluateOuterAt, IEvaluateStepAt, IFindBody, IFindLiteralValue, IMakeLiteral, IMakeFunctor>
 
 SEQ_EVALUATOR_TEMPLATE SEQ_EVALUATOR::seq_evaluator(
     IEvaluateOuterAt& evaluate_outer_at,
     IEvaluateStepAt& evaluate_step_at,
+    IFindBody& find_body,
     IFindLiteralValue& find_literal_value,
     IMakeLiteral& make_literal,
     IMakeFunctor& make_functor,
@@ -67,6 +70,7 @@ SEQ_EVALUATOR_TEMPLATE SEQ_EVALUATOR::seq_evaluator(
     size_t max_index)
     : evaluate_outer_at_(evaluate_outer_at)
     , evaluate_step_at_(evaluate_step_at)
+    , find_body_(find_body)
     , find_literal_value_(find_literal_value)
     , make_literal_(make_literal)
     , make_functor_(make_functor)
@@ -135,14 +139,11 @@ SEQ_EVALUATOR_TEMPLATE std::optional<const expr*> SEQ_EVALUATOR::evaluate_arithm
 SEQ_EVALUATOR_TEMPLATE std::optional<const expr*> SEQ_EVALUATOR::evaluate_recurrence(
     const expr::functor& recurrence, size_t last, const expr* input) {
     const size_t order = recurrence.args.size() - 2;
-    // the step's body, under one `lam` for the index and one per previous term
-    const expr* step = recurrence.args[0];
-    for (size_t binder = 0; binder <= order; ++binder) {
-        const expr::functor* function = std::get_if<expr::functor>(&step->content);
-        if (function == nullptr || function->id != symbols_.lambda || function->args.size() != 1)
-            return std::nullopt;
-        step = function->args[0];
-    }
+    // the step's body, under one binder for the index and one per previous term
+    const std::optional<const expr*> body = find_body_.find_body(recurrence.args[0], order + 1);
+    if (!body.has_value())
+        return std::nullopt;
+    const expr* step = body.value();
     std::vector<integer> terms;
     terms.reserve(last + 1);
     for (size_t position = 0; position < order; ++position) {

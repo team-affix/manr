@@ -1,7 +1,6 @@
 #include "infrastructure/seq_fit_mcts_manifest.hpp"
 
 seq_fit_mcts_manifest::seq_fit_mcts_manifest(
-    const std::string& variable,
     const std::vector<poly_sample>& samples,
     const poly_limits& limits,
     const poly_fit_limits& fit_limits,
@@ -10,7 +9,7 @@ seq_fit_mcts_manifest::seq_fit_mcts_manifest(
     double exploration_constant,
     uint32_t seed)
     : kernel_(limits)
-    , rule_set_(kernel_, variable, samples, fit_limits)
+    , rule_set_(kernel_, samples, fit_limits)
     , visits_()
     , values_()
     , rng_(seed)
