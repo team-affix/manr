@@ -70,7 +70,9 @@ inline std::map<std::pair<std::string, std::string>, bench_result> read_results(
     std::ifstream in(path);
     std::string line;
     while (std::getline(in, line)) {
-        if (line.empty() || line[0] == '#')
+        // the header; problem names may start with '#' themselves (`#6 Fibonacci`, after its issue)
+        const bool header = line.rfind("# problem\t", 0) == 0;
+        if (line.empty() || header)
             continue;
         std::istringstream fields(line);
         bench_result result{};
