@@ -38,7 +38,7 @@ pw(case(input1, label1), case(input2, label2), ..., ?0)
 | Sequences (started, `docs/seq.md`) | indices | terms | a closed form or a recurrence |
 | Lists and programs (started, `docs/list.md`) | lists | lists, numbers or booleans | a program: map, filter, fold, sort, built from a small vocabulary |
 | Graph theory | graphs (edge lists) | numbers, polynomials or graphs | an invariant as a formula or algorithm, e.g. counts in terms of vertices and edges |
-| Logic | assignments | truth values | the smallest formula |
+| Logic (started, `docs/logic.md`) | assignments | truth values | the smallest formula |
 
 The same machinery serves all of them: data as a piecewise, free variables for generality, detectors that propose a
 model in one step, local rules that simplify, and a search that keeps the smallest result.

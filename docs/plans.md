@@ -209,6 +209,14 @@ The open problems are in `seq.md` (gaps). What we plan to build:
   order-one closing rule.
 - **Recurrences as parts of a model**: a recurrence plus a polynomial, or a recurrence on a region.
 
+## Logic
+
+The open problems are in `logic.md` (gaps). What we plan to build:
+
+- **Local rules** for formulas: absorption, De Morgan, double negation, distribution.
+- **Exact or better minimization** beside the greedy factored cover, for mixed forms like `and(xor(..), not(..))`.
+- **Booleans for other domains**: list conditions (`all`, `any`, the count of evens in #4) and region conditions.
+
 ## Core vocabulary
 
 - **Tuples as inputs**, so a model can take several values or several lists (needed by "fold both lists and add 1").
