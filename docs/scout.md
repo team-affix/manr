@@ -33,16 +33,15 @@ Push in several directions:
   truth table), algebra, graphs, strings, anything in `vision.md` or beyond it. A problem MANR has no vocabulary
   for is a valid finding: it marks a missing domain.
 - **Scale.** The same problem with ten times the data, or ten times the size.
-- **Free variables (`?n`).** MANR's goal is generalization: reducing expressions and data that themselves contain
-  extension terms (`rule-design.md`, section 5). Make some requests carry them, in every domain:
-  - an expression with a free variable in it, whose simpler form keeps it opaque: `(?0 + 1)^2 - ?0^2` to
-    `2*?0 + 1`, `?0 * x + ?0 * y` to `?0 * (x + y)`, `map(?0, map(e + 1, xs))` left alone, ...
-  - data whose inputs or outputs contain one: a point `point(?0) -> ?0^2 + 1` beside literal points, a list holding
-    `?0`, an output that is `?1`;
-  - a reduction that needs a rule to look through a free variable rather than skip it, e.g. a common factor shared
-    by `?0` and its neighbours.
-
-  A free variable must never make a rule crash or rewrite wrongly, so every such request also checks soundness.
+- **Free variables (`?n`).** A free variable is a hole at the syntax level: reduction may bind it to any expression
+  of the domain, and should bind it to whatever makes the whole expression smallest. That is how reduction
+  generalizes: the data piecewise's catch-all `?0` is bound to a model, and the same goes for a `?n` anywhere. So a
+  request with free variables asks for the smallest expression reachable by choosing their bindings, and its desired
+  reduction names the bindings too. Make some requests carry them, in every domain:
+  - polynomials: `(?0 + 1)^2 - ?0^2` reduces to `1`, with `?0 = 0`;
+  - logic: `or(and(not(x), y), ?0)` reduces to `xor(x, y)`, with `?0 = and(x, not(y))`;
+  - several holes, holes inside data (an output that is `?1`, a list holding `?0`), and holes whose best binding is
+    itself an expression of the input variables, not a constant.
 
 Aim for a handful, a mix of near misses and far reaches, with at least one carrying a free variable. Prefer data that determines the model: enough points that
 the model is the smallest sound explanation. Inputs in domains MANR does not support at all are as welcome as any.
@@ -57,8 +56,10 @@ nothing). Record:
 - the best form each solver reaches
 
 Free variables have no text form yet (the parsers do not read `?n`): build those inputs with
-`expr_pool::make_var(n)` in the scratch test. A result that drops, duplicates or rebinds a free variable counts as a
-failure, as does a crash.
+`expr_pool::make_var(n)` in the scratch test. A result is sound when it means the same as the input
+under some binding of its free variables: check by applying the bindings and comparing normal forms, or evaluating
+at sample points. A result that is smaller than the input but unsound under every binding, or a crash, is a failure
+as much as a missed binding.
 
 A problem MANR already solves is dropped (or, if it is a good regression check, mentioned in the report as a
 candidate benchmark problem). A problem outside every domain needs no run: MANR cannot state it.
@@ -74,7 +75,7 @@ the issue is.
 | a broken assumption | a detector for the shape exists, but this data breaks what it assumes (no tails, too few values) | a new subproblem that drops that assumption (`decomposing-detection.md`) |
 | no detector | nothing proposes this shape | a detector, decomposed into easy subproblems |
 | no vocabulary | the domain cannot express the model (booleans, tuples, helpers) | functors, evaluation and rules for them, or a plan in `plans.md` |
-| free variable | a rule skips, crashes on, or rewrites wrongly around `?n` where it could treat it as an opaque term | the rule made tolerant, or a separate rule beside it (`rule-design.md`, section 5) |
+| no binding | nothing proposes the binding of a `?n` that would shrink the expression, or a rule stops at `?n` | a detector that chooses bindings (solving for the hole, as the binder does for data), or a rule made to tolerate `?n` (`rule-design.md`, section 5) |
 | no domain | MANR cannot state the problem at all | a new domain module (`vision.md`, "What a domain must supply") |
 
 ## 5. File the issues
@@ -85,7 +86,8 @@ labelled `reduce-request` (create the label if it is missing). Title: `reduce: <
 - **Domain**; **Input**: the expression, or the data (one sample per line; inline when small, otherwise the
   generator: the model, the input ranges and a seed, so forge can rebuild it exactly); **Desired reduction**: the
   simpler form or the model, in MANR's vocabulary where it has one, with its size (the target). Write free
-  variables as `?n`, and say how to build them (`make_var(n)`), since nothing parses them yet
+  variables as `?n`, give the bindings that reach the desired reduction, and say how to build them
+  (`make_var(n)`), since nothing parses them yet
 - **Notes**: what MANR reaches today under each solver (cost, time, best form), the diagnosed cause, and related
   issues. Problems that share a cause reference each other, so forge can solve them together.
 

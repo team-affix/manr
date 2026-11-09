@@ -129,8 +129,11 @@ needs an explicit decision.
 ## 5. Free variables in the expression
 
 The goal is generalization: fitting piecewises, and symbolic expressions in general, that themselves contain free
-variables (`?n`), in every domain. So when writing a rule, consider the case where part of the expression or the
-data is a free variable.
+variables (`?n`), in every domain. A free variable is a hole at the syntax level: reduction may bind it to any
+expression, and binding it well is how reduction generalizes (`(?0 + 1)^2 - ?0^2` reduces to `1` with `?0 = 0`;
+`or(and(not(x), y), ?0)` to `xor(x, y)` with `?0 = and(x, not(y))`; the data piecewise's catch-all is the same thing).
+So when writing a rule, consider the case where part of the expression or the data is a free variable: a rule may
+leave it alone, or propose a binding that shrinks the whole expression.
 
 - **Handle it when it costs nothing.** If the rule can treat `?n` as an opaque term, or simply skip it, without
   losing speed or reach on the common case, do that. It must never crash or rewrite wrongly because a `?n` appeared.
