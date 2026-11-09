@@ -13,37 +13,19 @@ sample) and **no larger** than the given model by `expr_size`. A result equivale
 sound, is a success. The model tells the developer (usually Claude) what really generated the data, so the work is to
 make MANR recover it: which detectors and rules are missing, and which domain they belong to.
 
-## Handling a fit request
+## The two workflows
 
-1. **Read the issue and restate it in MANR's vocabulary.** Write the model as a MANR expression of the domain
-   (`fold(h * acc, 1, xs)`, `map(e^2, filter(lt(0, e), xs))`), and compute its size: that is the target cost. If the
-   domain lacks a functor the model needs, that is the first piece of work, and the issue says so.
-2. **Add the data to the domain's benchmark** (`bench/<domain>_bench.cpp`) as a problem with that target and the
-   model as its target text, named after the issue (e.g. `"#42 squares of positives"`). Run the gate: it appears as
-   `new`, with what MANR reaches today. If it is already solved, report that on the issue and stop.
-3. **Find why it fails.** Look at the best form each solver reaches (the benchmark prints it). Typical causes: no
-   detector reads the shape, a detector's assumption is broken by the data (no tails, few distinct values, a wrong
-   label), or the search never takes the right proposal (dilution, budget).
-4. **Decompose** (`decomposing-detection.md`): split the model's shape into a subproblem that one assumption makes
-   easy, and hand the rest to an existing domain's detectors. Prefer the generic version of the reading when it
-   costs nothing, and keep the specific detectors that exist.
-5. **Prove the technique is general, not fitted to the issue.** Beyond the issue's own problem, write similar fitting
-   challenges that the new detectors or rules should also solve, and add them as tests and benchmark problems. Vary
-   what the technique claims not to depend on: other values and constants, other inner functions, longer or fewer
-   lists, no tails, a wrong label, another domain's elements where it applies. Add at least one near miss it must
-   not fit, and one the specific detectors already solved, to show it stays out of their way. For example, a fix for
-   `map(e^2, filter(lt(0, e), xs))` should also solve `map(2 * e + 1, filter(lt(e, 3), xs))`, and leave plain maps
-   and plain filters to their own detectors.
-6. **Build it by the loop in `extending.md`**: tests, `make bench_check`, `make bench_check_full`, then
-   `make bench_baseline`, committed with the change. The issue's problem and its similar challenges must reach their
-   targets under at least one solver, and nothing else may get worse.
-7. **Report on the issue** what MANR now finds (the printed result and its cost), whether it is the same model in
-   other words or a different sound one, the similar challenges it also solves, and the commit. If only part is
-   solved (one solver, or cost above target), say what remains and leave the issue open.
+- **Scout** (`scout.md`) finds problems MANR fails at, checks them, diagnoses the cause, and files them as fit
+  requests.
+- **Forge** (`forge.md`) pulls the open fit requests, chooses one by dependencies, leverage and size, designs the most
+  general fix that stays efficient, builds it with similar problems that prove it general, passes the gate, and
+  reports on the issue.
 
-When the data does not determine the model (too few distinct values, a smaller sound model exists), say so on the
-issue. A smaller sound result is still a success by MDL; the benchmark keeps the issue's target so the gate records
-it as solved.
+Anyone can file a fit request by hand too; forge treats it the same way.
+
+When the data does not determine the model (too few distinct values, a smaller sound model exists), forge says so on
+the issue. A smaller sound result is still a success by MDL; the benchmark keeps the issue's target so the gate
+records it as solved.
 
 ## Keeping requests useful
 
