@@ -35,18 +35,21 @@ constexpr double k_slower_floor = 0.25;  // seconds: differences below this are 
 struct bench_options {
     bool fast;
     bool serial;
+    bool full_inputs;
     std::string write_path;
     std::string check_path;
 };
 
 inline bench_options parse_bench_options(int argc, char** argv) {
-    bench_options options{.fast = false, .serial = false, .write_path = "", .check_path = ""};
+    bench_options options{.fast = false, .serial = false, .full_inputs = false, .write_path = "", .check_path = ""};
     for (int index = 1; index < argc; ++index) {
         const std::string arg = argv[index];
         if (arg == "--fast")
             options.fast = true;
         else if (arg == "--serial")
             options.serial = true;
+        else if (arg == "--full-inputs")
+            options.full_inputs = true;
         else if (arg == "--write" && index + 1 < argc)
             options.write_path = argv[++index];
         else if (arg == "--check" && index + 1 < argc)

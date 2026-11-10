@@ -2,11 +2,12 @@
 // best-first and MCTS fit solvers. A problem is solved when the result is no larger than a known compact form (its
 // cost is given, since piecewise forms do not parse). Every result is checked by evaluating it at every sample.
 //
-//   fit_bench [--fast] [--serial] [--write FILE] [--check FILE]
+//   fit_bench [--fast] [--serial] [--full-inputs] [--write FILE] [--check FILE]
 //
 // --fast skips MCTS on the large data sets; --write saves the results, --check gates them against a baseline
 // (bench/bench_gate.hpp).
-// Problems are solved in parallel, one per thread; --serial solves them one at a time, for true timings.
+// Problems are solved in parallel, one per thread; --serial solves them one at a time, for true timings. Notes print
+// each input shortened (abbreviate_piecewise); --full-inputs prints every case, and the whole result.
 #include <algorithm>
 #include <chrono>
 #include <climits>
@@ -143,13 +144,13 @@ outcome run_best_first(const fit_problem& p, const std::vector<poly_sample>& sam
     if (p.holes.empty()) {
         while (m.search_.rewrites() < k_rewrites && m.search_.next()) {}
         outcome reached = finish(m, m.search_, points, start);
-        reached.input = abbreviate_piecewise(input.str());
+        reached.input = input.str();
         return reached;
     }
     poly_fit_manifest::search_t search{m.rule_set_.rules_, m.kernel_.sizes_, m.rule_set_.builder_.build(points, 0), k_frontier};
     while (search.rewrites() < k_rewrites && search.next()) {}
     outcome reached = finish(m, search, points, start);
-    reached.input = abbreviate_piecewise(input.str());
+    reached.input = input.str();
     return reached;
 }
 
@@ -294,7 +295,8 @@ int main(int argc, char** argv) {
         if (!skip_mcts)
             gated.push_back(bench_result{.problem = p.name, .solver = "mcts", .cost = mcts.cost, .target = p.target,
                                          .seconds = mcts.seconds, .sound = mcts.sound});
-        notes.push_back(p.name + "\n    input:    " + best_first.input + "\n    target:   " + p.target_text + "\n    best-1st: " + best_first.best.substr(0, 400)
+        notes.push_back(p.name + "\n    input:    "
+                        + (options.full_inputs ? best_first.input : abbreviate_piecewise(best_first.input)) + "\n    target:   " + p.target_text + "\n    best-1st: " + (options.full_inputs ? best_first.best : best_first.best.substr(0, 400))
                         + "\n    mcts:     " + mcts.best.substr(0, 160));
     }
     std::printf("\nsolved (of %zu): best-1st %zu, mcts %zu\n\n", problems.size(), solved_counts[0], solved_counts[1]);

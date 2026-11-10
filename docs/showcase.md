@@ -66,11 +66,13 @@ and commit the benchmark and baseline. From then on the gate catches any regress
 Post one Discussion in the **Show and tell** category, titled `showcase: <date>`. Report problems as plain input and
 output, with no story: readers can see the domain and the use for themselves.
 
-- One short preamble: that data becomes a piecewise whose catch-all `?0` is bound by reduction, the notation (data
-  shortened as the benchmarks print it, `abbreviate_piecewise`: first cases, cases with holes or wrong labels, last
-  case; lists as `[a, b]`), how many were solved, and that they are gated.
+- One short preamble: that data becomes a piecewise whose catch-all `?0` is bound by reduction, the notation (lists
+  as `[a, b]`), how many were solved, and that they are gated.
+- **Every input in full**, every case of every data set, however long: the report demonstrates what MANR does, so
+  nothing of an input is left out. Take them from the benchmarks' `--full-inputs` notes. If the body passes
+  GitHub's size limit (65,536 characters), continue in comments, never by shortening.
 - One section per kind, expressions first, then data by domain. Each is a table with two columns, **input** and
   **output**, one row per problem.
-- **Not reduced**: a table of input, output reached, and the smaller form that exists.
+- **Not reduced**: a table of the full input, the output reached, and the smaller form that exists.
 
 Give the user the Discussion's link and a few lines of summary.
