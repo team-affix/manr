@@ -35,6 +35,12 @@ each, spread over every domain, and favour:
 
 Prefer data that determines the model: enough points that the model is the smallest sound explanation.
 
+**Go beyond the issues.** Showcase demonstrates generalization, so keep problems taken from issues, or barely varied
+from them, to a few. A fix proven on the exact problem someone asked for shows only that it was asked for. Look for
+what the implementation can do that no one requested: other shapes, compositions across domains and features,
+combinations no issue or benchmark problem covers. Before keeping a problem, check it against the closed issues and
+the existing benchmark problems. If one already covers it, change it until it shows something new.
+
 ## 3. Confirm each one
 
 Run each problem under both solvers (a scratch harness, or straight in the domain's benchmark). Record the cost
