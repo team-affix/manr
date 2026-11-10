@@ -193,6 +193,11 @@ solved solve(const list_problem& p, bool fast) {
                   .mcts = skip_mcts ? skipped : run_mcts(samples)};
 }
 
+// The total of an invoice: each item's price plus a fee of 2.
+list_t invoice_total(const list_t& list) {
+    return fold_right(list, 0, [](integer h, integer acc) { return h + 2 + acc; });
+}
+
 // The primes of a list, in order.
 list_t keep_primes(const list_t& list) {
     num_prime_table table{k_num_default_max_value};
@@ -374,6 +379,35 @@ int main(int argc, char** argv) {
         {"squares of positives (open)", all_lists(-2, 2, 3), true,
          [](const list_t& l) { return map_each(keep(l, [](integer e) { return e > 0; }), [](integer e) { return e * e; }); },
          {}, 12, "lam(map(lam(#0^2), filter(lam(lt(0, #0)), #0)))"},
+        // showcase (docs/showcase.md): realistic list programs, and variants measuring how far each generalizes
+        {"showcase: invoice total, fee 2 per item", with_tails(random_lists(10, 3, 8, 1, 50, 71)), false, invoice_total,
+         {}, 11, "lam(fold(lam(lam(#0 + 2 + #1)), 0, #0))"},
+        {"showcase: invoice total, no tails", random_lists(30, 3, 8, 1, 50, 72), false, invoice_total, {}, 11,
+         "lam(fold(lam(lam(#0 + 2 + #1)), 0, #0))"},
+        {"showcase: prices in cents", random_lists(30, 1, 8, 1, 99, 73), true,
+         [](const list_t& l) { return map_each(l, [](integer e) { return 100 * e; }); }, {}, 7,
+         "lam(map(lam(100 * #0), #0))"},
+        {"showcase: prime order IDs", random_lists(25, 10, 30, 0, 200, 74), true, keep_primes, {}, 6,
+         "lam(filter(lam(is_prime(#0)), #0))"},
+        {"showcase: prime order IDs, a typo", random_lists(25, 10, 30, 0, 200, 74), true, keep_primes, {{3, 1}}, 78,
+         "one case + the filter"},
+        {"showcase: highest score", random_lists(30, 3, 10, 0, 100, 75), false,
+         [](const list_t& l) { return fold_right(l, 0, [](integer h, integer acc) { return h < acc ? acc : h; }); },
+         {}, 13, "lam(fold(lam(lam(pw(when(lt(#1, #0), #0), #1))), 0, #0))"},
+        {"showcase: passing grades counted", random_lists(30, 3, 10, 0, 100, 76), false,
+         [](const list_t& l) { return fold_right(l, 0, [](integer h, integer acc) { return integer(49) < h ? acc + 1 : acc; }); },
+         {}, 15, "lam(fold(lam(lam(pw(when(lt(49, #0), #1 + 1), #1))), 0, #0))"},
+        {"showcase: playlist reversed", random_lists(30, 0, 12, 1, 500, 77), true,
+         [](const list_t& l) { return list_t(l.rbegin(), l.rend()); }, {}, 3, "lam(reverse(#0))"},
+        {"showcase: squared positive readings", random_lists(30, 3, 10, -20, 20, 78), true,
+         [](const list_t& l) { return map_each(keep(l, [](integer e) { return e > 0; }), [](integer e) { return e * e; }); },
+         {}, 12, "lam(map(lam(#0^2), filter(lam(lt(0, #0)), #0)))"},
+        {"showcase: invoice total with 5 shipping", random_lists(30, 3, 8, 1, 50, 79), false,
+         [](const list_t& l) { return fold_right(l, 5, [](integer h, integer acc) { return h + 2 + acc; }); }, {}, 11,
+         "lam(fold(lam(lam(#0 + 2 + #1)), 5, #0))"},
+        {"showcase: discounted positive prices", random_lists(30, 3, 10, -20, 60, 81), true,
+         [](const list_t& l) { return map_each(keep(l, [](integer e) { return e > 0; }), [](integer e) { return 3 * e - 1; }); },
+         {}, 14, "lam(map(lam(3 * #0 - 1), filter(lam(lt(0, #0)), #0)))"},
     };
 
     std::printf("budgets: best-first %zu rewrites; mcts %zu simulations x depth %zu\n", k_rewrites, k_simulations,

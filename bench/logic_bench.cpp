@@ -151,6 +151,23 @@ solved solve(const logic_problem& p, bool) {
 
 }
 
+// showcase rules
+int access_rule(const std::vector<int>& bits) {  // admin, or owner and not locked
+    return bits[0] || (bits[1] && !bits[2]);
+}
+
+int alarm(const std::vector<int>& bits) {  // door open and armed, or smoke
+    return (bits[0] && bits[1]) || bits[2];
+}
+
+int seat_belt(const std::vector<int>& bits) {  // ignition on and moving and not buckled
+    return bits[0] && bits[1] && !bits[2];
+}
+
+int two_of_four(const std::vector<int>& bits) {  // at least two of four approve
+    return ones(bits) >= 2;
+}
+
 int main(int argc, char** argv) {
     const bench_options options = parse_bench_options(argc, argv);
     const std::vector<logic_problem> problems{
@@ -169,6 +186,11 @@ int main(int argc, char** argv) {
          "pw(case(point(1, 1, 1), 0), lams(3, xor(xor(#2, #1), #0)))"},
         {"majority of 5 bits", {"a", "b", "c", "d", "e"}, majority, {}, {}, 39,
          "the factored sum of the 10 triples; shares maj(#2, #1, #0) twice, which helpers would compress"},
+        // showcase (docs/showcase.md): realistic rules, and variants measuring how far each generalizes
+        {"showcase: access rule", {"admin", "owner", "locked"}, access_rule, {}, {}, 8, "lams(3, or(#2, and(#1, not(#0))))"},
+        {"showcase: alarm", {"door", "armed", "smoke"}, alarm, {}, {}, 7, "lams(3, or(and(#2, #1), #0))"},
+        {"showcase: seat belt warning", {"ignition", "moving", "buckled"}, seat_belt, {}, {}, 8,
+         "lams(3, and(and(#2, #1), not(#0)))"},
     };
 
     std::printf("budgets: best-first %zu rewrites; mcts %zu simulations x depth %zu\n", k_rewrites, k_simulations,
