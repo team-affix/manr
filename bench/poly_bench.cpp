@@ -161,6 +161,21 @@ int main(int argc, char** argv) {
         {"hidden symmetric", "(x+y+z)^3 - (x+y)^3 - z^3", "3*z*(x+y)*(x+y+z)"},
         {"nested", "((x+1)^2 - x^2 - 1)^3", "8*x^3"},
         {"completed square", "x^2 + 6*x + 10", "(x+3)^2 + 1"},
+        // showcase (docs/showcase.md): identities, cancellations and factorings
+        {"showcase: difference of cubes of neighbours", "(#0 + 1)^3 - (#0 - 1)^3", "6*#0^2 + 2"},
+        {"showcase: polarization", "(#1 + #0)^2 - (#1 - #0)^2", "4*#1*#0"},
+        {"showcase: a full cancellation", "#0^4 - 1 - (#0^2 + 1)*(#0^2 - 1)", "0"},
+        {"showcase: a constant in disguise", "(#0 + 2)*(#0 + 3) - #0*(#0 + 5)", "6"},
+        {"showcase: binomial cube", "#0^3 + 3*#0^2 + 3*#0 + 1", "(#0 + 1)^3"},
+        {"showcase: common factor", "#1^2*#0 + #1*#0^2", "#1*#0*(#1 + #0)"},
+        {"showcase: telescoping product", "(#0^2 + #0)*(#0 - 1) + #0", "#0^3"},
+        {"showcase: square of a cube", "#0^6 - 2*#0^3 + 1", "(#0^3 - 1)^2"},
+        {"showcase: two squares identity", "(#3*#0 - #2*#1)^2 + (#3*#1 + #2*#0)^2", "(#3^2 + #2^2)*(#1^2 + #0^2)"},
+        {"showcase: tenth power",
+         "#0^10 + 10*#0^9 + 45*#0^8 + 120*#0^7 + 210*#0^6 + 252*#0^5 + 210*#0^4 + 120*#0^3 + 45*#0^2 + 10*#0 + 1",
+         "(#0 + 1)^10"},
+        {"showcase: square of a trinomial", "#2^2 + #1^2 + #0^2 + 2*#2*#1 + 2*#2*#0 + 2*#1*#0", "(#2 + #1 + #0)^2"},
+        {"showcase: product of conjugates", "(#0^2 + #0 + 1)*(#0^2 - #0 + 1)", "#0^4 + #0^2 + 1"},
     };
     poly_kernel_manifest generator{k_poly_default_limits};
     std::mt19937 rng{42};

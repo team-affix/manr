@@ -19,7 +19,9 @@ and the last showcase Discussion, so a run builds on the previous one instead of
 
 Problems someone would actually bring, not toys made to pass: data from a real process, a program someone would
 write, a formula from a real field. Each is **an input plus the model it should reduce to**, as in a reduce request.
-Aim for a dozen, spread over every domain, and favour:
+MANR is a reduction system and fitting data is one use of it, so mix both kinds: expressions to reduce (identities,
+cancellations, factorings, programs, formulas, expressions with free variables) and data to fit. Aim for a dozen of
+each, spread over every domain, and favour:
 
 - **Realistic stories.** A shop's prices with a bulk discount (a piecewise polynomial), compound growth (a
   recurrence closing to a power), a sensor log with a few bad readings (a model plus cases), a checksum (a fold), a
@@ -64,11 +66,11 @@ and commit the benchmark and baseline. From then on the gate catches any regress
 Post one Discussion in the **Show and tell** category, titled `showcase: <date>`. Report problems as plain input and
 output, with no story: readers can see the domain and the use for themselves.
 
-- One line of preamble: how many were tried and solved, the notation (data is the piecewise MANR builds from it,
-  `?0` the catch-all; lists as `[a, b]`), and the commit that gated them.
-- One section per domain, one entry per problem: the input expression, then `→` the result and its cost. A data
-  input is shortened as the benchmarks print it (`abbreviate_piecewise`: first branches, branches with holes, last
-  branch), plus any wrong-label branch the result keeps.
-- **Not reduced**: each input that failed, what it reached, and the smaller form that exists, in one or two lines.
+- One short preamble: that data becomes a piecewise whose catch-all `?0` is bound by reduction, the notation (data
+  shortened as the benchmarks print it, `abbreviate_piecewise`: first cases, cases with holes or wrong labels, last
+  case; lists as `[a, b]`), how many were solved, and that they are gated.
+- One section per kind, expressions first, then data by domain. Each is a table with two columns, **input** and
+  **output**, one row per problem.
+- **Not reduced**: a table of input, output reached, and the smaller form that exists.
 
 Give the user the Discussion's link and a few lines of summary.

@@ -1,31 +1,31 @@
 # problem	solver	cost	target	seconds	sound
-#9 parity of 4 bits	best-1st	9	9	0.000141081	1
-#9 parity of 4 bits	mcts	9	9	0.000136273	1
-#10 majority of 3 bits	best-1st	11	11	7.6545e-05	1
-#10 majority of 3 bits	mcts	11	11	8.8435e-05	1
-parity of 3 bits	best-1st	7	7	6.3566e-05	1
-parity of 3 bits	mcts	7	7	8.4074e-05	1
-parity of 6 bits	best-1st	13	13	0.000656245	1
-parity of 6 bits	mcts	13	13	0.000694911	1
-equivalence	best-1st	6	6	3.4131e-05	1
-equivalence	mcts	6	6	3.8905e-05	1
-implication	best-1st	6	6	4.0939e-05	1
-implication	mcts	6	6	5.106e-05	1
-and of 3 bits	best-1st	7	7	5.0286e-05	1
-and of 3 bits	mcts	7	7	4.6512e-05	1
-multiplexer	best-1st	10	10	5.1338e-05	1
-multiplexer	mcts	10	10	4.7659e-05	1
-majority, two rows unseen	best-1st	8	11	3.7245e-05	1
-majority, two rows unseen	mcts	8	11	6.4539e-05	1
-parity of 4, wrong label	best-1st	17	17	0.000124863	1
-parity of 4, wrong label	mcts	17	17	0.000155727	1
-exactly one of 3	best-1st	14	14	5.4684e-05	1
-exactly one of 3	mcts	14	14	7.8907e-05	1
-majority of 5 bits	best-1st	39	39	0.000188238	1
-majority of 5 bits	mcts	39	39	0.000175736	1
-showcase: access rule	best-1st	8	8	3.1888e-05	1
-showcase: access rule	mcts	8	8	4.6409e-05	1
-showcase: alarm	best-1st	7	7	4.2535e-05	1
-showcase: alarm	mcts	7	7	7.3205e-05	1
-showcase: seat belt warning	best-1st	8	8	6.0755e-05	1
-showcase: seat belt warning	mcts	8	8	4.8555e-05	1
+#9 parity of 4 bits	best-1st	9	9	0.000168615	1
+#9 parity of 4 bits	mcts	9	9	0.000125207	1
+#10 majority of 3 bits	best-1st	11	11	9.289e-05	1
+#10 majority of 3 bits	mcts	11	11	8.4247e-05	1
+parity of 3 bits	best-1st	7	7	4.9546e-05	1
+parity of 3 bits	mcts	7	7	4.8858e-05	1
+parity of 6 bits	best-1st	13	13	0.000792818	1
+parity of 6 bits	mcts	13	13	0.000571467	1
+equivalence	best-1st	6	6	6.0158e-05	1
+equivalence	mcts	6	6	6.6064e-05	1
+implication	best-1st	6	6	4.0884e-05	1
+implication	mcts	6	6	4.459e-05	1
+and of 3 bits	best-1st	7	7	5.329e-05	1
+and of 3 bits	mcts	7	7	4.8486e-05	1
+multiplexer	best-1st	10	10	5.0901e-05	1
+multiplexer	mcts	10	10	5.0485e-05	1
+majority, two rows unseen	best-1st	8	11	3.0586e-05	1
+majority, two rows unseen	mcts	8	11	4.4881e-05	1
+parity of 4, wrong label	best-1st	17	17	0.000142983	1
+parity of 4, wrong label	mcts	17	17	0.000156176	1
+exactly one of 3	best-1st	14	14	3.6924e-05	1
+exactly one of 3	mcts	14	14	4.626e-05	1
+majority of 5 bits	best-1st	39	39	0.000180319	1
+majority of 5 bits	mcts	39	39	0.00016314	1
+showcase: access rule	best-1st	8	8	5.6782e-05	1
+showcase: access rule	mcts	8	8	8.4962e-05	1
+showcase: alarm	best-1st	7	7	3.0257e-05	1
+showcase: alarm	mcts	7	7	4.138e-05	1
+showcase: seat belt warning	best-1st	8	8	7.4279e-05	1
+showcase: seat belt warning	mcts	8	8	4.9378e-05	1
