@@ -14,7 +14,7 @@
 constexpr size_t k_logic_default_max_primitive_proposals = 8;
 
 // A detector that reads a truth table as one primitive over some of its variables: `and`, `or`, `xor`, `xnor`,
-// `nand`, `nor`, `imp` of two and `maj` of three, each argument a variable or its negation. Every choice of
+// `nand`, `nor`, `imp` of two and `maj`, `mux` of three, each argument a variable or its negation. Every choice of
 // variables and negations is checked against the rows the data gives, so unseen rows are don't cares and a
 // primitive is found from part of its table. It proposes the readings with the fewest negations that agree with every
 // given row, at most `max_proposals` (a table of few rows agrees with many).
@@ -66,7 +66,8 @@ LOGIC_PRIMITIVE_HYPOTHESES_TEMPLATE LOGIC_PRIMITIVE_HYPOTHESES::logic_primitive_
                   {.id = symbols.alternative_denial, .arity = 2, .symmetric = true},
                   {.id = symbols.joint_denial, .arity = 2, .symmetric = true},
                   {.id = symbols.implication, .arity = 2, .symmetric = false},
-                  {.id = symbols.majority, .arity = 3, .symmetric = true}}
+                  {.id = symbols.majority, .arity = 3, .symmetric = true},
+                  {.id = symbols.multiplexer, .arity = 3, .symmetric = false}}
     , max_proposals_(max_proposals) {}
 
 LOGIC_PRIMITIVE_HYPOTHESES_TEMPLATE void LOGIC_PRIMITIVE_HYPOTHESES::propose_hypotheses(
@@ -118,6 +119,8 @@ LOGIC_PRIMITIVE_HYPOTHESES_TEMPLATE void LOGIC_PRIMITIVE_HYPOTHESES::propose_hyp
 
 LOGIC_PRIMITIVE_HYPOTHESES_TEMPLATE bool LOGIC_PRIMITIVE_HYPOTHESES::compute(
     uint32_t id, const std::vector<bool>& arguments) const {
+    if (id == symbols_.multiplexer)
+        return arguments[0] ? arguments[1] : arguments[2];
     if (id == symbols_.majority)
         return (arguments[0] ? 1 : 0) + (arguments[1] ? 1 : 0) + (arguments[2] ? 1 : 0) >= 2;
     const bool left = arguments[0];

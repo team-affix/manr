@@ -147,6 +147,11 @@ Piecewise polynomials:
 - With an outlier: `pw(case(point(-6), 39), when(lt(x, 0), x^2), 3 * x + 1)`.
 - Two variables, split on either one: `pw(when(lt(y, 0), x - y), (x + y)^2)`.
 
+Branches guarded by any Boolean condition (`pw_guarded_hypotheses`, with the condition domain of `logic.md` over
+thresholds, residues and primality): `x^2` where x is prime and `2x + 1` elsewhere reads as
+`lam(pw(when(is_prime(#0), #0^2), 2 * #0 + 1))`; a default model that reproduces most points, the points it misses
+read as a condition and fitted as a value. Readings are kept only when exact on every point.
+
 Labels holding holes (#18): `x^2 + 1` with labels `?1` and `2 * ?2` reduces to `lam(#0^2 + 1)` with `?1 = 2`,
 `?2 = 5`: the branch filter matches a label under a binding, solving a linear one for its hole. A label with no
 integer solution (`2 * ?1` where the model gives 5) stays a case.

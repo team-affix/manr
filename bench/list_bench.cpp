@@ -477,6 +477,18 @@ int main(int argc, char** argv) {
         {"sum of the odd primes", random_lists(40, 3, 10, 0, 20, 100), false,
          [](const list_t& l) { return sum(keep(keep_primes(l), [](integer e) { return e % 2 != 0; })); }, {}, 18,
          "lam(fold(lam(lam(pw(when(and(is_prime(#0), lt(2, #0)), #0 + #1), #1))), 0, #0))"},
+        // maps whose element function is a guarded value pw(when(c, v), d), c any condition
+        {"map primes to their squares, others to 0", random_lists(30, 3, 10, 0, 30, 101), true,
+         [](const list_t& l) { return map_each(l, [](integer e) { return is_prime_value(e) ? integer(e * e) : integer(0); }); },
+         {}, 12, "lam(map(lam(pw(when(is_prime(#0), #0^2), 0)), #0))"},
+        {"map evens to 1, others to -1", random_lists(30, 3, 10, -20, 20, 102), true,
+         [](const list_t& l) { return map_each(l, [](integer e) { return e % 2 == 0 ? integer(1) : integer(-1); }); }, {},
+         13, "lam(map(lam(pw(when(eq(mod(#0, 2), 0), 1), -1)), #0))"},
+        {"map odd primes to 1, others kept", random_lists(30, 3, 10, 0, 30, 103), true,
+         [](const list_t& l) {
+             return map_each(l, [](integer e) { return is_prime_value(e) && e % 2 != 0 ? integer(1) : e; });
+         },
+         {}, 14, "lam(map(lam(pw(when(and(is_prime(#0), lt(2, #0)), 1), #0)), #0))"},
     };
 
     std::printf("budgets: best-first %zu rewrites; mcts %zu simulations x depth %zu\n", k_rewrites, k_simulations,

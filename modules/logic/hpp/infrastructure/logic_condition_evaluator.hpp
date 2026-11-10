@@ -8,8 +8,8 @@
 #include "value_objects/logic_symbols.hpp"
 
 // Decides a condition built with the logic connectives over another domain's conditions: `and`, `or`, `xor`, `xnor`,
-// `nand`, `nor`, `imp`, `not` and `maj` combine what their operands decide, and every other condition (`lt(0, #0)`,
-// `is_prime(#0)`, a residue) goes to the inner domain. So a filter or a region can take any Boolean function of the
+// `nand`, `nor`, `imp`, `not`, `maj` and `mux` combine what their operands decide, and every other condition
+// (`lt(0, #0)`, `is_prime(#0)`, a residue) goes to the inner domain. So a filter or a region can take any Boolean function of the
 // inner domain's predicates. No answer when an operand has none.
 template<typename IHoldsInnerAt>
 struct logic_condition_evaluator {
@@ -38,6 +38,12 @@ LOGIC_CONDITION_EVALUATOR_TEMPLATE std::optional<bool> LOGIC_CONDITION_EVALUATOR
         if (!operand.has_value())
             return std::nullopt;
         return !operand.value();
+    }
+    if (f->id == symbols_.multiplexer && f->args.size() == 3) {
+        const std::optional<bool> select = holds_at(f->args[0], input);
+        if (!select.has_value())
+            return std::nullopt;
+        return holds_at(f->args[select.value() ? 1 : 2], input);
     }
     if (f->id == symbols_.majority && f->args.size() == 3) {
         size_t ones = 0;

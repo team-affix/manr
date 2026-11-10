@@ -14,6 +14,10 @@
 #include "infrastructure/abs_reducer.hpp"
 #include "infrastructure/arith_hole_solver.hpp"
 #include "infrastructure/expr_pool.hpp"
+#include "infrastructure/logic_condition_evaluator.hpp"
+#include "infrastructure/logic_condition_hypotheses.hpp"
+#include "infrastructure/logic_fit_hypotheses_manifest.hpp"
+#include "infrastructure/num_condition_atoms.hpp"
 #include "infrastructure/num_evaluator.hpp"
 #include "infrastructure/num_prime_hypotheses.hpp"
 #include "infrastructure/num_prime_table.hpp"
@@ -29,11 +33,13 @@
 #include "infrastructure/pw_builder.hpp"
 #include "infrastructure/pw_evaluator.hpp"
 #include "infrastructure/pw_extension_binder.hpp"
+#include "infrastructure/pw_guarded_hypotheses.hpp"
 #include "infrastructure/pw_hole_matcher.hpp"
 #include "infrastructure/pw_hypotheses_union.hpp"
 #include "infrastructure/subterm_proposer.hpp"
 #include "value_objects/abs_symbols.hpp"
 #include "value_objects/expr.hpp"
+#include "value_objects/logic_symbols.hpp"
 #include "value_objects/num_symbols.hpp"
 #include "value_objects/poly_fit_limits.hpp"
 #include "value_objects/poly_sample.hpp"
@@ -49,6 +55,9 @@
 // catch-all is closed over that piecewise's own inputs (`lam(b)` or `lams(k, b)`, k read from its keys), and once no
 // case is left the piecewise is that function. Evaluating a function at an input applies it. `rules_` is what a search
 // injects and `initial_` is where it starts.
+// The most atoms a region condition combines (the placeholder inputs of its truth table).
+constexpr size_t k_poly_condition_atoms = 6;
+
 struct poly_fit_rules_manifest {
     using kernel_t = poly_kernel_manifest;
     using fit_t = poly_fit_hypotheses_manifest;
@@ -64,13 +73,19 @@ struct poly_fit_rules_manifest {
     struct function_maker_t : abs_function_maker<kernel_t::literals_t, expr_pool> {
         using abs_function_maker<kernel_t::literals_t, expr_pool>::abs_function_maker;
     };
-    struct numbers_t : num_evaluator<fit_t::pw_evaluator_t, fit_t::conditions_t, kernel_t::literals_t, kernel_t::literals_t, num_prime_table,
-                                     num_prime_table> {
-        using num_evaluator<fit_t::pw_evaluator_t, fit_t::conditions_t, kernel_t::literals_t, kernel_t::literals_t, num_prime_table,
-                            num_prime_table>::num_evaluator;
+    using numbers_base_t = num_evaluator<fit_t::pw_evaluator_t, fit_t::conditions_t, kernel_t::literals_t,
+                                         kernel_t::literals_t, num_prime_table, num_prime_table>;
+    struct numbers_t : numbers_base_t {
+        using numbers_base_t::numbers_base_t;
     };
-    struct applying_t : abs_applying_evaluator<binders_t, numbers_t> {
-        using abs_applying_evaluator<binders_t, numbers_t>::abs_applying_evaluator;
+    struct conditions_t : logic_condition_evaluator<numbers_t> {
+        using logic_condition_evaluator<numbers_t>::logic_condition_evaluator;
+    };
+    struct body_t : pw_evaluator<numbers_t, conditions_t> {
+        using pw_evaluator<numbers_t, conditions_t>::pw_evaluator;
+    };
+    struct applying_t : abs_applying_evaluator<binders_t, body_t> {
+        using abs_applying_evaluator<binders_t, body_t>::abs_applying_evaluator;
     };
     struct evaluator_t : abs_evaluator<reducer_t, applying_t> {
         using abs_evaluator<reducer_t, applying_t>::abs_evaluator;
@@ -83,11 +98,30 @@ struct poly_fit_rules_manifest {
         using poly_iteration_hypotheses<fit_t::converter_t, poly_interpolator, poly_interpolator, kernel_t::renderer_t,
                                         indices_t, expr_pool>::poly_iteration_hypotheses;
     };
-    struct primes_t : num_prime_hypotheses<kernel_t::literals_t, num_prime_table, num_prime_table, expr_pool> {
-        using num_prime_hypotheses<kernel_t::literals_t, num_prime_table, num_prime_table, expr_pool>::num_prime_hypotheses;
+    using primes_base_t = num_prime_hypotheses<kernel_t::literals_t, num_prime_table, num_prime_table, expr_pool>;
+    struct primes_t : primes_base_t {
+        using primes_base_t::primes_base_t;
     };
-    struct hypotheses_t : pw_hypotheses_union<fit_t::hypotheses_t, iterations_t, primes_t> {
-        using pw_hypotheses_union<fit_t::hypotheses_t, iterations_t, primes_t>::pw_hypotheses_union;
+    struct atoms_t : num_condition_atoms<kernel_t::literals_t, kernel_t::literals_t, expr_pool> {
+        using num_condition_atoms<kernel_t::literals_t, kernel_t::literals_t, expr_pool>::num_condition_atoms;
+    };
+    using formulas_t = logic_fit_hypotheses_manifest::hypotheses_t;
+    using combinations_base_t =
+        logic_condition_hypotheses<atoms_t, conditions_t, formulas_t, expr_size, kernel_t::literals_t,
+                                   kernel_t::literals_t, expr_pool>;
+    struct combinations_t : combinations_base_t {
+        using combinations_base_t::combinations_base_t;
+    };
+    struct conditions_union_t : pw_hypotheses_union<primes_t, combinations_t> {
+        using pw_hypotheses_union<primes_t, combinations_t>::pw_hypotheses_union;
+    };
+    using guarded_base_t = pw_guarded_hypotheses<conditions_union_t, fit_t::hypotheses_t, body_t, expr_size,
+                                                 kernel_t::literals_t, expr_pool>;
+    struct guarded_t : guarded_base_t {
+        using guarded_base_t::guarded_base_t;
+    };
+    struct hypotheses_t : pw_hypotheses_union<guarded_t, iterations_t, primes_t> {
+        using pw_hypotheses_union<guarded_t, iterations_t, primes_t>::pw_hypotheses_union;
     };
     struct closing_t : abs_closing_hypotheses<hypotheses_t, function_maker_t> {
         using abs_closing_hypotheses<hypotheses_t, function_maker_t>::abs_closing_hypotheses;
@@ -132,17 +166,25 @@ struct poly_fit_rules_manifest {
     fit_t fit_;
     abs_symbols abs_symbols_;
     num_symbols num_symbols_;
+    logic_symbols logic_symbols_;
     indices_t indices_;
     binders_t binders_;
     reducer_t reducer_;
     function_maker_t function_maker_;
     num_prime_table prime_table_;
     numbers_t numbers_;
+    conditions_t conditions_;
+    body_t body_;
     applying_t applying_;
     evaluator_t evaluator_;
     pw_evaluator_t pw_evaluator_;
     iterations_t iterations_;
     primes_t primes_;
+    atoms_t atoms_;
+    logic_fit_hypotheses_manifest condition_logic_;
+    combinations_t combinations_;
+    conditions_union_t conditions_union_;
+    guarded_t guarded_;
     hypotheses_t hypotheses_;
     closing_t closing_;
     assembler_t assembler_;
@@ -157,6 +199,7 @@ struct poly_fit_rules_manifest {
     const expr* initial_;
 private:
     static std::vector<std::string> name_inputs(size_t arity);
+    static std::vector<uint32_t> intern_placeholders(kernel_t& kernel);
 };
 
 #endif

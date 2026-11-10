@@ -84,6 +84,9 @@ not reproduce as branches.
     `pw_guarded_hypotheses` (`pw(when(c, v), d)`: the most common value as default, the condition read by the
     condition domain), so the sum of the primes is `fold(lam(lam(pw(when(is_prime(#0), #0 + #1), #1))), 0, xs)`. The
     element and step evaluators decide such conditions (Boolean connectives over primality, residues, thresholds).
+  - Maps whose element function is guarded: `list_integer_map_hypotheses` uses the same reading, so
+    `map(lam(pw(when(is_prime(#0), #0^2), 0)), xs)` and `map(lam(pw(when(and(is_prime(#0), lt(2, #0)), 1), #0)), xs)`
+    (a default that is a model, here the identity) are read.
 - **Affine folds, from whole lists.** `list_affine_fold_hypotheses` needs no tails and no empty list. It assumes the
   step is affine in the accumulator, `p(h) + c * acc`. Then a list's output is `sum_i c^(i-1) p(x_i) + c^n b`, so
   the value of every tail drops out: once `c` is fixed, the output is linear in `p`'s coefficients and the base `b`,

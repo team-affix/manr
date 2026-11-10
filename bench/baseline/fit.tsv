@@ -1,82 +1,90 @@
 # problem	solver	cost	target	seconds	sound
-cubic	best-1st	6	6	0.0195251	1
-cubic	mcts	6	6	0.00379187	1
-power of linear	best-1st	8	8	0.0380159	1
-power of linear	mcts	8	8	0.0640135	1
-horner quintic	best-1st	20	20	0.0823801	1
-horner quintic	mcts	20	20	0.221962	1
-one outlier	best-1st	11	11	0.0013354	1
-one outlier	mcts	11	11	0.00235558	1
-outlier run	best-1st	18	102	0.031076	1
-outlier run	mcts	18	102	0.02211	1
-scattered outliers	best-1st	31	31	0.00527306	1
-scattered outliers	mcts	31	31	0.00571391	1
-cubic 1000	best-1st	10	10	0.0697018	1
-cubic 1000	mcts	10	10	0.0404615	1
-two-variable square	best-1st	7	7	0.0513279	1
-two-variable square	mcts	7	7	0.0480853	1
-two-variable product	best-1st	19	19	0.105635	1
-two-variable product	mcts	19	19	0.157914	1
-three-variable cube	best-1st	9	9	0.183783	1
-three-variable cube	mcts	9	9	1.13409	1
-three-variable mixed	best-1st	11	13	0.119323	1
-three-variable mixed	mcts	11	13	0.0973066	1
-two pieces	best-1st	14	14	0.00568553	1
-two pieces	mcts	14	14	0.00528109	1
-two pieces 400	best-1st	14	14	0.0138623	1
-two pieces 400	mcts	14	14	0.012755	1
-absolute value	best-1st	10	10	0.00570061	1
-absolute value	mcts	10	10	0.00513226	1
-three pieces	best-1st	21	21	0.0427968	1
-three pieces	mcts	21	21	0.0632867	1
-pieces with outlier	best-1st	19	19	0.00634467	1
-pieces with outlier	mcts	19	19	0.00542643	1
-split on x	best-1st	15	15	0.312371	1
-split on x	mcts	15	15	0.232516	1
-split on y	best-1st	15	15	0.316419	1
-split on y	mcts	15	15	0.270755	1
-sign flip at zero	best-1st	13	13	0.39891	1
-sign flip at zero	mcts	13	13	0.245036	1
-#8 g(g(g(x))), g = y^2 + 1	best-1st	15	15	0.494373	1
-#8 g(g(g(x))), g = y^2 + 1	mcts	15	15	0.102012	1
-g(g(x)), g = y^3 - y	best-1st	13	13	0.0277489	1
-g(g(x)), g = y^3 - y	mcts	13	13	1.31226	1
-g(g(g(x))), g = y^2 + y	best-1st	15	15	0.0326169	1
-g(g(g(x))), g = y^2 + y	mcts	15	15	0.0309807	1
-g(g(x)), g = y^2 - 2	best-1st	10	10	0.0233835	1
-g(g(x)), g = y^2 - 2	mcts	10	10	0.0230762	1
-#18 x^2 + 1, holes in two labels	best-1st	6	6	0.000531167	1
-two-variable square, holes	best-1st	7	7	0.0435872	1
-hole with no integer solution	best-1st	13	13	0.000629906	1
-dense outliers	best-1st	18	47	0.100472	1
-dense outliers	mcts	18	47	0.0235103	1
-showcase: bulk pricing	best-1st	14	14	0.0209383	1
-showcase: bulk pricing	mcts	14	14	0.00875661	1
-showcase: bulk pricing, 400 orders	best-1st	14	14	0.024368	1
-showcase: bulk pricing, 400 orders	mcts	14	14	0.0126995	1
-showcase: bulk pricing, two typos	best-1st	23	23	0.0218931	1
-showcase: bulk pricing, two typos	mcts	23	23	0.00910219	1
-bulk pricing, unknown totals	best-1st	14	14	0.0205033	1
-showcase: projectile height	best-1st	10	10	0.0196768	1
-showcase: projectile height	mcts	10	10	0.0141812	1
-showcase: projectile height, bad reading	best-1st	15	15	0.0234046	1
-showcase: projectile height, bad reading	mcts	15	15	0.0160102	1
-showcase: framed picture area	best-1st	9	9	0.0437313	1
-showcase: framed picture area	mcts	9	9	0.0328082	1
-showcase: box volume	best-1st	7	7	0.179961	1
-showcase: box volume	mcts	7	7	0.109672	1
-showcase: sensor log, four spikes	best-1st	23	23	0.0046175	1
-showcase: sensor log, four spikes	mcts	23	23	0.00616863	1
-showcase: tiered shipping	best-1st	21	21	0.00738534	1
-showcase: tiered shipping	mcts	21	21	0.00746898	1
-showcase: projectile height, three bad readings	best-1st	23	23	0.021185	1
-showcase: projectile height, three bad readings	mcts	23	23	0.0147376	1
-showcase: projectile height, 20 readings, five bad	best-1st	31	31	0.0321966	1
-showcase: projectile height, 20 readings, five bad	mcts	31	31	0.0217438	1
-showcase: sensor log, spikes and gaps	best-1st	15	15	0.00418593	1
-showcase: tiered shipping, four tiers	best-1st	26	26	0.00872503	1
-showcase: tiered shipping, four tiers	mcts	26	26	0.00886318	1
-showcase: framed picture area, bad reading	best-1st	15	15	0.0980609	1
-showcase: framed picture area, bad reading	mcts	15	15	0.0976488	1
-showcase: three tiers, a typo and unknown labels	best-1st	26	26	0.00756611	1
-showcase: three inputs, a typo and unknown labels	best-1st	16	16	0.543652	1
+cubic	best-1st	6	6	0.0200666	1
+cubic	mcts	6	6	0.00392929	1
+power of linear	best-1st	8	8	0.039789	1
+power of linear	mcts	8	8	0.066896	1
+horner quintic	best-1st	20	20	0.0871339	1
+horner quintic	mcts	20	20	0.304504	1
+one outlier	best-1st	11	11	0.00261128	1
+one outlier	mcts	11	11	0.00208568	1
+outlier run	best-1st	18	102	0.0297152	1
+outlier run	mcts	18	102	0.0204009	1
+scattered outliers	best-1st	31	31	0.0148654	1
+scattered outliers	mcts	31	31	0.0142287	1
+cubic 1000	best-1st	10	10	0.0709974	1
+cubic 1000	mcts	10	10	0.0601795	1
+two-variable square	best-1st	7	7	0.0557755	1
+two-variable square	mcts	7	7	0.0574997	1
+two-variable product	best-1st	19	19	0.0892271	1
+two-variable product	mcts	19	19	0.225678	1
+three-variable cube	best-1st	9	9	0.222353	1
+three-variable cube	mcts	9	9	1.13672	1
+three-variable mixed	best-1st	11	13	0.118544	1
+three-variable mixed	mcts	11	13	0.169524	1
+two pieces	best-1st	14	14	0.00625551	1
+two pieces	mcts	14	14	0.00608808	1
+two pieces 400	best-1st	14	14	0.0148909	1
+two pieces 400	mcts	14	14	0.014206	1
+absolute value	best-1st	10	10	0.0074712	1
+absolute value	mcts	10	10	0.00545262	1
+three pieces	best-1st	21	21	0.040502	1
+three pieces	mcts	21	21	0.0555345	1
+pieces with outlier	best-1st	19	19	0.00803871	1
+pieces with outlier	mcts	19	19	0.0080049	1
+split on x	best-1st	15	15	0.44838	1
+split on x	mcts	15	15	0.25862	1
+split on y	best-1st	15	15	0.437729	1
+split on y	mcts	15	15	0.316203	1
+sign flip at zero	best-1st	13	13	0.430227	1
+sign flip at zero	mcts	13	13	0.234632	1
+#8 g(g(g(x))), g = y^2 + 1	best-1st	15	15	0.508867	1
+#8 g(g(g(x))), g = y^2 + 1	mcts	15	15	0.113613	1
+g(g(x)), g = y^3 - y	best-1st	13	13	0.194099	1
+g(g(x)), g = y^3 - y	mcts	13	13	1.43963	1
+g(g(g(x))), g = y^2 + y	best-1st	15	15	0.0267692	1
+g(g(g(x))), g = y^2 + y	mcts	15	15	0.0239317	1
+g(g(x)), g = y^2 - 2	best-1st	10	10	0.104316	1
+g(g(x)), g = y^2 - 2	mcts	10	10	0.116249	1
+#18 x^2 + 1, holes in two labels	best-1st	6	6	0.000537243	1
+two-variable square, holes	best-1st	7	7	0.0653778	1
+hole with no integer solution	best-1st	13	13	0.00067199	1
+dense outliers	best-1st	18	47	0.0941776	1
+dense outliers	mcts	18	47	0.0266979	1
+showcase: bulk pricing	best-1st	14	14	0.0221297	1
+showcase: bulk pricing	mcts	14	14	0.00993787	1
+showcase: bulk pricing, 400 orders	best-1st	14	14	0.0261814	1
+showcase: bulk pricing, 400 orders	mcts	14	14	0.0143688	1
+showcase: bulk pricing, two typos	best-1st	23	23	0.234101	1
+showcase: bulk pricing, two typos	mcts	23	23	0.147371	1
+bulk pricing, unknown totals	best-1st	14	14	0.26429	1
+showcase: projectile height	best-1st	10	10	0.0218999	1
+showcase: projectile height	mcts	10	10	0.0154235	1
+showcase: projectile height, bad reading	best-1st	15	15	0.0228625	1
+showcase: projectile height, bad reading	mcts	15	15	0.0156096	1
+showcase: framed picture area	best-1st	9	9	0.0463813	1
+showcase: framed picture area	mcts	9	9	0.0546075	1
+showcase: box volume	best-1st	7	7	0.201998	1
+showcase: box volume	mcts	7	7	0.144917	1
+showcase: sensor log, four spikes	best-1st	23	23	0.458202	1
+showcase: sensor log, four spikes	mcts	23	23	0.281017	1
+showcase: tiered shipping	best-1st	21	21	0.00908963	1
+showcase: tiered shipping	mcts	21	21	0.0091671	1
+showcase: projectile height, three bad readings	best-1st	23	23	0.0691712	1
+showcase: projectile height, three bad readings	mcts	23	23	0.0602872	1
+showcase: projectile height, 20 readings, five bad	best-1st	31	31	0.201388	1
+showcase: projectile height, 20 readings, five bad	mcts	31	31	0.18349	1
+showcase: sensor log, spikes and gaps	best-1st	15	15	0.187701	1
+showcase: tiered shipping, four tiers	best-1st	26	26	0.00932275	1
+showcase: tiered shipping, four tiers	mcts	26	26	0.00945878	1
+showcase: framed picture area, bad reading	best-1st	15	15	0.120937	1
+showcase: framed picture area, bad reading	mcts	15	15	0.121188	1
+showcase: three tiers, a typo and unknown labels	best-1st	26	26	0.433496	1
+showcase: three inputs, a typo and unknown labels	best-1st	16	16	0.554155	1
+square where prime, else linear	best-1st	13	13	0.0653492	1
+square where prime, else linear	mcts	13	13	0.0673535	1
+constant where even, else cubic	best-1st	14	14	0.021916	1
+constant where even, else cubic	mcts	14	14	0.00567816	1
+linear where odd above 10, else square	best-1st	20	20	0.0234589	1
+linear where odd above 10, else square	mcts	20	20	0.0240562	1
+zero where prime or small, else doubled	best-1st	13	13	0.181255	1
+zero where prime or small, else doubled	mcts	13	13	0.159281	1

@@ -80,6 +80,12 @@ LOGIC_EVALUATOR_TEMPLATE std::optional<bool> LOGIC_EVALUATOR::find_truth(
             return std::nullopt;
         return !operand.value();
     }
+    if (f->id == symbols_.multiplexer && f->args.size() == 3) {
+        const std::optional<bool> select = find_truth(f->args[0], coordinates);
+        if (!select.has_value())
+            return std::nullopt;
+        return find_truth(f->args[select.value() ? 1 : 2], coordinates);
+    }
     if (f->id == symbols_.majority && f->args.size() == 3) {
         size_t ones = 0;
         for (const expr* arg : f->args) {

@@ -32,7 +32,8 @@ list_fit_rules_manifest::list_fit_rules_manifest(
                      .alternative_denial = kernel.symbols_.intern_symbol("nand"),
                      .joint_denial = kernel.symbols_.intern_symbol("nor"),
                      .implication = kernel.symbols_.intern_symbol("imp"),
-                     .majority = kernel.symbols_.intern_symbol("maj")}
+                     .majority = kernel.symbols_.intern_symbol("maj"),
+                     .multiplexer = kernel.symbols_.intern_symbol("mux")}
     , point_symbol_(kernel.symbols_.intern_symbol("point"))
     , less_symbol_(kernel.symbols_.intern_symbol("lt"))
     , element_fit_(kernel, {"#0"}, fit_limits, pw_symbols_, point_symbol_, less_symbol_)
@@ -60,9 +61,6 @@ list_fit_rules_manifest::list_fit_rules_manifest(
     , matcher_(solver_)
     , filter_(pw_evaluator_, matcher_, pw_symbols_)
     , constants_(kernel.sizes_)
-    , integer_maps_(values_, kernel.literals_, element_fit_.converter_, element_fit_.hypotheses_, kernel.exprs_,
-                    list_symbols_)
-    , integer_folds_(kernel.literals_, step_fit_.converter_, step_fit_.hypotheses_, kernel.exprs_, list_symbols_)
     , primes_(kernel.literals_, prime_table_, prime_table_, kernel.exprs_, num_symbols_, list_symbols_.element)
     , atoms_(kernel.literals_, kernel.literals_, kernel.exprs_, list_symbols_.element, less_symbol_,
              element_fit_.equal_symbol_, element_fit_.modulo_symbol_, num_symbols_.is_prime)
@@ -70,6 +68,11 @@ list_fit_rules_manifest::list_fit_rules_manifest(
     , combinations_(atoms_, conditions_, condition_logic_.hypotheses_, kernel.sizes_, kernel.literals_,
                     kernel.literals_, kernel.exprs_, logic_symbols_, condition_logic_.variables_, point_symbol_)
     , conditions_union_(primes_, combinations_)
+    , guarded_(conditions_union_, element_fit_.hypotheses_, element_values_, kernel.sizes_, kernel.literals_,
+               kernel.exprs_, pw_symbols_)
+    , integer_maps_(values_, kernel.literals_, element_fit_.converter_, guarded_, kernel.exprs_,
+                    list_symbols_)
+    , integer_folds_(kernel.literals_, step_fit_.converter_, step_fit_.hypotheses_, kernel.exprs_, list_symbols_)
     , filterings_(values_, kernel.literals_, kernel.literals_, kernel.exprs_, conditions_union_, list_symbols_,
                   less_symbol_, point_symbol_)
     , maps_(values_, element_fit_.hypotheses_, kernel.exprs_, list_symbols_, point_symbol_)
@@ -93,9 +96,7 @@ list_fit_rules_manifest::list_fit_rules_manifest(
                     element_fit_.hypotheses_, kernel.literals_, kernel.exprs_, list_symbols_,
                     kernel.poly_symbols_.mul)
     , sum_solver_()
-    , guarded_(conditions_union_, element_fit_.hypotheses_, kernel.literals_, kernel.exprs_, pw_symbols_)
-    , element_union_(element_fit_.hypotheses_, guarded_)
-    , sum_folds_(values_, kernel.literals_, sum_solver_, sum_solver_, element_fit_.converter_, element_union_,
+    , sum_folds_(values_, kernel.literals_, sum_solver_, sum_solver_, element_fit_.converter_, guarded_,
                  kernel.literals_, kernel.exprs_, list_symbols_, pw_symbols_, kernel.poly_symbols_.add)
     , listed_folds_(values_, kernel.exprs_, list_symbols_)
     , reversals_(values_, kernel.exprs_, list_symbols_)

@@ -17,7 +17,8 @@ logic_fit_rules_manifest::logic_fit_rules_manifest(
                      .alternative_denial = kernel.symbols_.intern_symbol("nand"),
                      .joint_denial = kernel.symbols_.intern_symbol("nor"),
                      .implication = kernel.symbols_.intern_symbol("imp"),
-                     .majority = kernel.symbols_.intern_symbol("maj")}
+                     .majority = kernel.symbols_.intern_symbol("maj"),
+                     .multiplexer = kernel.symbols_.intern_symbol("mux")}
     , point_symbol_(kernel.symbols_.intern_symbol("point"))
     , variables_(intern_inputs(kernel, arity))
     , converter_(kernel.literals_, kernel.exprs_, kernel.literals_, point_symbol_, variables_.size())
@@ -37,7 +38,7 @@ logic_fit_rules_manifest::logic_fit_rules_manifest(
     , decompositions_(reader_, inner_, kernel.literals_, kernel.exprs_, logic_symbols_, variables_, point_symbol_)
     , leaves_(parities_, covers_, primitives_)
     , compositions_(leaves_, reader_, evaluator_, kernel.sizes_, kernel.literals_, kernel.exprs_, logic_symbols_,
-                    point_symbol_, variables_.size())
+                    point_symbol_, variables_)
     , hypotheses_(constants_, parities_, covers_, primitives_, decompositions_, compositions_)
     , closing_(hypotheses_, function_maker_, point_symbol_)
     , assembler_(kernel.exprs_, pw_symbols_)

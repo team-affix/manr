@@ -12,7 +12,6 @@
 #include "infrastructure/expr_size.hpp"
 #include "infrastructure/list_affine_fold_hypotheses.hpp"
 #include "infrastructure/list_affine_fold_solver.hpp"
-#include "infrastructure/list_condition_atoms.hpp"
 #include "infrastructure/list_count_fold_hypotheses.hpp"
 #include "infrastructure/list_evaluator.hpp"
 #include "infrastructure/list_extremum_fold_hypotheses.hpp"
@@ -35,6 +34,7 @@
 #include "infrastructure/logic_condition_evaluator.hpp"
 #include "infrastructure/logic_condition_hypotheses.hpp"
 #include "infrastructure/logic_fit_hypotheses_manifest.hpp"
+#include "infrastructure/num_condition_atoms.hpp"
 #include "infrastructure/num_evaluator.hpp"
 #include "infrastructure/num_prime_hypotheses.hpp"
 #include "infrastructure/num_prime_table.hpp"
@@ -146,9 +146,30 @@ struct list_fit_rules_manifest {
     struct constants_t : pw_constant_hypotheses<expr_size> {
         using pw_constant_hypotheses<expr_size>::pw_constant_hypotheses;
     };
+    struct primes_t : num_prime_hypotheses<kernel_t::literals_t, num_prime_table, num_prime_table, expr_pool> {
+        using num_prime_hypotheses<kernel_t::literals_t, num_prime_table, num_prime_table, expr_pool>::num_prime_hypotheses;
+    };
+    struct atoms_t : num_condition_atoms<kernel_t::literals_t, kernel_t::literals_t, expr_pool> {
+        using num_condition_atoms<kernel_t::literals_t, kernel_t::literals_t, expr_pool>::num_condition_atoms;
+    };
+    using formulas_t = logic_fit_hypotheses_manifest::hypotheses_t;
+    using combinations_base_t = logic_condition_hypotheses<atoms_t, conditions_t, formulas_t, expr_size,
+                                                           kernel_t::literals_t, kernel_t::literals_t, expr_pool>;
+    struct combinations_t : combinations_base_t {
+        using combinations_base_t::combinations_base_t;
+    };
+    struct conditions_union_t : pw_hypotheses_union<primes_t, combinations_t> {
+        using pw_hypotheses_union<primes_t, combinations_t>::pw_hypotheses_union;
+    };
+    using guarded_base_t = pw_guarded_hypotheses<conditions_union_t, fit_t::hypotheses_t, element_values_t, expr_size,
+                                                 kernel_t::literals_t, expr_pool>;
+    struct guarded_t : guarded_base_t {
+        using guarded_base_t::guarded_base_t;
+    };
+    using element_union_t = guarded_t;
     struct integer_maps_t : list_integer_map_hypotheses<values_t, kernel_t::literals_t, fit_t::converter_t,
-                                                        fit_t::hypotheses_t, expr_pool> {
-        using list_integer_map_hypotheses<values_t, kernel_t::literals_t, fit_t::converter_t, fit_t::hypotheses_t,
+                                                        element_union_t, expr_pool> {
+        using list_integer_map_hypotheses<values_t, kernel_t::literals_t, fit_t::converter_t, element_union_t,
                                           expr_pool>::list_integer_map_hypotheses;
     };
     struct integer_folds_t
@@ -184,21 +205,6 @@ struct list_fit_rules_manifest {
         using list_count_fold_hypotheses<values_t, kernel_t::literals_t, kernel_t::renderer_t, kernel_t::literals_t,
                                          expr_pool>::list_count_fold_hypotheses;
     };
-    struct primes_t : num_prime_hypotheses<kernel_t::literals_t, num_prime_table, num_prime_table, expr_pool> {
-        using num_prime_hypotheses<kernel_t::literals_t, num_prime_table, num_prime_table, expr_pool>::num_prime_hypotheses;
-    };
-    struct atoms_t : list_condition_atoms<kernel_t::literals_t, kernel_t::literals_t, expr_pool> {
-        using list_condition_atoms<kernel_t::literals_t, kernel_t::literals_t, expr_pool>::list_condition_atoms;
-    };
-    using formulas_t = logic_fit_hypotheses_manifest::hypotheses_t;
-    using combinations_base_t = logic_condition_hypotheses<atoms_t, conditions_t, formulas_t, expr_size,
-                                                           kernel_t::literals_t, kernel_t::literals_t, expr_pool>;
-    struct combinations_t : combinations_base_t {
-        using combinations_base_t::combinations_base_t;
-    };
-    struct conditions_union_t : pw_hypotheses_union<primes_t, combinations_t> {
-        using pw_hypotheses_union<primes_t, combinations_t>::pw_hypotheses_union;
-    };
     struct filterings_t : list_filter_hypotheses<values_t, kernel_t::literals_t, kernel_t::literals_t, expr_pool,
                                                  conditions_union_t> {
         using list_filter_hypotheses<values_t, kernel_t::literals_t, kernel_t::literals_t, expr_pool,
@@ -221,12 +227,6 @@ struct list_fit_rules_manifest {
                                     fit_t::converter_t, fit_t::hypotheses_t, kernel_t::literals_t, expr_pool>;
     struct factor_folds_t : factor_folds_base_t {
         using factor_folds_base_t::factor_folds_base_t;
-    };
-    struct guarded_t : pw_guarded_hypotheses<conditions_union_t, fit_t::hypotheses_t, kernel_t::literals_t, expr_pool> {
-        using pw_guarded_hypotheses<conditions_union_t, fit_t::hypotheses_t, kernel_t::literals_t, expr_pool>::pw_guarded_hypotheses;
-    };
-    struct element_union_t : pw_hypotheses_union<fit_t::hypotheses_t, guarded_t> {
-        using pw_hypotheses_union<fit_t::hypotheses_t, guarded_t>::pw_hypotheses_union;
     };
     using sum_folds_base_t =
         list_sum_fold_hypotheses<values_t, kernel_t::literals_t, list_sum_fold_solver, list_sum_fold_solver,
@@ -299,13 +299,14 @@ struct list_fit_rules_manifest {
     matcher_t matcher_;
     filter_t filter_;
     constants_t constants_;
-    integer_maps_t integer_maps_;
-    integer_folds_t integer_folds_;
     primes_t primes_;
     atoms_t atoms_;
     logic_fit_hypotheses_manifest condition_logic_;
     combinations_t combinations_;
     conditions_union_t conditions_union_;
+    guarded_t guarded_;
+    integer_maps_t integer_maps_;
+    integer_folds_t integer_folds_;
     filterings_t filterings_;
     maps_t maps_;
     folds_t folds_;
@@ -319,8 +320,6 @@ struct list_fit_rules_manifest {
     list_factor_fold_solver factor_solver_;
     factor_folds_t factor_folds_;
     list_sum_fold_solver sum_solver_;
-    guarded_t guarded_;
-    element_union_t element_union_;
     sum_folds_t sum_folds_;
     listed_folds_t listed_folds_;
     reversals_t reversals_;

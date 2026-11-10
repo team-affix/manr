@@ -34,7 +34,8 @@ modules/<name>/{hpp,cpp,test}/...             one directory per rule module; pre
                                               domain prefix, since every module's hpp/ is on the include path
   piecewise/  (pw_)                           the extension algebra over data sets, generic over the domain; the
                                               branch filter matches labels holding holes under one binding; guarded
-                                              readings pw(when(c, v), d) over any condition domain
+                                              readings pw(when(c, v), d) over any condition domain, d a constant or a
+                                              model (used by poly, map and sum readings)
   abstraction/ (abs_)                         binders and helpers, generic over the domain: `lam`, `lams`, `app`,
                                               `let`, de Bruijn indices, a reducer (beta-reduction with shifting),
                                               closing of fitted bodies, applying evaluation, the binder merger

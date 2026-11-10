@@ -191,7 +191,8 @@ LOGIC_FORMULA_REFITTER_TEMPLATE bool LOGIC_FORMULA_REFITTER::collect_holes(const
     const bool connective = f.id == symbols_.conjunction || f.id == symbols_.disjunction || f.id == symbols_.exclusion
                             || f.id == symbols_.negation || f.id == symbols_.equivalence
                             || f.id == symbols_.alternative_denial || f.id == symbols_.joint_denial
-                            || f.id == symbols_.implication || f.id == symbols_.majority;
+                            || f.id == symbols_.implication || f.id == symbols_.majority
+                            || f.id == symbols_.multiplexer;
     if (!connective)
         return false;
     for (const expr* arg : f.args)

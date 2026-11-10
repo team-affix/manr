@@ -27,7 +27,10 @@
 //   absorption       and(a, or(a, b)) = a, or(a, and(a, b)) = a
 //   xor chains       the operands of a nest of `xor`s, where two equal operands cancel (parity at any width)
 //   expansions       or(and(a, not(b)), and(not(a), b)) = xor(a, b), or(and(a, b), and(not(a), not(b))) = xnor(a, b),
-//                    or(and(a, or(b, c)), and(b, c)) = maj(a, b, c)
+//                    or(and(a, or(b, c)), and(b, c)) = maj(a, b, c), or(and(s, a), and(not(s), b)) = mux(s, a, b)
+//   multiplexer      mux(s, a, a) = a, mux(not(s), a, b) = mux(s, b, a), mux(s, 1, 0) = s, mux(s, 0, 1) = not(s),
+//                    mux(s, 1, b) = or(s, b), mux(s, a, 1) = imp(s, a), mux(s, a, 0) = and(s, a),
+//                    mux(s, s, b) = or(s, b), mux(s, a, s) = and(s, a)
 //
 // Commutative connectives are matched in either order.
 template<typename IFindLiteralValue, typename IMakeLiteral, typename IMakeFunctor>
@@ -99,6 +102,30 @@ LOGIC_SIMPLIFIER_TEMPLATE const expr* LOGIC_SIMPLIFIER::find_simplification(cons
         if (flipped == opposite.end())
             return nullptr;
         return make(flipped->second, g->args);
+    }
+    if (f.id == symbols_.multiplexer && f.args.size() == 3) {
+        const expr* select = f.args[0];
+        const expr* then = f.args[1];
+        const expr* otherwise = f.args[2];
+        if (then == otherwise)
+            return then;
+        const expr* inner = find_negated(select);
+        if (inner != nullptr)
+            return make(symbols_.multiplexer, {inner, otherwise, then});
+        const std::optional<bool> then_truth = find_truth(then);
+        const std::optional<bool> otherwise_truth = find_truth(otherwise);
+        if (then_truth.has_value() && otherwise_truth.has_value())
+            return then_truth.value() ? select : negate(select);
+        if (then_truth.has_value() && then_truth.value())
+            return make(symbols_.disjunction, {select, otherwise});
+        if (otherwise_truth.has_value())
+            return otherwise_truth.value() ? make(symbols_.implication, {select, then})
+                                           : make(symbols_.conjunction, {select, then});
+        if (then == select)
+            return make(symbols_.disjunction, {select, otherwise});
+        if (otherwise == select)
+            return make(symbols_.conjunction, {select, then});
+        return nullptr;
     }
     if (f.id == symbols_.majority && f.args.size() == 3) {
         for (size_t first = 0; first < 3; ++first)
@@ -232,6 +259,9 @@ LOGIC_SIMPLIFIER_TEMPLATE const expr* LOGIC_SIMPLIFIER::simplify_binary(uint32_t
                 const expr* second_negated = find_negated(second);
                 if (first_negated == a && second_negated == not_b)
                     return make(symbols_.equivalence, {a, not_b});
+                // or(and(s, x), and(not(s), y))
+                if (first_negated == a)
+                    return make(symbols_.multiplexer, {a, not_b, second});
                 // or(and(a, or(b, c)), and(b, c))
                 const bool spans = is_functor(not_b, symbols_.disjunction, 2);
                 if (!spans)

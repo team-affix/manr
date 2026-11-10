@@ -17,5 +17,5 @@ logic_fit_hypotheses_manifest::logic_fit_hypotheses_manifest(kernel_t& kernel,
     , primitives_(reader_, kernel.exprs_, logic_symbols_, variables_)
     , leaves_(parities_, covers_, primitives_)
     , compositions_(leaves_, reader_, evaluator_, kernel.sizes_, kernel.literals_, kernel.exprs_, logic_symbols_,
-                    point_symbol_, variables_.size())
+                    point_symbol_, variables_, k_logic_condition_decompositions)
     , hypotheses_(leaves_, compositions_) {}

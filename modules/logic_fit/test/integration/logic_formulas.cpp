@@ -73,7 +73,10 @@ struct LogicFormulasIntegrationTest : ::testing::Test {
             return leaves[rng() % leaves.size()];
         const std::vector<uint32_t> binary{s.conjunction, s.disjunction, s.exclusion, s.equivalence,
                                            s.alternative_denial, s.joint_denial, s.implication};
-        const uint32_t pick = rng() % 9;
+        const uint32_t pick = rng() % 10;
+        if (pick == 9)
+            return op(s.multiplexer, {random_formula(rng, depth - 1), random_formula(rng, depth - 1),
+                                      random_formula(rng, depth - 1)});
         if (pick == 7)
             return no(random_formula(rng, depth - 1));
         if (pick == 8)

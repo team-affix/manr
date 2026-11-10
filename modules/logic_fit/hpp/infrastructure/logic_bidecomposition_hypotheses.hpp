@@ -34,6 +34,12 @@ constexpr size_t k_logic_default_max_shared_inputs = 2;
 // (`xor(maj(a, b, c), and(a, d))` shares a). The tests are the same with each part's projection taken over its own
 // inputs and C, which checks them for each assignment of C; each part still loses inputs (A and B are not empty), so
 // the depth stays bounded by the inputs.
+//
+// Two more outer shapes are read on an input v (or two, x and y), each on strictly less of the table:
+//   mux   mux(v, g, h): g is f where v holds and h is f where it fails, each made independent of v (Shannon's
+//         expansion; it always applies, and is kept when it is smaller);
+//   maj   maj(x, y, g) for inputs x and y, plain or negated: where they agree, f must equal them, and where they
+//         differ, g is f.
 template<typename IProposeLeaves, typename IFindTable, typename IHoldsAt, typename IFindCost, typename IMakeLiteral,
          typename IMakeFunctor>
 struct logic_bidecomposition_hypotheses {
@@ -45,13 +51,13 @@ struct logic_bidecomposition_hypotheses {
                                      IMakeFunctor& make_functor,
                                      logic_symbols symbols,
                                      uint32_t point_symbol,
-                                     size_t width,
+                                     std::vector<uint32_t> variables,
                                      size_t max_decompositions = k_logic_default_max_decompositions,
                                      size_t max_shared = k_logic_default_max_shared_inputs);
     void propose_hypotheses(const std::vector<pw_data_point>& points, std::vector<const expr*>& out);
 private:
     using parts_t = std::pair<logic_truth_table, logic_truth_table>;
-    const expr* decompose(const logic_truth_table& table);
+    const expr* decompose(const logic_truth_table& table, bool top);
     const expr* find_leaf(const logic_truth_table& table);
     uint64_t find_support(const logic_truth_table& table) const;
     std::optional<parts_t> split_bounded(const logic_truth_table& table, uint64_t left_inputs, uint64_t right_inputs,
@@ -59,6 +65,10 @@ private:
     std::optional<parts_t> split_exclusive(const logic_truth_table& table, uint64_t left_inputs,
                                            uint64_t right_inputs) const;
     logic_truth_table spread(const std::map<uint64_t, bool>& values, uint64_t group) const;
+    std::optional<logic_truth_table> find_cofactor(const logic_truth_table& table, size_t position, bool value) const;
+    std::optional<logic_truth_table> find_majority_rest(const logic_truth_table& table, size_t first, bool first_plain,
+                                                        size_t second, bool second_plain) const;
+    const expr* make_literal_input(size_t position, bool plain);
     std::vector<pw_data_point> find_points(const logic_truth_table& table);
 
     IProposeLeaves& propose_leaves_;
@@ -69,6 +79,7 @@ private:
     IMakeFunctor& make_functor_;
     logic_symbols symbols_;
     uint32_t point_symbol_;
+    std::vector<uint32_t> variables_;
     size_t width_;
     size_t max_decompositions_;
     size_t max_shared_;
@@ -92,7 +103,7 @@ LOGIC_BIDECOMPOSITION_HYPOTHESES_TEMPLATE LOGIC_BIDECOMPOSITION_HYPOTHESES::logi
     IMakeFunctor& make_functor,
     logic_symbols symbols,
     uint32_t point_symbol,
-    size_t width,
+    std::vector<uint32_t> variables,
     size_t max_decompositions,
     size_t max_shared)
     : propose_leaves_(propose_leaves)
@@ -103,7 +114,8 @@ LOGIC_BIDECOMPOSITION_HYPOTHESES_TEMPLATE LOGIC_BIDECOMPOSITION_HYPOTHESES::logi
     , make_functor_(make_functor)
     , symbols_(symbols)
     , point_symbol_(point_symbol)
-    , width_(width)
+    , variables_(std::move(variables))
+    , width_(variables_.size())
     , max_decompositions_(max_decompositions)
     , max_shared_(max_shared)
     , decompositions_(0)
@@ -115,7 +127,7 @@ LOGIC_BIDECOMPOSITION_HYPOTHESES_TEMPLATE void LOGIC_BIDECOMPOSITION_HYPOTHESES:
     if (!table.has_value() || table.value().rows.empty())
         return;
     decompositions_ = 0;
-    const expr* composition = decompose(table.value());
+    const expr* composition = decompose(table.value(), true);
     if (composition == nullptr)
         return;
     out.push_back(composition);
@@ -123,7 +135,7 @@ LOGIC_BIDECOMPOSITION_HYPOTHESES_TEMPLATE void LOGIC_BIDECOMPOSITION_HYPOTHESES:
 
 // The smallest formula found for the table: a leaf, or a connective of two decomposed parts.
 LOGIC_BIDECOMPOSITION_HYPOTHESES_TEMPLATE const expr* LOGIC_BIDECOMPOSITION_HYPOTHESES::decompose(
-    const logic_truth_table& table) {
+    const logic_truth_table& table, bool top) {
     const auto known = decomposed_.find(table);
     if (known != decomposed_.end())
         return known->second;
@@ -131,6 +143,7 @@ LOGIC_BIDECOMPOSITION_HYPOTHESES_TEMPLATE const expr* LOGIC_BIDECOMPOSITION_HYPO
     const expr* best = find_leaf(table);
     size_t best_cost = best == nullptr ? SIZE_MAX : find_cost_.cost(best);
     const uint64_t support = find_support(table);
+    bool composed = false;
     const uint64_t all = (uint64_t(1) << width_) - 1;
     const bool splittable = __builtin_popcountll(support) >= 2 && decompositions_ < max_decompositions_;
     // every shared set C of at most `max_shared` support inputs, and every split of the rest into A (holding the
@@ -163,11 +176,12 @@ LOGIC_BIDECOMPOSITION_HYPOTHESES_TEMPLATE const expr* LOGIC_BIDECOMPOSITION_HYPO
                         : split_bounded(table, left_inputs, right_inputs, combiner == symbols_.disjunction);
                 if (!parts.has_value())
                     continue;
-                const expr* left = decompose(parts.value().first);
-                const expr* right = decompose(parts.value().second);
+                const expr* left = decompose(parts.value().first, false);
+                const expr* right = decompose(parts.value().second, false);
                 if (left == nullptr || right == nullptr)
                     continue;
                 const expr* composition = make_functor_.make_functor(combiner, {left, right});
+                composed = true;
                 const size_t cost = find_cost_.cost(composition);
                 if (cost >= best_cost)
                     continue;
@@ -177,6 +191,51 @@ LOGIC_BIDECOMPOSITION_HYPOTHESES_TEMPLATE const expr* LOGIC_BIDECOMPOSITION_HYPO
         }
         if (last)
             break;
+    }
+    // mux on one input, maj with two inputs: at the top, and below it where no split by a connective was found (a mux
+    // always applies, so trying it everywhere would explore every restriction of the table), while nothing smaller
+    // than 5 is found
+    const bool selectable = splittable && (top || !composed) && best_cost > 4;
+    for (size_t position = 0; selectable && position < width_; ++position) {
+        if ((support >> position & 1) == 0)
+            continue;
+        const std::optional<logic_truth_table> then = find_cofactor(table, position, true);
+        const std::optional<logic_truth_table> otherwise = find_cofactor(table, position, false);
+        if (then.has_value() && otherwise.has_value()) {
+            const expr* left = decompose(then.value(), false);
+            const expr* right = decompose(otherwise.value(), false);
+            if (left != nullptr && right != nullptr) {
+                const expr* select = make_functor_.make_functor(variables_[position], {});
+                const expr* composition = make_functor_.make_functor(symbols_.multiplexer, {select, left, right});
+                const size_t cost = find_cost_.cost(composition);
+                if (cost < best_cost) {
+                    best = composition;
+                    best_cost = cost;
+                }
+            }
+        }
+        for (size_t other = position + 1; other < width_; ++other) {
+            if ((support >> other & 1) == 0)
+                continue;
+            for (const bool first_plain : {true, false})
+                for (const bool second_plain : {true, false}) {
+                    const std::optional<logic_truth_table> rest =
+                        find_majority_rest(table, position, first_plain, other, second_plain);
+                    if (!rest.has_value())
+                        continue;
+                    const expr* third = decompose(rest.value(), false);
+                    if (third == nullptr)
+                        continue;
+                    const expr* composition = make_functor_.make_functor(
+                        symbols_.majority,
+                        {make_literal_input(position, first_plain), make_literal_input(other, second_plain), third});
+                    const size_t cost = find_cost_.cost(composition);
+                    if (cost >= best_cost)
+                        continue;
+                    best = composition;
+                    best_cost = cost;
+                }
+        }
     }
     decomposed_.emplace(table, best);
     return best;
@@ -318,6 +377,51 @@ LOGIC_BIDECOMPOSITION_HYPOTHESES_TEMPLATE logic_truth_table LOGIC_BIDECOMPOSITIO
         table.rows.emplace(row, value->second);
     }
     return table;
+}
+
+// f where the input at `position` has `value`, as a table independent of that input; nothing when no known row has it.
+LOGIC_BIDECOMPOSITION_HYPOTHESES_TEMPLATE std::optional<logic_truth_table>
+LOGIC_BIDECOMPOSITION_HYPOTHESES::find_cofactor(const logic_truth_table& table, size_t position, bool value) const {
+    const uint64_t bit = uint64_t(1) << position;
+    logic_truth_table cofactor{.width = width_, .rows = {}};
+    for (const auto& [row, output] : table.rows) {
+        if (((row & bit) != 0) != value)
+            continue;
+        cofactor.rows.emplace(row & ~bit, output);
+        cofactor.rows.emplace(row | bit, output);
+    }
+    if (cofactor.rows.empty())
+        return std::nullopt;
+    return cofactor;
+}
+
+// For maj(x, y, g): where the two literals agree, f must equal them; g is f on the rows where they differ. Nothing
+// when a row where they agree contradicts that, or no row has them agree (g would be all of f).
+LOGIC_BIDECOMPOSITION_HYPOTHESES_TEMPLATE std::optional<logic_truth_table>
+LOGIC_BIDECOMPOSITION_HYPOTHESES::find_majority_rest(const logic_truth_table& table, size_t first, bool first_plain,
+                                                     size_t second, bool second_plain) const {
+    logic_truth_table rest{.width = width_, .rows = {}};
+    bool agreed = false;
+    for (const auto& [row, output] : table.rows) {
+        const bool x = ((row >> first & 1) != 0) == first_plain;
+        const bool y = ((row >> second & 1) != 0) == second_plain;
+        if (x == y) {
+            if (output != x)
+                return std::nullopt;
+            agreed = true;
+            continue;
+        }
+        rest.rows.emplace(row, output);
+    }
+    if (!agreed || rest.rows.empty())
+        return std::nullopt;
+    return rest;
+}
+
+LOGIC_BIDECOMPOSITION_HYPOTHESES_TEMPLATE const expr* LOGIC_BIDECOMPOSITION_HYPOTHESES::make_literal_input(
+    size_t position, bool plain) {
+    const expr* variable = make_functor_.make_functor(variables_[position], {});
+    return plain ? variable : make_functor_.make_functor(symbols_.negation, {variable});
 }
 
 LOGIC_BIDECOMPOSITION_HYPOTHESES_TEMPLATE std::vector<pw_data_point> LOGIC_BIDECOMPOSITION_HYPOTHESES::find_points(

@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <set>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -15,7 +16,7 @@
 
 constexpr size_t k_logic_default_max_condition_proposals = 4;
 constexpr size_t k_logic_default_max_condition_starts = 8;
-constexpr size_t k_logic_default_max_condition_triples = 2000000;
+constexpr size_t k_logic_default_max_condition_triples = 200000;
 
 // A detector for condition data (`point(v) -> 1` where a condition holds, `-> 0` where it fails) as a Boolean
 // function of one or two atomic predicates. The atoms come from another domain (thresholds, residues, primality),
@@ -265,18 +266,25 @@ LOGIC_CONDITION_HYPOTHESES_TEMPLATE void LOGIC_CONDITION_HYPOTHESES::propose_sep
             ranked.emplace_back(separated, atom);
     }
     std::sort(ranked.rbegin(), ranked.rend());
+    // each set of atoms is fitted once, however many starts choose it
+    std::set<std::vector<size_t>> fitted;
     bool wide = true;
     for (size_t start = 0; start < ranked.size() && start < max_starts_; ++start) {
-        const std::optional<std::vector<size_t>> chosen = find_greedy(ranked[start].second, atoms, truths, joined);
+        std::optional<std::vector<size_t>> chosen = find_greedy(ranked[start].second, atoms, truths, joined);
         if (!chosen.has_value())
             continue;
         wide = wide && chosen.value().size() > 3;
+        std::vector<size_t> key = chosen.value();
+        std::sort(key.begin(), key.end());
+        if (!fitted.insert(key).second)
+            continue;
         fit_chosen(chosen.value(), points, atoms, truths, labels, found);
     }
     if (!wide)
         return;
     for (const std::vector<size_t>& chosen : find_triples(atoms, truths, labels))
-        fit_chosen(chosen, points, atoms, truths, labels, found);
+        if (fitted.insert(chosen).second)
+            fit_chosen(chosen, points, atoms, truths, labels, found);
 }
 
 // The atoms a greedy choice takes from `start` on until every joined pair is told apart; nothing when it runs out of
@@ -364,13 +372,19 @@ LOGIC_CONDITION_HYPOTHESES_TEMPLATE void LOGIC_CONDITION_HYPOTHESES::fit_chosen(
         if (seen[row])
             continue;
         seen[row] = true;
-        std::vector<const expr*> coordinates;
-        coordinates.reserve(placeholders_.size());
-        for (size_t index = 0; index < placeholders_.size(); ++index)
-            coordinates.push_back(make_literal_.make_literal(integer((row >> index) & 1)));
-        const expr* input = make_functor_.make_functor(point_symbol_, coordinates);
-        const expr* label = make_literal_.make_literal(integer(labels[point] ? 1 : 0));
-        table.push_back(pw_data_point{.input = input, .output = label});
+        // the placeholders beyond the chosen atoms take every value, so they are irrelevant inputs rather than don't
+        // cares (a table of mostly don't cares makes the cover's search explode)
+        const size_t unused = placeholders_.size() - chosen.size();
+        for (uint64_t filler = 0; filler < (uint64_t(1) << unused); ++filler) {
+            const uint64_t full = row | (filler << chosen.size());
+            std::vector<const expr*> coordinates;
+            coordinates.reserve(placeholders_.size());
+            for (size_t index = 0; index < placeholders_.size(); ++index)
+                coordinates.push_back(make_literal_.make_literal(integer((full >> index) & 1)));
+            const expr* input = make_functor_.make_functor(point_symbol_, coordinates);
+            const expr* label = make_literal_.make_literal(integer(labels[point] ? 1 : 0));
+            table.push_back(pw_data_point{.input = input, .output = label});
+        }
     }
     std::vector<const expr*> atoms_chosen;
     for (const size_t index : chosen)
@@ -391,8 +405,8 @@ LOGIC_CONDITION_HYPOTHESES_TEMPLATE void LOGIC_CONDITION_HYPOTHESES::fit_chosen(
     }
 }
 
-// The formula with the i-th placeholder replaced by the i-th chosen atom, and an unused placeholder by 0 (it is 0 in
-// every row of the table).
+// The formula with the i-th placeholder replaced by the i-th chosen atom, and an unused placeholder by 0 (the table
+// does not depend on it).
 LOGIC_CONDITION_HYPOTHESES_TEMPLATE const expr* LOGIC_CONDITION_HYPOTHESES::substitute(
     const expr* formula, const std::vector<const expr*>& chosen) {
     const expr::functor* f = std::get_if<expr::functor>(&formula->content);

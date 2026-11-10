@@ -45,6 +45,7 @@ struct fit_problem {
     std::vector<std::pair<size_t, int>> holes;
     size_t target;
     std::string target_text;
+    std::string guard;  // when not empty, the first piece applies where the guard holds on the split variable
 };
 
 struct outcome {
@@ -61,6 +62,20 @@ constexpr size_t k_probing_depth = 12;
 constexpr size_t k_simulations = 150;
 constexpr double k_exploration = 0.4;
 constexpr size_t k_large = 40;  // samples; --fast skips MCTS above this
+
+// Whether a named guard holds at a value: "prime", "even", "odd above 10", "prime or below 5".
+bool guard_holds(const std::string& guard, int value) {
+    bool prime = value >= 2;
+    for (int divisor = 2; divisor * divisor <= value; ++divisor)
+        prime = prime && value % divisor != 0;
+    if (guard == "prime")
+        return prime;
+    if (guard == "even")
+        return value % 2 == 0;
+    if (guard == "odd above 10")
+        return value % 2 != 0 && value > 10;
+    return prime || value < 5;
+}
 
 // Every point of the grid [low, high]^k, in order, valued by the piece its split coordinate falls in.
 std::vector<poly_sample> sample(const fit_problem& p) {
@@ -79,7 +94,9 @@ std::vector<poly_sample> sample(const fit_problem& p) {
         for (const int coordinate : coordinates)
             s.inputs.push_back(coordinate);
         size_t part = 0;
-        while (coordinates[p.split] >= p.pieces[part].below)
+        if (!p.guard.empty())
+            part = guard_holds(p.guard, coordinates[p.split]) ? 0 : 1;
+        while (p.guard.empty() && coordinates[p.split] >= p.pieces[part].below)
             ++part;
         s.output = evaluator.evaluate(polynomials[part], s.inputs);
         samples.push_back(s);
@@ -190,90 +207,99 @@ solved solve(const fit_problem& p, bool fast) {
 int main(int argc, char** argv) {
     const bench_options options = parse_bench_options(argc, argv);
     const std::vector<fit_problem> problems{
-        {"cubic", {"x"}, {{"x^3 - x", INT_MAX}}, 0, -3, 4, {}, {}, 6, "lam(#0^3 - #0)"},
-        {"power of linear", {"x"}, {{"(2*x - 1)^3", INT_MAX}}, 0, -3, 4, {}, {}, 8, "lam((2*#0 - 1)^3)"},
+        {"cubic", {"x"}, {{"x^3 - x", INT_MAX}}, 0, -3, 4, {}, {}, 6, "lam(#0^3 - #0)", ""},
+        {"power of linear", {"x"}, {{"(2*x - 1)^3", INT_MAX}}, 0, -3, 4, {}, {}, 8, "lam((2*#0 - 1)^3)", ""},
         {"horner quintic", {"x"}, {{"x^5 + 2*x^4 + 3*x^3 + 4*x^2 + 5*x + 6", INT_MAX}}, 0, -3, 5, {}, {}, 20,
-         "lam(((((#0+2)*#0+3)*#0+4)*#0+5)*#0+6)"},
-        {"one outlier", {"x"}, {{"x^2 + 1", INT_MAX}}, 0, 0, 8, {{3, 7}}, {}, 11, "pw(case(point(3), 17), lam(#0^2 + 1))"},
+         "lam(((((#0+2)*#0+3)*#0+4)*#0+5)*#0+6)", ""},
+        {"one outlier", {"x"}, {{"x^2 + 1", INT_MAX}}, 0, 0, 8, {{3, 7}}, {}, 11, "pw(case(point(3), 17), lam(#0^2 + 1))", ""},
         {"outlier run", {"x"}, {{"x^2 - 4*x", INT_MAX}}, 0, 0, 39,
          {{0, 1}, {1, 1}, {2, 1}, {3, 1}, {4, 1}, {5, 1}, {6, 1}, {7, 1}, {8, 1}, {9, 1}, {10, 1}, {11, 1}}, {}, 102,
-         "12 cases + #0^2 - 4*#0"},
+         "12 cases + #0^2 - 4*#0", ""},
         {"scattered outliers", {"x"}, {{"x^2 + 1", INT_MAX}}, 0, 0, 39, {{3, 5}, {10, 5}, {17, 5}, {24, 5}, {31, 5}, {38, 5}},
-         {}, 31, "6 cases + #0^2 + 1"},
-        {"cubic 1000", {"x"}, {{"x^3 - 2*x + 5", INT_MAX}}, 0, -500, 499, {}, {}, 10, "lam(#0^3 - 2*#0 + 5)"},
-        {"two-variable square", {"x", "y"}, {{"(x + y)^2", INT_MAX}}, 0, -2, 2, {}, {}, 7, "lams(2, (#1 + #0)^2)"},
+         {}, 31, "6 cases + #0^2 + 1", ""},
+        {"cubic 1000", {"x"}, {{"x^3 - 2*x + 5", INT_MAX}}, 0, -500, 499, {}, {}, 10, "lam(#0^3 - 2*#0 + 5)", ""},
+        {"two-variable square", {"x", "y"}, {{"(x + y)^2", INT_MAX}}, 0, -2, 2, {}, {}, 7, "lams(2, (#1 + #0)^2)", ""},
         {"two-variable product", {"x", "y"}, {{"(x - y + 2)*(x + 2*y)", INT_MAX}}, 0, -2, 2, {{4, 3}}, {}, 19,
-         "pw(case(point(2, -2), -9), lams(2, (#1 - #0 + 2)*(#1 + 2*#0)))"},
-        {"three-variable cube", {"x", "y", "z"}, {{"(x + y + z)^3", INT_MAX}}, 0, -1, 2, {}, {}, 9, "lams(3, (#2 + #1 + #0)^3)"},
-        {"three-variable mixed", {"x", "y", "z"}, {{"x*y*z + x^2 - z", INT_MAX}}, 0, -1, 2, {}, {}, 13, "lams(3, #2*#1*#0 + #2^2 - #0)"},
+         "pw(case(point(2, -2), -9), lams(2, (#1 - #0 + 2)*(#1 + 2*#0)))", ""},
+        {"three-variable cube", {"x", "y", "z"}, {{"(x + y + z)^3", INT_MAX}}, 0, -1, 2, {}, {}, 9, "lams(3, (#2 + #1 + #0)^3)", ""},
+        {"three-variable mixed", {"x", "y", "z"}, {{"x*y*z + x^2 - z", INT_MAX}}, 0, -1, 2, {}, {}, 13, "lams(3, #2*#1*#0 + #2^2 - #0)", ""},
         {"two pieces", {"x"}, {{"x^2", 0}, {"3*x + 1", INT_MAX}}, 0, -10, 9, {}, {}, 14,
-         "lam(pw(when(lt(#0, 0), #0^2), 3*#0 + 1))"},
+         "lam(pw(when(lt(#0, 0), #0^2), 3*#0 + 1))", ""},
         {"two pieces 400", {"x"}, {{"x^2", 0}, {"3*x + 1", INT_MAX}}, 0, -200, 199, {}, {}, 14,
-         "lam(pw(when(lt(#0, 0), #0^2), 3*#0 + 1))"},
-        {"absolute value", {"x"}, {{"-1*x", 0}, {"x", INT_MAX}}, 0, -10, 10, {}, {}, 10, "lam(pw(when(lt(#0, 1), -1*#0), #0))"},
+         "lam(pw(when(lt(#0, 0), #0^2), 3*#0 + 1))", ""},
+        {"absolute value", {"x"}, {{"-1*x", 0}, {"x", INT_MAX}}, 0, -10, 10, {}, {}, 10, "lam(pw(when(lt(#0, 1), -1*#0), #0))", ""},
         {"three pieces", {"x"}, {{"5", 10}, {"x^2 - 7", 20}, {"(x - 1)^3", INT_MAX}}, 0, 0, 29, {}, {}, 21,
-         "lam(pw(when(lt(#0, 10), 5), when(lt(#0, 20), #0^2 - 7), (#0 - 1)^3))"},
+         "lam(pw(when(lt(#0, 10), 5), when(lt(#0, 20), #0^2 - 7), (#0 - 1)^3))", ""},
         {"pieces with outlier", {"x"}, {{"x^2", 0}, {"3*x + 1", INT_MAX}}, 0, -10, 9, {{4, 3}}, {}, 19,
-         "pw(case(point(-6), 39), lam(pw(when(lt(#0, 0), #0^2), 3*#0 + 1)))"},
-        {"split on x", {"x", "y"}, {{"x*y", 1}, {"x + y^2", INT_MAX}}, 0, -3, 3, {}, {}, 15, "lams(2, pw(when(lt(#1, 1), #1*#0), #0^2 + #1))"},
+         "pw(case(point(-6), 39), lam(pw(when(lt(#0, 0), #0^2), 3*#0 + 1)))", ""},
+        {"split on x", {"x", "y"}, {{"x*y", 1}, {"x + y^2", INT_MAX}}, 0, -3, 3, {}, {}, 15, "lams(2, pw(when(lt(#1, 1), #1*#0), #0^2 + #1))", ""},
         {"split on y", {"x", "y"}, {{"x - y", 0}, {"(x + y)^2", INT_MAX}}, 1, -3, 3, {}, {}, 15,
-         "lams(2, pw(when(lt(#0, 0), #1 - #0), (#1 + #0)^2))"},
+         "lams(2, pw(when(lt(#0, 0), #1 - #0), (#1 + #0)^2))", ""},
         {"sign flip at zero", {"x", "y"}, {{"x - y", 0}, {"x + y", INT_MAX}}, 0, -3, 3, {}, {}, 13,
-         "pw(when(lt(x, 0), x - y), x + y)"},
+         "pw(when(lt(x, 0), x - y), x + y)", ""},
         // reduce request #8, and similar iterated polynomials, read with a helper by the iteration detector
         {"#8 g(g(g(x))), g = y^2 + 1", {"x"}, {{"x^8 + 4*x^6 + 8*x^4 + 8*x^2 + 5", INT_MAX}}, 0, -6, 6, {}, {}, 15,
-         "lam(let(lam(#0^2 + 1), app(#0, app(#0, app(#0, #1)))))"},
+         "lam(let(lam(#0^2 + 1), app(#0, app(#0, app(#0, #1)))))", ""},
         {"g(g(x)), g = y^3 - y", {"x"}, {{"(x^3 - x)^3 - (x^3 - x)", INT_MAX}}, 0, -6, 6, {}, {}, 13,
-         "lam(let(lam(#0^3 - #0), app(#0, app(#0, #1))))"},
+         "lam(let(lam(#0^3 - #0), app(#0, app(#0, #1))))", ""},
         {"g(g(g(x))), g = y^2 + y", {"x"}, {{"((x^2 + x)^2 + x^2 + x)^2 + (x^2 + x)^2 + x^2 + x", INT_MAX}}, 0, -6, 6, {},
-         {}, 15, "lam(let(lam(#0^2 + #0), app(#0, app(#0, app(#0, #1)))))"},
+         {}, 15, "lam(let(lam(#0^2 + #0), app(#0, app(#0, app(#0, #1)))))", ""},
         {"g(g(x)), g = y^2 - 2", {"x"}, {{"(x^2 - 2)^2 - 2", INT_MAX}}, 0, -6, 6, {}, {}, 10,
-         "(x^2 - 2)^2 - 2 (smaller than the helper form, 12)"},
+         "(x^2 - 2)^2 - 2 (smaller than the helper form, 12)", ""},
         // reduce request #18, and similar labels holding holes: a hole is bound to the model's value, or solved for
         {"#18 x^2 + 1, holes in two labels", {"x"}, {{"x^2 + 1", INT_MAX}}, 0, 0, 8, {}, {{1, 1}, {3, 2}}, 6,
-         "lam(#0^2 + 1), ?1 = 2, ?2 = 5"},
+         "lam(#0^2 + 1), ?1 = 2, ?2 = 5", ""},
         {"two-variable square, holes", {"x", "y"}, {{"(x + y)^2", INT_MAX}}, 0, -2, 2, {}, {{3, 1}, {12, -1}, {23, 3}},
-         7, "lams(2, (#1 + #0)^2)"},
+         7, "lams(2, (#1 + #0)^2)", ""},
         {"hole with no integer solution", {"x"}, {{"x^2 + 1", INT_MAX}}, 0, 0, 8, {}, {{2, 2}}, 13,
-         "pw(case(point(2), 2 * ?1), lam(#0^2 + 1))"},
+         "pw(case(point(2), 2 * ?1), lam(#0^2 + 1))", ""},
         // every third point an outlier: once open, now read as a period-3 piecewise by the residue detector
         {"dense outliers", {"x"}, {{"x^2 + 1", INT_MAX}}, 0, 0, 29,
          {{1, 2}, {4, 2}, {7, 2}, {10, 2}, {13, 2}, {16, 2}, {19, 2}, {22, 2}, {25, 2}, {28, 2}}, {}, 47,
-         "10 cases + #0^2 + 1"},
+         "10 cases + #0^2 + 1", ""},
         // showcase (docs/showcase.md): realistic data, and variants measuring how far each generalizes
         {"showcase: bulk pricing", {"x"}, {{"12*x", 10}, {"10*x + 20", INT_MAX}}, 0, 0, 40, {}, {}, 14,
-         "lam(pw(when(lt(#0, 10), 12*#0), 10*#0 + 20))"},
+         "lam(pw(when(lt(#0, 10), 12*#0), 10*#0 + 20))", ""},
         {"showcase: bulk pricing, 400 orders", {"x"}, {{"12*x", 10}, {"10*x + 20", INT_MAX}}, 0, 0, 399, {}, {}, 14,
-         "lam(pw(when(lt(#0, 10), 12*#0), 10*#0 + 20))"},
+         "lam(pw(when(lt(#0, 10), 12*#0), 10*#0 + 20))", ""},
         {"showcase: bulk pricing, two typos", {"x"}, {{"12*x", 10}, {"10*x + 20", INT_MAX}}, 0, 0, 40,
-         {{7, 3}, {25, -10}}, {}, 23, "two cases + the pricing"},
+         {{7, 3}, {25, -10}}, {}, 23, "two cases + the pricing", ""},
         {"bulk pricing, unknown totals", {"x"}, {{"12*x", 10}, {"10*x + 20", INT_MAX}}, 0, 0, 40, {},
-         {{3, 1}, {18, 1}, {30, 2}}, 14, "the pricing, holes bound"},
+         {{3, 1}, {18, 1}, {30, 2}}, 14, "the pricing, holes bound", ""},
         {"showcase: projectile height", {"x"}, {{"-5*x^2 + 30*x + 2", INT_MAX}}, 0, 0, 8, {}, {}, 10,
-         "lam(-5*#0^2 + 30*#0 + 2)"},
+         "lam(-5*#0^2 + 30*#0 + 2)", ""},
         {"showcase: projectile height, bad reading", {"x"}, {{"-5*x^2 + 30*x + 2", INT_MAX}}, 0, 0, 8, {{4, 9}}, {}, 15,
-         "one case + the height"},
+         "one case + the height", ""},
         {"showcase: framed picture area", {"x", "y"}, {{"(x + 2)*(y + 2)", INT_MAX}}, 0, 1, 6, {}, {}, 9,
-         "lams(2, (#1 + 2)*(#0 + 2))"},
-        {"showcase: box volume", {"x", "y", "z"}, {{"x*y*z", INT_MAX}}, 0, 1, 4, {}, {}, 7, "lams(3, #2*#1*#0)"},
+         "lams(2, (#1 + 2)*(#0 + 2))", ""},
+        {"showcase: box volume", {"x", "y", "z"}, {{"x*y*z", INT_MAX}}, 0, 1, 4, {}, {}, 7, "lams(3, #2*#1*#0)", ""},
         {"showcase: sensor log, four spikes", {"x"}, {{"3*x + 7", INT_MAX}}, 0, 0, 59,
-         {{5, 40}, {17, -30}, {33, 25}, {48, 60}}, {}, 23, "four cases + lam(3*#0 + 7)"},
+         {{5, 40}, {17, -30}, {33, 25}, {48, 60}}, {}, 23, "four cases + lam(3*#0 + 7)", ""},
         {"showcase: tiered shipping", {"x"}, {{"8", 5}, {"2*x - 2", 20}, {"3*x - 22", INT_MAX}}, 0, 0, 40, {}, {}, 21,
-         "lam(pw(when(lt(#0, 5), 8), when(lt(#0, 20), 2*#0 - 2), 3*#0 - 22))"},
+         "lam(pw(when(lt(#0, 5), 8), when(lt(#0, 20), 2*#0 - 2), 3*#0 - 22))", ""},
         {"showcase: projectile height, three bad readings", {"x"}, {{"-5*x^2 + 30*x + 2", INT_MAX}}, 0, 0, 8,
-         {{2, 9}, {4, 9}, {6, -7}}, {}, 23, "three cases + the height"},
+         {{2, 9}, {4, 9}, {6, -7}}, {}, 23, "three cases + the height", ""},
         {"showcase: projectile height, 20 readings, five bad", {"x"}, {{"-5*x^2 + 30*x + 2", INT_MAX}}, 0, 0, 19,
-         {{2, 9}, {6, -7}, {9, 4}, {13, 11}, {17, -3}}, {}, 31, "five cases + the height"},
+         {{2, 9}, {6, -7}, {9, 4}, {13, 11}, {17, -3}}, {}, 31, "five cases + the height", ""},
         {"showcase: sensor log, spikes and gaps", {"x"}, {{"3*x + 7", INT_MAX}}, 0, 0, 59, {{5, 40}, {17, -30}}, {{10, 1}, {40, 1}},
-         15, "two cases + lam(3*#0 + 7)"},
+         15, "two cases + lam(3*#0 + 7)", ""},
         {"showcase: tiered shipping, four tiers", {"x"}, {{"8", 5}, {"2*x - 2", 20}, {"3*x - 22", 30}, {"68", INT_MAX}}, 0,
-         0, 40, {}, {}, 26, "four pieces"},
+         0, 40, {}, {}, 26, "four pieces", ""},
         {"showcase: framed picture area, bad reading", {"x", "y"}, {{"(x + 2)*(y + 2)", INT_MAX}}, 0, 1, 6, {{8, 5}}, {}, 15,
-         "one case + the area"},
+         "one case + the area", ""},
         {"showcase: three tiers, a typo and unknown labels", {"x"}, {{"8", 5}, {"2*x - 2", 20}, {"3*x - 22", INT_MAX}}, 0, 0,
-         40, {{12, 5}}, {{3, 1}, {25, 1}}, 26, "pw(case(point(12), 27), lam(pw(when(lt(#0, 6), 8), when(lt(#0, 21), 2*#0 - 2), 3*#0 - 22)))"},
+         40, {{12, 5}}, {{3, 1}, {25, 1}}, 26, "pw(case(point(12), 27), lam(pw(when(lt(#0, 6), 8), when(lt(#0, 21), 2*#0 - 2), 3*#0 - 22)))", ""},
         {"showcase: three inputs, a typo and unknown labels", {"x", "y", "z"}, {{"x*y - z^2", INT_MAX}}, 0, -2, 2, {{40, 7}},
          {{11, 1}, {52, 2}}, 16, "pw(case(point(-2, 1, -1), 4), lams(3, #2*#1 - #0^2))"},
+        // piecewise data whose branch is guarded by a Boolean condition (pw_guarded_hypotheses)
+        {"square where prime, else linear", {"x"}, {{"x^2", 0}, {"2*x + 1", 0}}, 0, 0, 40, {}, {}, 13,
+         "lam(pw(when(is_prime(#0), #0^2), 2*#0 + 1))", "prime"},
+        {"constant where even, else cubic", {"x"}, {{"7", 0}, {"x^3 - x", 0}}, 0, -10, 20, {}, {}, 14,
+         "lam(pw(when(eq(mod(#0, 2), 0), 7), #0^3 - #0))", "even"},
+        {"linear where odd above 10, else square", {"x"}, {{"5*x - 3", 0}, {"x^2", 0}}, 0, 0, 40, {}, {}, 20,
+         "lam(pw(when(and(eq(mod(#0, 2), 1), lt(10, #0)), 5*#0 - 3), #0^2))", "odd above 10"},
+        {"zero where prime or small, else doubled", {"x"}, {{"0", 0}, {"2*x", 0}}, 0, 0, 40, {}, {}, 13,
+         "lam(pw(when(or(is_prime(#0), lt(#0, 5)), 0), 2*#0))", "prime or below 5"},
     };
 
     std::printf("budgets: best-first %zu rewrites; mcts %zu simulations x depth %zu\n", k_rewrites, k_simulations,

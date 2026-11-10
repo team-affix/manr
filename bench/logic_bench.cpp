@@ -210,6 +210,18 @@ int shared_two(const std::vector<int>& bits) {  // and(xor(a, b, c), or(a, b, d)
     return ((bits[0] != bits[1]) != bits[2]) && (bits[0] || bits[1] || bits[3]);
 }
 
+int select_between_compositions(const std::vector<int>& bits) {  // mux(a, xor(b, c), and(b, d))
+    return bits[0] ? (bits[1] != bits[2]) : (bits[1] && bits[3]);
+}
+
+int majority_with_a_composition(const std::vector<int>& bits) {  // maj(a, b, xor(c, d))
+    return bits[0] + bits[1] + (bits[2] != bits[3]) >= 2;
+}
+
+int nested_selection(const std::vector<int>& bits) {  // mux(a, mux(b, c, d), maj(c, d, e))
+    return bits[0] ? (bits[1] ? bits[2] : bits[3]) : (bits[2] + bits[3] + bits[4] >= 2);
+}
+
 // showcase rules
 int access_rule(const std::vector<int>& bits) {  // admin, or owner and not locked
     return bits[0] || (bits[1] && !bits[2]);
@@ -286,6 +298,15 @@ int main(int argc, char** argv) {
          "lams(3, or(and(#2, #1), xor(#2, #0)))"},
         {"and of a parity and an or sharing two inputs", {"a", "b", "c", "d"}, shared_two, {}, {}, 13,
          "lams(4, and(xor(xor(#3, #2), #1), or(or(#3, #2), #0)))"},
+        // multiplexers and majorities over subfunctions
+        {"mux between two compositions", {"a", "b", "c", "d"}, select_between_compositions, {}, {}, 10,
+         "lams(4, mux(#3, xor(#2, #1), and(#2, #0)))"},
+        {"majority with a composition", {"a", "b", "c", "d"}, majority_with_a_composition, {}, {}, 8,
+         "lams(4, maj(#3, #2, xor(#1, #0)))"},
+        {"nested selection over five inputs", {"a", "b", "c", "d", "e"}, nested_selection, {}, {}, 12,
+         "lams(5, mux(#4, mux(#3, #2, #1), maj(#2, #1, #0)))"},
+        {"nested selection, four rows unseen", {"a", "b", "c", "d", "e"}, nested_selection, {3, 12, 20, 29}, {}, 12,
+         "lams(5, mux(#4, mux(#3, #2, #1), maj(#2, #1, #0)))"},
     };
 
     std::printf("budgets: best-first %zu rewrites; mcts %zu simulations x depth %zu\n", k_rewrites, k_simulations,

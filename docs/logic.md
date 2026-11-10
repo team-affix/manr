@@ -28,7 +28,7 @@ examples below that name an input (`x`, `xs`, `n`, `a`) mean its index: one inpu
 | `0`, `1` | the truth values (integer literals) |
 | `a`, `b`, ... | the input variables, in the order each sample lists them |
 | `and(x, y)`, `or(x, y)`, `xor(x, y)`, `not(x)` | the connectives |
-| `xnor(x, y)`, `nand(x, y)`, `nor(x, y)`, `imp(x, y)`, `maj(x, y, z)` | primitives: equivalence, not-and, not-or, implication, at least two of three |
+| `xnor(x, y)`, `nand(x, y)`, `nor(x, y)`, `imp(x, y)`, `maj(x, y, z)`, `mux(s, x, y)` | primitives: equivalence, not-and, not-or, implication, at least two of three, x where s holds else y |
 
 `logic_evaluator` gives a formula's value at `point(v1, ..., vk)` as the literal 0 or 1. As a region condition, a
 formula holds where it is 1, so a piecewise can split on any formula.
@@ -63,10 +63,13 @@ before a solver runs.
   only by the inputs, with a work budget (`k_logic_default_max_decompositions`). `xor(maj(a, b, c), maj(d, e, f))` is
   read from 56 of its 64 rows. The parts may share inputs: f = c(g(A, C), h(B, C)) for a shared set C of at most
   two inputs (`k_logic_default_max_shared_inputs`), with the same tests taken over each part's inputs and C, so
-  `xor(maj(a, b, c), and(a, d))` is read through the shared a. `logic_fit_hypotheses_manifest` packages these
+  `xor(maj(a, b, c), and(a, d))` is read through the shared a. Two more outer shapes, at the top and wherever no
+  connective splits a part: `mux(v, g, h)` on an input v (g and h are f where v holds and where it fails, Shannon's
+  expansion) and `maj(x, y, g)` on two inputs (where they agree f must equal them; g is f where they differ), so
+  `mux(a, xor(b, c), and(b, d))` and `maj(a, b, xor(c, d))` are read whole. `logic_fit_hypotheses_manifest` packages these
   detectors for other domains.
 - **`logic_condition_hypotheses`**: condition data (a value kept or removed) as a Boolean function of atomic
-  predicates from another domain (`list_condition_atoms`: thresholds, residues, primality; any domain's predicates
+  predicates from another domain (`num_condition_atoms`: thresholds, residues, primality; any domain's predicates
   can be atoms). One atom, or a connective of two; beyond that, atoms are chosen until every kept value is told apart
   from every removed one (greedily from several starts, and every triple when the greedy choice needs more than three,
   since each atom of an xor separates only half), and the labels over the chosen atoms are fitted as a truth table by
@@ -115,15 +118,14 @@ at 64 rows each.
 - **Holes as missing pieces.** The refit binds holes to whatever is smallest, so `or(and(not(#1), #0), ?0)` becomes
   `1`, not the `xor(#1, #0)` reduce request #19 asks for. Recovering "the rest of a shape" needs an objective that
   keeps the known part's structure (completion against primitive expansions), to be decided.
-- **Other outer connectives.** Bi-decomposition reads `or`, `and` and `xor` of two parts (negations and the other
-  binary connectives fall out of the parts); `maj` of three subfunctions, or a multiplexer of subfunctions, is not
-  read as such. Shared sets are at most two inputs.
+- **Outer shapes over subfunctions**: `maj(g, h, k)` with three composite arguments, and `mux(s, g, h)` whose
+  selector is itself a formula, are not read. Shared sets are at most two inputs.
 - **Shared subformulas.** Majority of 5 repeats `maj(c, d, e)`; sharing it needs helpers (`plans.md`, abstraction).
 - **Exact minimization** for small formulas; the cover is greedy.
 - **Algebraic normal form** (xor of ands, the GF(2) polynomial) as a second normal form beside the cover: parities
   are linear there and sums of products are exponential, and the reverse holds for ors, so each catches what the other
   cannot.
 - **Wide formulas**: the refit stops at 8 inputs; structural rules are the only reduction beyond.
-- **Conditions in other readings**: maps with a guarded value (`map(lam(pw(when(c, v), d)), xs)`) and piecewise
-  regions of polynomial data do not use the condition domain yet. Separating sets beyond three atoms rely on the
-  greedy choice.
+- **Several guarded branches**: `pw_guarded_hypotheses` reads one guarded branch over a default; data with two or
+  more differently guarded branches is read only where splits by thresholds or residues apply. Separating sets beyond
+  three atoms rely on the greedy choice.

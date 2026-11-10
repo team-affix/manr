@@ -1,6 +1,7 @@
 #ifndef LOGIC_FIT_HYPOTHESES_MANIFEST_HPP
 #define LOGIC_FIT_HYPOTHESES_MANIFEST_HPP
 
+#include <cstddef>
 #include <cstdint>
 #include <vector>
 #include "infrastructure/expr_pool.hpp"
@@ -17,10 +18,13 @@
 #include "infrastructure/pw_hypotheses_union.hpp"
 #include "value_objects/logic_symbols.hpp"
 
+constexpr size_t k_logic_condition_decompositions = 50;
+
 // Boolean function fitting over the given input symbols, as a hypothesis source another domain can own: given truth
 // table data (`point(b1, ..., bk) -> b` of 0s and 1s, unseen rows as don't cares), `hypotheses_` proposes parities,
 // covers, primitives and compositions of any depth over the inputs. A domain that reduces part of its problem to a
 // Boolean function (a condition over its own predicates) owns one, with placeholder inputs it then substitutes.
+// Conditions are small, so compositions get a small budget (`k_logic_condition_decompositions`).
 struct logic_fit_hypotheses_manifest {
     using kernel_t = poly_kernel_manifest;
     struct evaluator_t : logic_evaluator<kernel_t::literals_t, kernel_t::literals_t> {

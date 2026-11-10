@@ -1,5 +1,5 @@
-#ifndef LIST_CONDITION_ATOMS_HPP
-#define LIST_CONDITION_ATOMS_HPP
+#ifndef NUM_CONDITION_ATOMS_HPP
+#define NUM_CONDITION_ATOMS_HPP
 
 #include <cstddef>
 #include <cstdint>
@@ -11,16 +11,16 @@
 #include "value_objects/integer.hpp"
 #include "value_objects/pw_data_point.hpp"
 
-constexpr size_t k_list_default_max_threshold_atoms = 64;
-constexpr int k_list_default_max_modulus = 6;
+constexpr size_t k_num_default_max_threshold_atoms = 64;
+constexpr int k_num_default_max_modulus = 6;
 
-// The atomic predicates over an integer element `#0` that condition detectors combine: thresholds `lt(v, #0)` and
-// `lt(#0, v)` at every distinct value v of the data (when there are at most `max_thresholds` of them), residues
-// `eq(mod(#0, m), r)` for every modulus m from 2 to `max_modulus`, and primality `is_prime(#0)`. The data points are
-// `point(v)`; points of any other shape are skipped.
+// The atomic predicates over one integer input `#0` that condition detectors combine (a list element, a polynomial
+// input): thresholds `lt(v, #0)` and `lt(#0, v)` at every distinct value v of the data (when there are at most
+// `max_thresholds` of them), residues `eq(mod(#0, m), r)` for every modulus m from 2 to `max_modulus`, and primality
+// `is_prime(#0)`. The data points are `point(v)`; points of any other shape are skipped.
 template<typename IFindLiteralValue, typename IMakeLiteral, typename IMakeFunctor>
-struct list_condition_atoms {
-    list_condition_atoms(IFindLiteralValue& find_literal_value,
+struct num_condition_atoms {
+    num_condition_atoms(IFindLiteralValue& find_literal_value,
                          IMakeLiteral& make_literal,
                          IMakeFunctor& make_functor,
                          uint32_t element_symbol,
@@ -28,8 +28,8 @@ struct list_condition_atoms {
                          uint32_t equal_symbol,
                          uint32_t modulo_symbol,
                          uint32_t primality_symbol,
-                         size_t max_thresholds = k_list_default_max_threshold_atoms,
-                         int max_modulus = k_list_default_max_modulus);
+                         size_t max_thresholds = k_num_default_max_threshold_atoms,
+                         int max_modulus = k_num_default_max_modulus);
     void propose_atoms(const std::vector<pw_data_point>& points, std::vector<const expr*>& out);
 private:
     IFindLiteralValue& find_literal_value_;
@@ -44,10 +44,10 @@ private:
     int max_modulus_;
 };
 
-#define LIST_CONDITION_ATOMS_TEMPLATE template<typename IFindLiteralValue, typename IMakeLiteral, typename IMakeFunctor>
-#define LIST_CONDITION_ATOMS          list_condition_atoms<IFindLiteralValue, IMakeLiteral, IMakeFunctor>
+#define NUM_CONDITION_ATOMS_TEMPLATE template<typename IFindLiteralValue, typename IMakeLiteral, typename IMakeFunctor>
+#define NUM_CONDITION_ATOMS          num_condition_atoms<IFindLiteralValue, IMakeLiteral, IMakeFunctor>
 
-LIST_CONDITION_ATOMS_TEMPLATE LIST_CONDITION_ATOMS::list_condition_atoms(IFindLiteralValue& find_literal_value,
+NUM_CONDITION_ATOMS_TEMPLATE NUM_CONDITION_ATOMS::num_condition_atoms(IFindLiteralValue& find_literal_value,
                                                                          IMakeLiteral& make_literal,
                                                                          IMakeFunctor& make_functor,
                                                                          uint32_t element_symbol,
@@ -68,7 +68,7 @@ LIST_CONDITION_ATOMS_TEMPLATE LIST_CONDITION_ATOMS::list_condition_atoms(IFindLi
     , max_thresholds_(max_thresholds)
     , max_modulus_(max_modulus) {}
 
-LIST_CONDITION_ATOMS_TEMPLATE void LIST_CONDITION_ATOMS::propose_atoms(const std::vector<pw_data_point>& points,
+NUM_CONDITION_ATOMS_TEMPLATE void NUM_CONDITION_ATOMS::propose_atoms(const std::vector<pw_data_point>& points,
                                                                        std::vector<const expr*>& out) {
     std::set<integer> values;
     for (const pw_data_point& point : points) {
@@ -96,7 +96,7 @@ LIST_CONDITION_ATOMS_TEMPLATE void LIST_CONDITION_ATOMS::propose_atoms(const std
     }
 }
 
-#undef LIST_CONDITION_ATOMS
-#undef LIST_CONDITION_ATOMS_TEMPLATE
+#undef NUM_CONDITION_ATOMS
+#undef NUM_CONDITION_ATOMS_TEMPLATE
 
 #endif
