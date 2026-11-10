@@ -71,8 +71,9 @@ output, with no story: readers can see the domain and the use for themselves.
 - **Every input in full**, every case of every data set, however long: the report demonstrates what MANR does, so
   nothing of an input is left out. Take them from the benchmarks' `--full-inputs` notes. If the body passes
   GitHub's size limit (65,536 characters), continue in comments, never by shortening.
-- One section per kind, expressions first, then data by domain. Each is a table with two columns, **input** and
-  **output**, one row per problem.
-- **Not reduced**: a table of the full input, the output reached, and the smaller form that exists.
+- One section per kind, expressions first, then data by domain. Each is a table with three columns, one row per
+  problem: **demonstrates** (a fragment naming what the row shows, e.g. "recognizes the primes from a late start",
+  "binds unknown labels"), **input** and **output**.
+- **Not reduced**: a table of what was tried, the full input, the output reached, and the smaller form that exists.
 
 Give the user the Discussion's link and a few lines of summary.
