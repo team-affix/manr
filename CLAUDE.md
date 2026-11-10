@@ -122,6 +122,10 @@ A module depends on core and on other modules' headers; core never depends on a 
 - The search strategy is a manifest choice: `arith_fit_manifest` (best-first) and `arith_fit_mcts_manifest` share
   every rule and differ only in search. Read `docs/search.md` before touching either search.
 
+- **Roadmap** (`docs/roadmap.md`): the checkpoint of what MANR can and cannot do, and the large pieces toward the
+  vision, in order: domain-free machinery (anti-unification, one recursive hypothesis service, semantic re-fitting,
+  laws as data, equality saturation, helpers), free variables everywhere, numbers and Booleans, new domains, a parser
+  and a random-problem "dart board" that measures recovery. Read it before choosing large work.
 - **Plans** (`docs/plans.md`): what we intend to build next, below the level of `docs/vision.md`. Its first section,
   abstraction, is designed, not built: helper functions as a domain-free module (de Bruijn `lam`/`arg`/`app`/`let`).
   A helper is any connected cut of the computation graph (its cut edges are its inputs), not only a subterm; paired
