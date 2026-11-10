@@ -127,6 +127,9 @@ A module depends on core and on other modules' headers; core never depends on a 
   A helper is any connected cut of the computation graph (its cut edges are its inputs), not only a subterm; paired
   rules abstract a recurring fragment or inline it, firing only when they shrink. Read it before adding helpers,
   composition or recursion.
+- **Showcase** (`docs/showcase.md`): **"Perform the showcase workflow"** invents realistic problems MANR should solve,
+  confirms them, measures how far each generalizes, adds them to the benchmarks, and posts a capability report as a
+  GitHub Discussion (category Showcase). The positive counterpart of scout.
 - **Two workflows** run on reduce-request issues. **"Perform the scout workflow"** (`docs/scout.md`): survey MANR, invent
   hard problems (in and beyond its domains), confirm they fail, diagnose the cause, file each as an issue.
   **"Perform the forge workflow"** (`docs/forge.md`): pull the issues, choose one, design the most general efficient
