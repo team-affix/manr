@@ -20,14 +20,14 @@
 #include <utility>
 #include <variant>
 #include <vector>
+#include "bench_gate.hpp"
+#include "composition/poly_kernel_manifest.hpp"
+#include "composition/seq_fit_manifest.hpp"
+#include "composition/seq_fit_mcts_manifest.hpp"
 #include "infrastructure/num_prime_table.hpp"
 #include "infrastructure/poly_interpolator.hpp"
-#include "infrastructure/poly_kernel_manifest.hpp"
-#include "infrastructure/seq_fit_manifest.hpp"
-#include "infrastructure/seq_fit_mcts_manifest.hpp"
 #include "value_objects/poly_default_limits.hpp"
 #include "value_objects/poly_fit_default_limits.hpp"
-#include "bench_gate.hpp"
 
 namespace {
 
@@ -128,7 +128,7 @@ outcome finish(Manifest& m, Search& search, const std::vector<pw_data_point>& po
         if (kept)
             continue;
         const std::optional<const expr*> value = m.rule_set_.pw_evaluator_.evaluate_at(best, point.input);
-        sound = sound && value.has_value() && m.rule_set_.matcher_.match(point.output, value.value(), bindings);
+        sound = sound && value.has_value() && m.rule_set_.piecewise_.matcher_.match(point.output, value.value(), bindings);
     }
     std::ostringstream os;
     m.kernel_.printer_.print(os, best);
@@ -181,14 +181,14 @@ outcome run_best_first(const seq_problem& p, const std::vector<poly_sample>& sam
     seq_fit_manifest m{samples, k_poly_default_limits, k_poly_fit_default_limits, k_frontier};
     const std::vector<pw_data_point> points = find_points(m, p, samples);
     std::ostringstream input;
-    m.kernel_.printer_.print(input, m.rule_set_.builder_.build(points, 0));
+    m.kernel_.printer_.print(input, m.rule_set_.piecewise_.builder_.build(points, 0));
     if (p.holes.empty()) {
         while (m.search_.rewrites() < k_rewrites && m.search_.next()) {}
         outcome reached = finish(m, m.search_, points, start);
         reached.input = input.str();
         return reached;
     }
-    seq_fit_manifest::search_t search{m.rule_set_.rules_, m.kernel_.sizes_, m.rule_set_.builder_.build(points, 0), k_frontier};
+    seq_fit_manifest::search_t search{m.rule_set_.rules_, m.kernel_.sizes_, m.rule_set_.piecewise_.builder_.build(points, 0), k_frontier};
     while (search.rewrites() < k_rewrites && search.next()) {}
     outcome reached = finish(m, search, points, start);
     reached.input = input.str();

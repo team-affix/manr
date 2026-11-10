@@ -3,9 +3,9 @@
 #include <gtest/gtest.h>
 #include "infrastructure/arith_evaluator.hpp"
 #include "infrastructure/arith_literals.hpp"
-#include "infrastructure/arith_simplifier.hpp"
 #include "infrastructure/expr_pool.hpp"
 #include "infrastructure/symbol_table.hpp"
+#include "rules/arith_simplifier.hpp"
 
 // Literals, evaluation and simplification over real interning: their correctness is pointer identity of
 // interned literals, which mocks would have to reimplement.

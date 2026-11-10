@@ -15,10 +15,10 @@
 #include <sstream>
 #include <string>
 #include <vector>
-#include "infrastructure/logic_fit_manifest.hpp"
-#include "infrastructure/logic_fit_mcts_manifest.hpp"
-#include "value_objects/poly_default_limits.hpp"
 #include "bench_gate.hpp"
+#include "composition/logic_fit_manifest.hpp"
+#include "composition/logic_fit_mcts_manifest.hpp"
+#include "value_objects/poly_default_limits.hpp"
 
 namespace {
 

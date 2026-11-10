@@ -9,7 +9,7 @@ DEPFLAGS = -MMD -MP
 AR       = ar
 ARFLAGS  = rcs
 
-MODULE_INCS = $(patsubst %,-I%,$(sort $(wildcard modules/*/hpp)))
+MODULE_INCS = $(patsubst %,-I%,$(sort $(wildcard modules/*/hpp solvers/*/hpp)))
 CXXFLAGS    = -std=c++20 -Wall -Wextra -I. -Icore/hpp -Imcts/core/hpp \
               -Imultiprecision/include -Iboost_config/include $(MODULE_INCS) $(DEPFLAGS)
 
@@ -27,9 +27,9 @@ GTEST_SRC = googletest/googletest/src/gtest-all.cc googletest/googlemock/src/gmo
 # ==============================================================================
 
 CORE_SRC         = $(shell find core/cpp mcts/core/cpp -name '*.cpp' | sort)
-MODULES_SRC      = $(shell find modules -path '*/cpp/*' -name '*.cpp' | sort)
+MODULES_SRC      = $(shell find modules solvers -path '*/cpp/*' -name '*.cpp' | sort)
 CORE_TEST_SRC    = $(shell find core/test -name '*.cpp' | sort)
-MODULES_TEST_SRC = $(shell find modules -path '*/test/*' -name '*.cpp' | sort) modules/test_main.cpp
+MODULES_TEST_SRC = $(shell find modules solvers -path '*/test/*' -name '*.cpp' | sort) modules/test_main.cpp
 
 # $(call objs,<variant>,<sources>) -> build/obj/<variant>/<source path>.o
 objs = $(patsubst %,build/obj/$(1)/%.o,$(basename $(2)))
@@ -82,6 +82,10 @@ build/obj/$(1)/core/test/%.o: core/test/%.cpp
 	$(CXX) $(CXXFLAGS) $(3) $(GTEST_CPPFLAGS) -c $$< -o $$@
 
 build/obj/$(1)/modules/%.o: modules/%.cpp
+	@mkdir -p $$(dir $$@)
+	$(CXX) $(CXXFLAGS) $(3) $(GTEST_CPPFLAGS) -c $$< -o $$@
+
+build/obj/$(1)/solvers/%.o: solvers/%.cpp
 	@mkdir -p $$(dir $$@)
 	$(CXX) $(CXXFLAGS) $(3) $(GTEST_CPPFLAGS) -c $$< -o $$@
 

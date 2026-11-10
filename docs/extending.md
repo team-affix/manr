@@ -75,12 +75,15 @@ make bench_baseline     # record the current results as the baseline
 1. **Write the problems first.** Add to a corpus the problems the new capability should solve, with their target
    costs, plus at least one it should not change. Run the gate. The new problems appear as `new` and unsolved. This
    is test-first development at the level of the corpus.
-2. **Design the rule.** Follow `rule-design.md`: certain detection, filters before exact work, limits as parameters.
-   Prefer a detector that proposes the final result in one step (see the design rules below). For a hard shape (a
-   general fold, a composition), first split it into subproblems with `decomposing-detection.md`.
+2. **Design the rule.** Put it where `architecture.md` says (a rule in `modules/<domain>/hpp/rules/`, a hypothesis
+   source in `hpp/hypotheses/`, listed in the solver's rules manifest). Follow `rule-design.md`: certain detection,
+   filters before exact work, limits as parameters. Prefer a detector that proposes the final result in one step (see
+   the design rules below). For a hard shape (a general fold, a composition), first split it into subproblems with
+   `decomposing-detection.md`.
 3. **Test it.** Write a unit test for its logic and an integration test where it depends on real interning. Make sure
-   the domain's soundness fuzz covers it. A rule added to a domain's rule union is covered automatically. A new
-   domain needs its own fuzz test with its own oracle (`poly_soundness.cpp`, `poly_fit_soundness.cpp`).
+   the domain's soundness fuzz covers it. A rule added to a solver's rule lists (`docs/architecture.md`) is covered
+   automatically. A new domain needs its own fuzz test with its own oracle (`poly_soundness.cpp`,
+   `poly_fit_soundness.cpp`).
 4. **Run `make bench_check`.** If anything gets worse, the fix belongs in the rule, never in the baseline. Look at
    what the losing solver now does on that problem (the benchmark prints every best form) and apply a design rule.
 5. **Run `make bench_check_full` before landing, when the change can reach the large problems.** MCTS on the large

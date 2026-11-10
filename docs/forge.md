@@ -55,7 +55,9 @@ Fit the issue's example first, then generalize as far as efficiency allows:
 
 ## 5. Build and prove it general
 
-By the loop in `extending.md`:
+By the loop in `extending.md`, with every piece where `architecture.md` puts it: a rule in
+`modules/<domain>/hpp/rules/`, a detector in `hpp/hypotheses/`, each appended to the lists of the solver's rules
+manifest; a new domain as a module plus a solver.
 
 - Tests: a unit test per new component, integration tests where real interning matters, and the domain's soundness
   fuzz covering the new rules.

@@ -16,10 +16,11 @@ examples below that name an input (`x`, `xs`, `n`, `a`) mean its index: one inpu
 
 ## Modules
 
-- `seq` (`seq_`): the vocabulary, its evaluator and the closing rule. The step of a recurrence belongs to an injected
-  step domain, and anything that is not a recurrence or a power to an injected outer domain.
-- `seq_fit` (`seq_`): the composition. The recurrence detector, the rule set, the solver manifests and the runtime.
-  Both injected domains are polynomial: `fit_` over the index variable does everything polynomial fitting does, and
+- `modules/seq` (`seq_`): the vocabulary, its evaluator, the recurrence detector, and the rules (the closing rule,
+  the unfolder and the open-list reader). The step of a recurrence belongs to an injected step domain, and anything
+  that is not a recurrence or a power to an injected outer domain.
+- `solvers/seq_fit`: the composition. The rule set, the solver manifests and the runtime. Both injected domains are
+  polynomial: `fit_` over the index variable does everything polynomial fitting does, and
   one `poly_fit_hypotheses_manifest` per order fits steps.
 
 ## Vocabulary

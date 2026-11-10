@@ -2,7 +2,7 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include "infrastructure/expr_pool.hpp"
-#include "infrastructure/pw_branch_absorber.hpp"
+#include "rules/pw_branch_absorber.hpp"
 
 using ::testing::_;
 using ::testing::Return;

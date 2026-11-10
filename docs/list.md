@@ -14,12 +14,14 @@ examples below that name an input (`x`, `xs`, `n`, `a`) mean its index: one inpu
 
 ## Modules
 
-- `list` (`list_`): the vocabulary and its evaluator. Domain-free apart from lists themselves: the bodies of programs
+- `modules/list` (`list_`): the vocabulary, its evaluator, the sample converter, and the program detectors
+  (`hpp/hypotheses/`) with their fold solvers. Domain-free apart from lists themselves: the bodies of programs
   belong to an injected element domain.
-- `list_fit` (`list_`): the composition. The detectors, the sample converter, the rule set and the solver manifests.
-  The element domain is polynomial fitting, through two `poly_fit_hypotheses_manifest`s.
+- `solvers/list_fit`: the composition. The rule set, the solver manifests and the runtime. The element domain is
+  polynomial fitting, through two `poly_fit_hypotheses_manifest`s.
 
-To improve how programs are detected, work in `list_fit`. To add list operations, work in `list`.
+To improve how programs are detected, add or change a detector in `modules/list/hpp/hypotheses/` and list it in
+`list_fit_rules_manifest` (`docs/architecture.md`). To add list operations, work in the vocabulary and evaluator.
 
 ## Vocabulary
 

@@ -26,69 +26,66 @@ MANR is a domain-specific symbolic expression reduction engine in C++20, the mos
 
 ## Layout
 
+**Read `docs/architecture.md` first**: what a module, a rule, a hypothesis source and a solver are, the fixed shape of
+every rules manifest, and where each new thing goes. Three layers, each depending only on those above it:
+
 ```
 core/hpp/{infrastructure,value_objects}       domain-free: expr, pool, symbols, size, printer, rule plumbing, search
-core/cpp/...                                  .cpp for non-templated types
-core/test/{unit,integration}, main.cpp
-modules/<name>/{hpp,cpp,test}/...             one directory per rule module; prefix every file with the module's
-                                              domain prefix, since every module's hpp/ is on the include path
-  piecewise/  (pw_)                           the extension algebra over data sets, generic over the domain; the
-                                              branch filter matches labels holding holes under one binding; guarded
-                                              readings pw(when(c, v), d) over any condition domain, d a constant or a
-                                              model (used by poly, map and sum readings)
-  abstraction/ (abs_)                         binders and helpers, generic over the domain: `lam`, `lams`, `app`,
-                                              `let`, de Bruijn indices, a reducer (beta-reduction with shifting),
-                                              closing of fitted bodies, applying evaluation, the binder merger
-  arith/      (arith_)                        integer arithmetic: literals, evaluator, simplifier, the linear hole
-                                              solver (a label polynomial in a hole, solved by integer roots)
-  arith_fit/  (arith_)                        composition: linear-fit detector, manifest, runtime
-  poly/       (poly_)                         polynomial algebra over Z: normal form oracle, rules, detectors
-  poly_reduce/ (poly_)                        composition: kernel, rule sets, four solver manifests
-  poly_fit/   (poly_)                         composition: polynomial data fitting over piecewises (interpolation
-                                              detector, point evaluator, rule set, solver manifests, runtime;
-                                              `poly_fit_hypotheses_manifest` lends polynomial fitting to other domains)
-  list/       (list_)                         lists and list programs (map, filter, fold): vocabulary, evaluator
-  list_fit/   (list_)                         composition: program detectors over list data (generic, and integer
-                                              cases; affine, extremum, product and count folds from whole lists,
-                                              generic selection and factor folds over an inner function g),
-                                              delegating bodies to polynomial fitting; rule set, solver manifests,
-                                              runtime
-  seq/        (seq_)                          integer sequences: recurrences (`rec`), powers (`exp`), infinite lists
-                                              (`tabulate`, `unfold`), evaluator, the closing rule from affine
-                                              recurrences to powers
-  seq_fit/    (seq_)                          composition: the recurrence detector (steps from consecutive terms,
-                                              handed to polynomial fitting), open-ended lists read as sequences, rule
-                                              set, solver manifests, runtime
-  number/     (num_)                          number-theory primitives over another domain: `prime(n)`, `is_prime(n)`,
-                                              a sieve-backed prime table, their evaluator, and a detector comparing
-                                              data with the primes (wired into poly, seq and list fitting)
-  logic/      (logic_)                        boolean functions: and, or, xor, not and the primitives xnor, nand,
-                                              nor, imp, maj over 0 and 1; evaluator, the structural laws, and a
-                                              condition evaluator combining any domain's predicates
-  logic_fit/  (logic_)                        composition: parity, cover, primitive and decomposition detectors over
-                                              truth tables, Boolean conditions over atoms, the truth-table refit
-                                              (holes as don't cares), rule set, solver manifests, runtime
-bench/                                        release benchmarks and the regression gate (`make bench_check`), not
-                                              tests; committed baselines in bench/baseline/
-modules/test_main.cpp                         GTest entry for the modules binary
+core/cpp/...  core/test/{unit,integration}
+modules/<domain>/                             ONE DOMAIN each; every file carries the domain's prefix
+  hpp/value_objects/                          vocabulary (<prefix>_symbols) and the domain's data
+  hpp/rules/                                  rules, one per file: detect(e, out)                  <- add rules here
+  hpp/hypotheses/                             hypothesis sources, one per file: propose_hypotheses <- and models here
+  hpp/infrastructure/                         what they use: evaluators, solvers, readers, renderers, parsers
+  cpp/, test/{unit,integration}/
+solvers/<solver>/                             COMPOSITION only: manifests and runtimes, and tests needing the wiring
+  hpp/composition/                            <solver>_rules_manifest (fixed shape), <solver>_manifest (best-first),
+                                              <solver>_mcts_manifest, <solver>_runtime
+bench/                                        corpora and the regression gate (`make bench_check`); baselines in
+                                              bench/baseline/
+modules/test_main.cpp                         GTest entry for the modules binary (modules and solvers tests)
 googletest/ mcts/                             git submodules (github), not ours to edit; mcts/core/cpp is built into core
 multiprecision/ boost_config/                 git submodules: header-only Boost.Multiprecision, standalone (needs Boost.Config)
 debug_assert.hpp                              DEBUG_ASSERT(cond): throws std::logic_error under -DDEBUG
 docs/                                         design notes
 ```
 
-A module depends on core and on other modules' headers; core never depends on a module.
+Modules (domains):
+
+```
+piecewise/   (pw_)     the extension algebra over data sets, generic over the domain: the binder and absorber, the
+                       branch filter matching labels that hold holes, guarded readings pw(when(c, v), d)
+abstraction/ (abs_)    binders, generic over the domain: `lam`, `lams`, `app`, `let`, de Bruijn indices, a reducer
+                       (beta-reduction with shifting), closing of fitted bodies, applying evaluation, the binder merger
+arith/       (arith_)  integer arithmetic: literals, evaluator, simplifier, the hole solver (a label polynomial in a
+                       hole, solved by integer roots), the linear-fit detector
+poly/        (poly_)   polynomials over Z: normal form oracle, rules and detectors, interpolation and the other
+                       fitting detectors over piecewises (splits, residues, iterated helpers)
+list/        (list_)   lists and list programs (map, filter, fold): vocabulary, evaluator, program detectors (generic
+                       and integer cases; affine, extremum, product, count, selection, factor, sum folds)
+seq/         (seq_)    integer sequences: recurrences (`rec`), powers (`exp`), infinite lists (`tabulate`, `unfold`),
+                       evaluator, the recurrence detector, the closing rule, open-ended lists read as sequences
+number/      (num_)    number theory over another domain: `prime(n)`, `is_prime(n)`, a sieve, evaluator, detector
+logic/       (logic_)  Boolean functions: and, or, xor, not, xnor, nand, nor, imp, maj, mux; evaluator, the laws,
+                       a condition evaluator for any domain's predicates; parity, cover, primitive, decomposition
+                       detectors, Boolean conditions over atoms, the truth-table refit (holes as don't cares)
+```
+
+Solvers: `arith_fit` (the smallest example of the shape), `poly_reduce` (polynomial expressions; also the kernel
+and the polynomial rules every solver borrows), `poly_fit`, `list_fit`, `seq_fit`, `logic_fit`, and `pw_fit` (the
+piecewise rules every fitting solver shares, `pw_fit_rules_manifest`).
 
 ## Architecture
 
 ```
 <name>_runtime            non-templated facade: next() pull loop, best(), derivation(). Owns one manifest_.
-  <name>_manifest         composition root: names component types, owns every component by value
+  <name>_manifest         owns kernel_, rule_set_ and search_
     mcts_search           probing simulations (UCT in-tree, random past it), rewarded by smallest cost reached
     | best_first_search   or: expands the cheapest reached expression; bounded frontier, interned dedup
-      subterm_proposer    lifts a local rule set to every position of the expression
-        proposer_union    fans detect() out to the rules of several modules
-          rules           pw_extension_binder, pw_branch_absorber, arith_simplifier, ...
+      <name>_rules_manifest::rules_t
+        subterm_proposer  lifts `local_rules_t` to every position; `root_rules_t` sees the whole expression
+          proposer_union  fans detect() out to the rules in a list
+            rules         piecewise_t::binder_t (proposals from `hypotheses_t`), absorber_t, arith_simplifier, ...
 ```
 
 - Expressions are hash-consed by `expr_pool`: pointer equality is structural equality. Search dedup, the
@@ -160,8 +157,9 @@ A module depends on core and on other modules' headers; core never depends on a 
   polynomial and fitting corpora (`bench/`) with the committed baseline (`bench/baseline/*.tsv`), and fail on any
   cost that got worse or any unsound result. Any change to rules or search must pass it. When a change is accepted,
   run `make bench_baseline` and commit the baseline with the change. Follow `docs/extending.md` to add capability.
-- The makefile `find`s every `.cpp` under `core/` and `modules/*/{cpp,test}`, and every `modules/*/hpp` is on the
-  include path. **A new file or module is picked up automatically; don't register it in the makefile.**
+- The makefile `find`s every `.cpp` under `core/`, `modules/*/{cpp,test}` and `solvers/*/{cpp,test}`, and every
+  `modules/*/hpp` and `solvers/*/hpp` is on the include path. **A new file, module or solver is picked up
+  automatically; don't register it in the makefile.**
 
 ## Code style
 

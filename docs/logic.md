@@ -16,10 +16,12 @@ examples below that name an input (`x`, `xs`, `n`, `a`) mean its index: one inpu
 
 ## Modules
 
-- `logic` (`logic_`): the vocabulary, its evaluator, the structural laws (`logic_simplifier`), and the condition
-  evaluator that lets any domain's predicates be combined with the connectives (`logic_condition_evaluator`).
-- `logic_fit` (`logic_`): the composition. The table reader, the two solvers and their detectors, the rule set, the
-  solver manifests and the runtime. It runs on a polynomial kernel for the pool, the literals and the printer.
+- `modules/logic` (`logic_`): the vocabulary, its evaluator, the rules (the structural laws, `logic_simplifier`, and
+  the truth-table refit, `logic_formula_refitter`), the condition evaluator that lets any domain's predicates be
+  combined with the connectives (`logic_condition_evaluator`), the table reader, the two solvers and their
+  detectors.
+- `solvers/logic_fit`: the composition. The rule set, the reusable `logic_fit_hypotheses_manifest`, the solver
+  manifests and the runtime. It runs on a polynomial kernel for the pool, the literals and the printer.
 
 ## Vocabulary
 

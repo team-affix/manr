@@ -18,13 +18,13 @@
 #include <string>
 #include <utility>
 #include <vector>
-#include "infrastructure/list_fit_manifest.hpp"
-#include "infrastructure/list_fit_mcts_manifest.hpp"
+#include "bench_gate.hpp"
+#include "composition/list_fit_manifest.hpp"
+#include "composition/list_fit_mcts_manifest.hpp"
 #include "infrastructure/num_prime_table.hpp"
 #include "value_objects/list_sample.hpp"
 #include "value_objects/poly_default_limits.hpp"
 #include "value_objects/poly_fit_default_limits.hpp"
-#include "bench_gate.hpp"
 
 namespace {
 

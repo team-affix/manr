@@ -4,10 +4,10 @@
 #include "infrastructure/poly_arithmetic.hpp"
 #include "infrastructure/poly_divisibility_filter.hpp"
 #include "infrastructure/poly_expander.hpp"
-#include "infrastructure/poly_factor_detector.hpp"
 #include "infrastructure/poly_linear_factor_finder.hpp"
-#include "infrastructure/poly_power_detector.hpp"
 #include "infrastructure/poly_root_extractor.hpp"
+#include "rules/poly_factor_detector.hpp"
+#include "rules/poly_power_detector.hpp"
 #include "value_objects/poly_limits.hpp"
 
 // Every rule's own default limits, gathered for callers that configure a whole solver at once. The values live with

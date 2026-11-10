@@ -10,7 +10,8 @@
 
 // Fans `detect` out to every injected rule in order. Every rule shares the one capability, so they are indexed rather
 // than named (the `IEater0, IEater1` rule); a variadic pack is that rule for any arity. This is how a manifest
-// assembles a rule set from rules that live in different modules.
+// assembles a rule set from rules that live in different modules. An empty union proposes nothing (a rule set with
+// no root rules).
 template<typename... IDetectors>
 struct proposer_union {
     proposer_union(IDetectors&... detectors);
@@ -34,7 +35,9 @@ PROPOSER_UNION_TEMPLATE void PROPOSER_UNION::detect(const expr* e, std::vector<r
 
 PROPOSER_UNION_TEMPLATE
 template<size_t... Indices>
-void PROPOSER_UNION::detect_each(std::index_sequence<Indices...>, const expr* e, std::vector<rewrite>& out) {
+void PROPOSER_UNION::detect_each(std::index_sequence<Indices...>,
+                                 [[maybe_unused]] const expr* e,
+                                 [[maybe_unused]] std::vector<rewrite>& out) {
     (std::get<Indices>(detectors_).detect(e, out), ...);
 }
 

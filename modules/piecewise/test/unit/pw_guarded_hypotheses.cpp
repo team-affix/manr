@@ -5,8 +5,8 @@
 #include <vector>
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include "hypotheses/pw_guarded_hypotheses.hpp"
 #include "infrastructure/expr_pool.hpp"
-#include "infrastructure/pw_guarded_hypotheses.hpp"
 #include "value_objects/integer.hpp"
 
 using ::testing::_;

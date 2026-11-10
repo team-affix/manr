@@ -17,12 +17,12 @@
 #include <string>
 #include <variant>
 #include <vector>
-#include "infrastructure/poly_baseline_manifest.hpp"
-#include "infrastructure/poly_baseline_mcts_manifest.hpp"
-#include "infrastructure/poly_reduce_manifest.hpp"
-#include "infrastructure/poly_reduce_mcts_manifest.hpp"
-#include "value_objects/poly_default_limits.hpp"
 #include "bench_gate.hpp"
+#include "composition/poly_baseline_manifest.hpp"
+#include "composition/poly_baseline_mcts_manifest.hpp"
+#include "composition/poly_reduce_manifest.hpp"
+#include "composition/poly_reduce_mcts_manifest.hpp"
+#include "value_objects/poly_default_limits.hpp"
 
 namespace {
 

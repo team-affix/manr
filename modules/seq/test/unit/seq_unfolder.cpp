@@ -4,7 +4,7 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include "infrastructure/expr_pool.hpp"
-#include "infrastructure/seq_unfolder.hpp"
+#include "rules/seq_unfolder.hpp"
 
 using ::testing::_;
 using ::testing::IsEmpty;

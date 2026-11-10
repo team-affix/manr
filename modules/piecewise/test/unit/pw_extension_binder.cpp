@@ -2,7 +2,7 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include "infrastructure/expr_pool.hpp"
-#include "infrastructure/pw_extension_binder.hpp"
+#include "rules/pw_extension_binder.hpp"
 
 using ::testing::_;
 using ::testing::Return;

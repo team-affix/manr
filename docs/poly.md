@@ -1,4 +1,4 @@
-# Polynomial algebra (`modules/poly`, `modules/poly_reduce`)
+# Polynomial algebra (`modules/poly`, `solvers/poly_reduce`)
 
 The first real domain: polynomials over the integers, with `+ - * ^` (exponent a non-negative integer literal),
 integer literals of any size, and any number of variables. Cost is node count.
@@ -71,7 +71,7 @@ Known gaps:
   lifting).
 - Detectors run at every position on every expansion. The factor detector dominates the run time.
 
-## Fitting data (`modules/poly_fit`)
+## Fitting data (`modules/poly`, `solvers/poly_fit`)
 
 `poly_fit_runtime` (best-first) and `poly_fit_mcts_manifest` fit integer samples over any number of input
 variables. The samples become `pw(case(point(x1, ..., xk), y), ..., ?0)`. Three kinds of rule then work on it at

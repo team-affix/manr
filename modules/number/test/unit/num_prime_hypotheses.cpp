@@ -3,8 +3,8 @@
 #include <vector>
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include "hypotheses/num_prime_hypotheses.hpp"
 #include "infrastructure/expr_pool.hpp"
-#include "infrastructure/num_prime_hypotheses.hpp"
 #include "value_objects/integer.hpp"
 
 using ::testing::_;

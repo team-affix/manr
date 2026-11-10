@@ -1,8 +1,8 @@
 #include <vector>
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include "hypotheses/pw_constant_hypotheses.hpp"
 #include "infrastructure/expr_pool.hpp"
-#include "infrastructure/pw_constant_hypotheses.hpp"
 
 using ::testing::_;
 using ::testing::NiceMock;

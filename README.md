@@ -38,7 +38,7 @@ make run_tests
 ## Using it
 
 ```cpp
-#include "infrastructure/arith_fit_runtime.hpp"
+#include "composition/arith_fit_runtime.hpp"
 
 arith_fit_runtime fit{{{.input = 0, .output = 1}, {.input = 1, .output = 3}, {.input = 2, .output = 5}}, 1000};
 while (fit.next()) {}
@@ -46,14 +46,15 @@ fit.best();        // "add(mul(2, x), 1)"
 fit.derivation();  // every expression from the data to the best
 ```
 
-To add a domain, write a module under `modules/` with rules that implement
-`void detect(const expr*, std::vector<rewrite>&)`, and compose them in a new manifest. See `CLAUDE.md` for
-the layout and conventions.
+The repository has three layers: `core/` (domain-free), `modules/<domain>/` (one domain each, with its rules in
+`hpp/rules/` and its hypothesis sources in `hpp/hypotheses/`), and `solvers/<solver>/` (manifests that compose
+modules into solvers). To add a rule, a hypothesis source or a domain, follow `docs/architecture.md`. See `CLAUDE.md`
+for the conventions.
 
 Polynomial data, over any number of inputs:
 
 ```cpp
-#include "infrastructure/poly_fit_runtime.hpp"
+#include "composition/poly_fit_runtime.hpp"
 
 poly_fit_runtime fit{{"x"}, samples, k_poly_default_limits, k_poly_fit_default_limits, 20000};
 while (fit.rewrites() < 3000 && fit.next()) {}
@@ -64,7 +65,7 @@ fit.best();        // e.g. "(2 * x - 1)^3", "pw(case(point(3), 17), x^2 + 1)" wi
 List programs, from samples of a list to an integer or to a list (`docs/list.md`):
 
 ```cpp
-#include "infrastructure/list_fit_runtime.hpp"
+#include "composition/list_fit_runtime.hpp"
 
 list_fit_runtime fit{samples, k_poly_default_limits, k_poly_fit_default_limits, 20000};
 while (fit.rewrites() < 3000 && fit.next()) {}
