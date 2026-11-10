@@ -6,7 +6,7 @@ far it generalizes, and post a capability report as a GitHub Discussion. Scout s
 what works today and where its edge is, so the state of the project is visible at any point in time.
 
 Showcase changes no rule or detector. Its outputs are a Discussion and new benchmark problems. Invoking it
-authorizes posting one Discussion in `team-affix/manr` (category **Showcase**) and committing the benchmark
+authorizes posting one Discussion in `team-affix/manr` (category **Show and tell**) and committing the benchmark
 additions to master. Failures it runs into are not filed by showcase: they are listed in the report as scout
 candidates.
 
@@ -61,7 +61,7 @@ and commit the benchmark and baseline. From then on the gate catches any regress
 
 ## 6. Report
 
-Post one Discussion in the **Showcase** category, titled `showcase: <date>`, with:
+Post one Discussion in the **Show and tell** category, titled `showcase: <date>`, with:
 
 - **Summary**: how many problems, how many solved, the domains covered, and what changed since the last showcase.
 - **One section per domain**: each problem's story, its input (or generator), the model reached, cost and time per
