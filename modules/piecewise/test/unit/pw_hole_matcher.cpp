@@ -11,13 +11,14 @@ using ::testing::Return;
 
 namespace {
 
-struct MockSolveHole {
-    MOCK_METHOD(std::optional<const expr*>, solve_hole, (const expr*, uint32_t, const expr*));
+struct MockSolveHoles {
+    using bindings_t = std::map<uint32_t, const expr*>;
+    MOCK_METHOD(std::optional<bindings_t>, solve_holes, (const expr*, const expr*, const bindings_t&));
 };
 
 struct PwHoleMatcherTest : ::testing::Test {
-    MockSolveHole solve_hole;
-    pw_hole_matcher<MockSolveHole> matcher{solve_hole};
+    ::testing::NiceMock<MockSolveHoles> solve_holes;
+    pw_hole_matcher<MockSolveHoles> matcher{solve_holes};
     expr_pool pool{};
     std::map<uint32_t, const expr*> bindings;
     const expr* one = pool.make_functor(1, {});
@@ -34,7 +35,7 @@ TEST_F(PwHoleMatcherTest, AnIdenticalValueMatchesWithoutBinding) {
 }
 
 TEST_F(PwHoleMatcherTest, ADifferentValueWithoutHolesDoesNotMatch) {
-    EXPECT_CALL(solve_hole, solve_hole(_, _, _)).Times(0);
+    EXPECT_CALL(solve_holes, solve_holes(_, _, _)).Times(0);
     EXPECT_FALSE(matcher.match(one, two, bindings));
 }
 
@@ -63,9 +64,9 @@ TEST_F(PwHoleMatcherTest, AFailedMatchLeavesTheBindingsUnchanged) {
     EXPECT_TRUE(bindings.empty());
 }
 
-TEST_F(PwHoleMatcherTest, AnOtherwiseUnmatchedPatternWithOneHoleIsSolvedByTheDomain) {
+TEST_F(PwHoleMatcherTest, AnOtherwiseUnmatchedPatternIsSolvedByTheDomain) {
     const expr* pattern = pool.make_functor(6, {two, hole2});
-    EXPECT_CALL(solve_hole, solve_hole(pattern, 2u, one)).WillOnce(Return(two));
+    EXPECT_CALL(solve_holes, solve_holes(pattern, one, _)).WillOnce(Return(MockSolveHoles::bindings_t{{2, two}}));
     EXPECT_TRUE(matcher.match(pattern, one, bindings));
     EXPECT_EQ(bindings, (std::map<uint32_t, const expr*>{{2, two}}));
 }
@@ -73,11 +74,27 @@ TEST_F(PwHoleMatcherTest, AnOtherwiseUnmatchedPatternWithOneHoleIsSolvedByTheDom
 TEST_F(PwHoleMatcherTest, ASolutionConflictingWithABindingDoesNotMatch) {
     bindings.emplace(2, one);
     const expr* pattern = pool.make_functor(6, {two, hole2});
-    EXPECT_CALL(solve_hole, solve_hole(pattern, 2u, one)).WillOnce(Return(two));
+    EXPECT_CALL(solve_holes, solve_holes(pattern, one, _)).WillOnce(Return(MockSolveHoles::bindings_t{{2, two}}));
     EXPECT_FALSE(matcher.match(pattern, one, bindings));
+    EXPECT_EQ(bindings, (std::map<uint32_t, const expr*>{{2, one}}));
 }
 
-TEST_F(PwHoleMatcherTest, APatternWithTwoHolesIsNotHandedToTheDomain) {
-    EXPECT_CALL(solve_hole, solve_hole(_, _, _)).Times(0);
+TEST_F(PwHoleMatcherTest, APatternWithTwoHolesIsSolvedByTheDomainForBoth) {
+    const expr* pattern = pool.make_functor(6, {hole1, hole2});
+    EXPECT_CALL(solve_holes, solve_holes(pattern, one, _))
+        .WillOnce(Return(MockSolveHoles::bindings_t{{1, two}, {2, one}}));
+    EXPECT_TRUE(matcher.match(pattern, one, bindings));
+    EXPECT_EQ(bindings, (std::map<uint32_t, const expr*>{{1, two}, {2, one}}));
+}
+
+TEST_F(PwHoleMatcherTest, AValueHoldingAHoleIsMatchedAgainstAnOutputWithout) {
+    const expr* value = pool.make_functor(6, {two, hole1});
+    EXPECT_CALL(solve_holes, solve_holes(value, one, _)).WillOnce(Return(MockSolveHoles::bindings_t{{1, two}}));
+    EXPECT_TRUE(matcher.match(one, value, bindings));
+    EXPECT_EQ(bindings, (std::map<uint32_t, const expr*>{{1, two}}));
+}
+
+TEST_F(PwHoleMatcherTest, AnUnsolvedPatternDoesNotMatch) {
+    EXPECT_CALL(solve_holes, solve_holes(_, _, _)).WillOnce(Return(std::nullopt));
     EXPECT_FALSE(matcher.match(pool.make_functor(6, {hole1, hole2}), one, bindings));
 }

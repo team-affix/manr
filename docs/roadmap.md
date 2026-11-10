@@ -87,12 +87,13 @@ smallest expression reachable under any binding. `?0 + ?0` reduces to `0`, not t
   `?0 = 0`); in a normal form, the coefficients a hole can make vanish (`(?0 + 1)^2 - ?0^2` with `?0 = 0` gives `1`);
   the missing half of a known shape (`or(and(not(x), y), ?0)` completed to `xor(x, y)`, #19, by Shannon expansion
   over the formula's truth table); a value that makes a subterm a literal.
-- **Holes in data keys and open structures.** A key holding a hole (#20) is solved by evaluating the model with the
-  hole as an unknown and solving the output equation in the domain (`?2^2 = 16`). An open-ended list
-  `cons(..., ?0)` (#16) needs vocabulary for unbounded lists (an `unfold` or generator) and a detector that binds the
-  tail to it.
-- **Domain hole solvers.** Generalize `arith_hole_solver` (linear, one hole) to polynomial equations in one hole
-  (integer roots), systems in several, list and tree matching, and Boolean constraint solving.
+- **Holes in data keys and open structures.** A key holding a hole is solved (#20, #24): the model evaluated with
+  the hole as an unknown gives a residual, and the output equation is solved in the domain (`?2^2 = 16`). An
+  open-ended list `cons(..., ?0)` (#16) needs vocabulary for unbounded lists (an `unfold` or generator) and a
+  detector that binds the tail to it.
+- **Domain hole solvers.** `arith_hole_solver` solves polynomial equations in one hole (integer roots), the others
+  set to 0 or 1 (#22, #23). Still missing: systems of several equations, list and tree matching, and Boolean
+  constraint solving.
 
 ### 3. Numbers and Booleans as the shared substrate
 

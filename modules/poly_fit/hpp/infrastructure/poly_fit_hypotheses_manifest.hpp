@@ -30,8 +30,10 @@ struct poly_fit_hypotheses_manifest {
     struct converter_t : poly_sample_converter<kernel_t::literals_t, expr_pool, kernel_t::literals_t> {
         using poly_sample_converter<kernel_t::literals_t, expr_pool, kernel_t::literals_t>::poly_sample_converter;
     };
-    struct evaluator_t : poly_point_evaluator<kernel_t::expander_t, kernel_t::literals_t, kernel_t::literals_t> {
-        using poly_point_evaluator<kernel_t::expander_t, kernel_t::literals_t, kernel_t::literals_t>::poly_point_evaluator;
+    struct evaluator_t
+        : poly_point_evaluator<kernel_t::expander_t, kernel_t::literals_t, kernel_t::literals_t, expr_pool> {
+        using poly_point_evaluator<kernel_t::expander_t, kernel_t::literals_t, kernel_t::literals_t,
+                                   expr_pool>::poly_point_evaluator;
     };
     struct conditions_t : poly_condition_evaluator<evaluator_t, kernel_t::literals_t> {
         using poly_condition_evaluator<evaluator_t, kernel_t::literals_t>::poly_condition_evaluator;

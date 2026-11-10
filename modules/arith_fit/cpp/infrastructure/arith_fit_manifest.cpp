@@ -24,7 +24,8 @@ arith_fit_manifest::arith_fit_manifest(const std::vector<arith_sample>& samples,
     , applying_(binders_, evaluator_)
     , assembler_(exprs_, pw_symbols_)
     , builder_(exprs_, exprs_, assembler_, pw_symbols_)
-    , solver_(literals_, literals_, arith_symbols_.add, arith_symbols_.sub, arith_symbols_.mul)
+    , solver_(literals_, literals_, arith_symbols_.add, arith_symbols_.sub, arith_symbols_.mul,
+               symbols_.intern_symbol("pow"))
     , matcher_(solver_)
     , filter_(applying_, matcher_, pw_symbols_)
     , constants_(sizes_)

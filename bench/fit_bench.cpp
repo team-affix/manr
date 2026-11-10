@@ -17,6 +17,7 @@
 #include <sstream>
 #include <string>
 #include <utility>
+#include <variant>
 #include <vector>
 #include "infrastructure/poly_fit_manifest.hpp"
 #include "infrastructure/poly_fit_mcts_manifest.hpp"
@@ -42,7 +43,7 @@ struct fit_problem {
     int low;
     int high;
     std::vector<std::pair<size_t, int>> outliers;
-    std::vector<std::pair<size_t, int>> holes;
+    std::vector<std::pair<size_t, std::string>> holes;  // label text over holes h1, h2, ...; `@` puts it in the key
     size_t target;
     std::string target_text;
     std::string guard;  // when not empty, the first piece applies where the guard holds on the split variable
@@ -113,16 +114,37 @@ std::vector<poly_sample> sample(const fit_problem& p) {
     return samples;
 }
 
-// The samples as data points, each hole's label replaced by `?k` (k from 1, in order), or `coefficient * ?k`.
+// An expression with every symbol `h1` ... `h9` replaced by the hole `?1` ... `?9`.
+template<typename Kernel>
+const expr* fill_holes(Kernel& kernel, const expr* e) {
+    for (uint32_t index = 1; index <= 9; ++index)
+        if (e == kernel.parser_.parse("h" + std::to_string(index)))
+            return kernel.exprs_.make_var(index);
+    const expr::functor* f = std::get_if<expr::functor>(&e->content);
+    if (f == nullptr || f->args.empty())
+        return e;
+    std::vector<const expr*> args;
+    for (const expr* arg : f->args)
+        args.push_back(fill_holes(kernel, arg));
+    return kernel.exprs_.make_functor(f->id, args);
+}
+
+// The samples as data points, each hole's label replaced by its text over holes (`2 * h1` is `2 * ?1`), or, for a
+// text starting with `@`, the key's split coordinate replaced by it.
 template<typename Manifest>
 std::vector<pw_data_point> find_points(Manifest& m, const fit_problem& p, const std::vector<poly_sample>& samples) {
     std::vector<pw_data_point> points = m.rule_set_.fit_.converter_.convert(samples);
-    uint32_t next = 1;
-    for (const auto& [index, coefficient] : p.holes) {
-        const expr* hole = m.kernel_.exprs_.make_var(next++);
-        const expr* scale = m.kernel_.literals_.make_literal(coefficient);
-        points[index].output =
-            coefficient == 1 ? hole : m.kernel_.exprs_.make_functor(m.kernel_.poly_symbols_.mul, {scale, hole});
+    for (const auto& [index, text] : p.holes) {
+        const bool key = text.front() == '@';
+        const expr* filled = fill_holes(m.kernel_, m.kernel_.parser_.parse(key ? text.substr(1) : text));
+        if (!key) {
+            points[index].output = filled;
+            continue;
+        }
+        const expr::functor& point = std::get<expr::functor>(points[index].input->content);
+        std::vector<const expr*> coordinates = point.args;
+        coordinates[p.split] = filled;
+        points[index].input = m.kernel_.exprs_.make_functor(point.id, coordinates);
     }
     return points;
 }
@@ -247,12 +269,27 @@ int main(int argc, char** argv) {
         {"g(g(x)), g = y^2 - 2", {"x"}, {{"(x^2 - 2)^2 - 2", INT_MAX}}, 0, -6, 6, {}, {}, 10,
          "(x^2 - 2)^2 - 2 (smaller than the helper form, 12)", ""},
         // reduce request #18, and similar labels holding holes: a hole is bound to the model's value, or solved for
-        {"#18 x^2 + 1, holes in two labels", {"x"}, {{"x^2 + 1", INT_MAX}}, 0, 0, 8, {}, {{1, 1}, {3, 2}}, 6,
+        {"#18 x^2 + 1, holes in two labels", {"x"}, {{"x^2 + 1", INT_MAX}}, 0, 0, 8, {}, {{1, "h1"}, {3, "2 * h2"}}, 6,
          "lam(#0^2 + 1), ?1 = 2, ?2 = 5", ""},
-        {"two-variable square, holes", {"x", "y"}, {{"(x + y)^2", INT_MAX}}, 0, -2, 2, {}, {{3, 1}, {12, -1}, {23, 3}},
+        {"two-variable square, holes", {"x", "y"}, {{"(x + y)^2", INT_MAX}}, 0, -2, 2, {}, {{3, "h1"}, {12, "-1 * h2"}, {23, "3 * h3"}},
          7, "lams(2, (#1 + #0)^2)", ""},
-        {"hole with no integer solution", {"x"}, {{"x^2 + 1", INT_MAX}}, 0, 0, 8, {}, {{2, 2}}, 13,
+        {"hole with no integer solution", {"x"}, {{"x^2 + 1", INT_MAX}}, 0, 0, 8, {}, {{2, "2 * h1"}}, 13,
          "pw(case(point(2), 2 * ?1), lam(#0^2 + 1))", ""},
+        // reduce requests #22, #23, #24: labels polynomial in a hole, labels holding several, keys holding one
+        {"#22 a label nonlinear in its hole", {"x"}, {{"x^2 + 1", INT_MAX}}, 0, 0, 8, {}, {{3, "h1^2 + 1"}}, 6,
+         "lam(#0^2 + 1), ?1 = 3", ""},
+        {"#23 a label holding two holes", {"x"}, {{"x^2 + 1", INT_MAX}}, 0, 0, 8, {}, {{3, "h1 + h2"}}, 6,
+         "lam(#0^2 + 1), ?1 = 0, ?2 = 10", ""},
+        {"#24 a key holding a hole", {"x"}, {{"x^2 + 1", INT_MAX}}, 0, 0, 8, {}, {{4, "@h1"}}, 6,
+         "lam(#0^2 + 1), ?1 = 4", ""},
+        {"cubic label, hole cubed", {"x"}, {{"x^3 - x", INT_MAX}}, 0, -3, 4, {}, {{5, "h1^3 - 2"}}, 6,
+         "lam(#0^3 - #0), ?1 = 2", ""},
+        {"two-variable square, product and square holes", {"x", "y"}, {{"(x + y)^2", INT_MAX}}, 0, -2, 2, {},
+         {{7, "h1 * h2"}, {24, "h3^2"}}, 7, "lams(2, (#1 + #0)^2), ?1 = 1, ?2 = 1, ?3 = 4", ""},
+        {"two-variable square, key hole", {"x", "y"}, {{"(x + y)^2", INT_MAX}}, 0, -2, 2, {}, {{9, "@h1"}}, 7,
+         "lams(2, (#1 + #0)^2), ?1 = 0", ""},
+        {"key hole no value explains", {"x"}, {{"x^2 + 1", INT_MAX}}, 0, 0, 8, {{4, 1}}, {{4, "@h1"}}, 11,
+         "pw(case(point(?1), 18), lam(#0^2 + 1))", ""},
         // every third point an outlier: once open, now read as a period-3 piecewise by the residue detector
         {"dense outliers", {"x"}, {{"x^2 + 1", INT_MAX}}, 0, 0, 29,
          {{1, 2}, {4, 2}, {7, 2}, {10, 2}, {13, 2}, {16, 2}, {19, 2}, {22, 2}, {25, 2}, {28, 2}}, {}, 47,
@@ -265,7 +302,7 @@ int main(int argc, char** argv) {
         {"showcase: bulk pricing, two typos", {"x"}, {{"12*x", 10}, {"10*x + 20", INT_MAX}}, 0, 0, 40,
          {{7, 3}, {25, -10}}, {}, 23, "two cases + the pricing", ""},
         {"bulk pricing, unknown totals", {"x"}, {{"12*x", 10}, {"10*x + 20", INT_MAX}}, 0, 0, 40, {},
-         {{3, 1}, {18, 1}, {30, 2}}, 14, "the pricing, holes bound", ""},
+         {{3, "h1"}, {18, "h2"}, {30, "2 * h3"}}, 14, "the pricing, holes bound", ""},
         {"showcase: projectile height", {"x"}, {{"-5*x^2 + 30*x + 2", INT_MAX}}, 0, 0, 8, {}, {}, 10,
          "lam(-5*#0^2 + 30*#0 + 2)", ""},
         {"showcase: projectile height, bad reading", {"x"}, {{"-5*x^2 + 30*x + 2", INT_MAX}}, 0, 0, 8, {{4, 9}}, {}, 15,
@@ -281,16 +318,16 @@ int main(int argc, char** argv) {
          {{2, 9}, {4, 9}, {6, -7}}, {}, 23, "three cases + the height", ""},
         {"showcase: projectile height, 20 readings, five bad", {"x"}, {{"-5*x^2 + 30*x + 2", INT_MAX}}, 0, 0, 19,
          {{2, 9}, {6, -7}, {9, 4}, {13, 11}, {17, -3}}, {}, 31, "five cases + the height", ""},
-        {"showcase: sensor log, spikes and gaps", {"x"}, {{"3*x + 7", INT_MAX}}, 0, 0, 59, {{5, 40}, {17, -30}}, {{10, 1}, {40, 1}},
+        {"showcase: sensor log, spikes and gaps", {"x"}, {{"3*x + 7", INT_MAX}}, 0, 0, 59, {{5, 40}, {17, -30}}, {{10, "h1"}, {40, "h2"}},
          15, "two cases + lam(3*#0 + 7)", ""},
         {"showcase: tiered shipping, four tiers", {"x"}, {{"8", 5}, {"2*x - 2", 20}, {"3*x - 22", 30}, {"68", INT_MAX}}, 0,
          0, 40, {}, {}, 26, "four pieces", ""},
         {"showcase: framed picture area, bad reading", {"x", "y"}, {{"(x + 2)*(y + 2)", INT_MAX}}, 0, 1, 6, {{8, 5}}, {}, 15,
          "one case + the area", ""},
         {"showcase: three tiers, a typo and unknown labels", {"x"}, {{"8", 5}, {"2*x - 2", 20}, {"3*x - 22", INT_MAX}}, 0, 0,
-         40, {{12, 5}}, {{3, 1}, {25, 1}}, 26, "pw(case(point(12), 27), lam(pw(when(lt(#0, 6), 8), when(lt(#0, 21), 2*#0 - 2), 3*#0 - 22)))", ""},
+         40, {{12, 5}}, {{3, "h1"}, {25, "h2"}}, 26, "pw(case(point(12), 27), lam(pw(when(lt(#0, 6), 8), when(lt(#0, 21), 2*#0 - 2), 3*#0 - 22)))", ""},
         {"showcase: three inputs, a typo and unknown labels", {"x", "y", "z"}, {{"x*y - z^2", INT_MAX}}, 0, -2, 2, {{40, 7}},
-         {{11, 1}, {52, 2}}, 16, "pw(case(point(-2, 1, -1), 4), lams(3, #2*#1 - #0^2))"},
+         {{11, "h1"}, {52, "2 * h2"}}, 16, "pw(case(point(-2, 1, -1), 4), lams(3, #2*#1 - #0^2))", ""},
         // piecewise data whose branch is guarded by a Boolean condition (pw_guarded_hypotheses)
         {"square where prime, else linear", {"x"}, {{"x^2", 0}, {"2*x + 1", 0}}, 0, 0, 40, {}, {}, 13,
          "lam(pw(when(is_prime(#0), #0^2), 2*#0 + 1))", "prime"},

@@ -58,3 +58,20 @@ TEST_F(ListHolesIntegrationTest, AnOutputListHoldingAHoleTheModelCannotMatchStay
     EXPECT_THAT(performed(), Contains("pw(case(cons(3, cons(4, cons(1, nil))), cons(8, cons(?1, cons(1, nil)))), "
                                       "lam(map(lam(#0^2), #0)))"));
 }
+
+TEST_F(ListHolesIntegrationTest, AnInputListHoldingAHoleIsSolvedThroughTheModel) {
+    // reduce request #20: squares, with ?2 in an input, so ?2^2 = 16
+    const expr* input = rules.values_.make_list({literal(3), manifest.kernel_.exprs_.make_var(2), literal(1)});
+    const expr* output = rules.values_.make_list({literal(9), literal(16), literal(1)});
+    rules.binder_.detect(squares_with(input, output), out);
+    EXPECT_THAT(performed(), Contains("lam(map(lam(#0^2), #0))"));
+}
+
+TEST_F(ListHolesIntegrationTest, AnInputListHoldingAHoleNoValueExplainsStays) {
+    // ?2^2 = 15 has no integer root
+    const expr* input = rules.values_.make_list({literal(3), manifest.kernel_.exprs_.make_var(2), literal(1)});
+    const expr* output = rules.values_.make_list({literal(9), literal(15), literal(1)});
+    rules.binder_.detect(squares_with(input, output), out);
+    EXPECT_THAT(performed(), Contains("pw(case(cons(3, cons(?2, cons(1, nil))), cons(9, cons(15, cons(1, nil)))), "
+                                      "lam(map(lam(#0^2), #0)))"));
+}

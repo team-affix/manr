@@ -189,15 +189,17 @@ piecewise's catch-all is bound (`pw_extension_binder`), and so are holes in its 
 #18): the branch filter checks a case under some binding of the holes in its label instead of by equality
 (`pw_hole_matcher`, one binding shared by the branches of a check), so a model absorbs `case(7, ?1)`,
 `case(3, 2 * ?2)` and `case(cons(3, cons(4, nil)), cons(9, cons(?1, nil)))`. A hole matches anything, functors of
-one shape match argument by argument, and the rest is solved in the domain: `arith_hole_solver` solves a label linear
-in its one hole over the integers (`2 * ?2 = 10`), and nothing else yet. Every other `?n` is carried through
-untouched, which is sound but never generalizes. What remains (`rule-design.md`, section 5):
+one shape match argument by argument, and the rest is solved in the domain: `arith_hole_solver` solves a label
+polynomial in a hole over the integers (`2 * ?2 = 10`, `?1^2 + 1 = 10` by integer roots, #22), with any other unbound
+holes of the label set to 0, then 1 (`?1 + ?2 = 10`, #23). Holes in the keys are solved too (#20, #24): a
+polynomial evaluated at a key holding a hole gives the residual (`?1^2 + 1` at `point(?1)`), which the list evaluator
+carries into its elements, and the matcher matches a value holding holes against a plain label (`?1^2 + 1` against
+17 gives `?1 = 4`). Every other `?n` is carried through untouched, which is sound but never generalizes. What remains
+(`rule-design.md`, section 5):
 
-- **Holes in the keys** (#20): `case(cons(3, cons(?2, nil)), cons(9, cons(16, nil)))`. The model cannot be evaluated
-  at a key holding a hole, so this needs evaluating with the hole as an unknown and solving the output for it
-  (`?2^2 = 16`): a solver for powers and products of the hole, not only linear ones.
-- **Nonlinear labels** (`case(3, ?1^2)`), and holes in labels the logic table reader refutes (a truth table with an
-  unknown row is a don't care there).
+- **Keys the evaluators cannot carry**: a hole in a filtered element (a condition at a hole has no value), a hole
+  standing for a whole list or its length, and labels with holes matched against residuals with holes.
+- Holes in labels the logic table reader refutes (a truth table with an unknown row is a don't care there).
 - **Binding rules on expressions**: a hole whose best binding shrinks the whole, e.g. `(?0 + 1)^2 - ?0^2` reduces to
   `1` with `?0 = 0`, or `or(and(not(x), y), ?0)` to `xor(x, y)` with `?0 = and(x, not(y))`. These are detectors:
   read what the rest of the expression needs from the hole, and propose it.

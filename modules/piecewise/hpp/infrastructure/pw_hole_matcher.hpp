@@ -13,23 +13,23 @@
 // hole matches anything, or the value it is already bound to. Two functors of the same id and arity match argument by
 // argument. Anything else holding exactly one hole is handed to the domain, which solves for it (`2 * ?2` against 10
 // gives `?2 = 5`). An output without holes matches only the identical value.
-template<typename ISolveHole>
+template<typename ISolveHoles>
 struct pw_hole_matcher {
-    pw_hole_matcher(ISolveHole& solve_hole);
+    pw_hole_matcher(ISolveHoles& solve_holes);
     bool match(const expr* pattern, const expr* value, std::map<uint32_t, const expr*>& bindings);
 private:
     bool match_within(const expr* pattern, const expr* value, std::map<uint32_t, const expr*>& bindings);
     bool bind(uint32_t hole, const expr* value, std::map<uint32_t, const expr*>& bindings);
     void collect_holes(const expr* e, std::set<uint32_t>& holes);
 
-    ISolveHole& solve_hole_;
+    ISolveHoles& solve_holes_;
 };
 
-#define PW_HOLE_MATCHER_TEMPLATE template<typename ISolveHole>
-#define PW_HOLE_MATCHER          pw_hole_matcher<ISolveHole>
+#define PW_HOLE_MATCHER_TEMPLATE template<typename ISolveHoles>
+#define PW_HOLE_MATCHER          pw_hole_matcher<ISolveHoles>
 
-PW_HOLE_MATCHER_TEMPLATE PW_HOLE_MATCHER::pw_hole_matcher(ISolveHole& solve_hole)
-    : solve_hole_(solve_hole) {}
+PW_HOLE_MATCHER_TEMPLATE PW_HOLE_MATCHER::pw_hole_matcher(ISolveHoles& solve_holes)
+    : solve_holes_(solve_holes) {}
 
 PW_HOLE_MATCHER_TEMPLATE bool PW_HOLE_MATCHER::match(
     const expr* pattern, const expr* value, std::map<uint32_t, const expr*>& bindings) {
@@ -51,8 +51,13 @@ PW_HOLE_MATCHER_TEMPLATE bool PW_HOLE_MATCHER::match_within(
         return bind(hole->index, value, bindings);
     std::set<uint32_t> holes;
     collect_holes(pattern, holes);
-    if (holes.empty())
-        return false;
+    if (holes.empty()) {
+        std::set<uint32_t> value_holes;
+        collect_holes(value, value_holes);
+        if (value_holes.empty())
+            return false;
+        return match_within(value, pattern, bindings);
+    }
     const expr::functor& p = std::get<expr::functor>(pattern->content);
     const expr::functor* v = std::get_if<expr::functor>(&value->content);
     const bool alike = v != nullptr && v->id == p.id && v->args.size() == p.args.size();
@@ -66,13 +71,13 @@ PW_HOLE_MATCHER_TEMPLATE bool PW_HOLE_MATCHER::match_within(
             return true;
         }
     }
-    if (holes.size() != 1)
-        return false;
-    const uint32_t only = *holes.begin();
-    const std::optional<const expr*> solved = solve_hole_.solve_hole(pattern, only, value);
+    const std::optional<std::map<uint32_t, const expr*>> solved = solve_holes_.solve_holes(pattern, value, bindings);
     if (!solved.has_value())
         return false;
-    return bind(only, solved.value(), bindings);
+    for (const auto& [hole, bound] : solved.value())
+        if (!bind(hole, bound, bindings))
+            return false;
+    return true;
 }
 
 PW_HOLE_MATCHER_TEMPLATE bool PW_HOLE_MATCHER::bind(

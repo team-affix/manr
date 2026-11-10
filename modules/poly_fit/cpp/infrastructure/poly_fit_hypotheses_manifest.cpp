@@ -12,7 +12,7 @@ poly_fit_hypotheses_manifest::poly_fit_hypotheses_manifest(
     , modulo_symbol_(kernel.symbols_.intern_symbol("mod"))
     , converter_(kernel.literals_, kernel.exprs_, kernel.literals_, point_symbol, variables_.size())
     , interpolator_(variables_, fit_limits.max_unknowns)
-    , evaluator_(kernel.expander_, kernel.literals_, kernel.literals_, variables_)
+    , evaluator_(kernel.expander_, kernel.literals_, kernel.literals_, kernel.exprs_, kernel.poly_symbols_, variables_)
     , conditions_(evaluator_, kernel.literals_, less_symbol, equal_symbol_, modulo_symbol_)
     , pw_evaluator_(evaluator_, conditions_, symbols)
     , constants_(kernel.sizes_)

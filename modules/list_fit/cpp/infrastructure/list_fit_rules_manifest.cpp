@@ -57,7 +57,8 @@ list_fit_rules_manifest::list_fit_rules_manifest(
     , converter_(values_, kernel.literals_)
     , assembler_(kernel.exprs_, pw_symbols_)
     , builder_(kernel.exprs_, kernel.exprs_, assembler_, pw_symbols_)
-    , solver_(kernel.literals_, kernel.literals_, kernel.poly_symbols_.add, kernel.poly_symbols_.sub, kernel.poly_symbols_.mul)
+    , solver_(kernel.literals_, kernel.literals_, kernel.poly_symbols_.add, kernel.poly_symbols_.sub,
+              kernel.poly_symbols_.mul, kernel.poly_symbols_.pow)
     , matcher_(solver_)
     , filter_(pw_evaluator_, matcher_, pw_symbols_)
     , constants_(kernel.sizes_)

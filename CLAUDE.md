@@ -40,7 +40,7 @@ modules/<name>/{hpp,cpp,test}/...             one directory per rule module; pre
                                               `let`, de Bruijn indices, a reducer (beta-reduction with shifting),
                                               closing of fitted bodies, applying evaluation, the binder merger
   arith/      (arith_)                        integer arithmetic: literals, evaluator, simplifier, the linear hole
-                                              solver (a label linear in one hole, solved for it)
+                                              solver (a label polynomial in a hole, solved by integer roots)
   arith_fit/  (arith_)                        composition: linear-fit detector, manifest, runtime
   poly/       (poly_)                         polynomial algebra over Z: normal form oracle, rules, detectors
   poly_reduce/ (poly_)                        composition: kernel, rule sets, four solver manifests
