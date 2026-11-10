@@ -24,6 +24,15 @@ list_fit_rules_manifest::list_fit_rules_manifest(
                     .accumulator = kernel.symbols_.intern_symbol("#1")}
     , num_symbols_{.prime = kernel.symbols_.intern_symbol("prime"),
                    .is_prime = kernel.symbols_.intern_symbol("is_prime")}
+    , logic_symbols_{.conjunction = kernel.symbols_.intern_symbol("and"),
+                     .disjunction = kernel.symbols_.intern_symbol("or"),
+                     .exclusion = kernel.symbols_.intern_symbol("xor"),
+                     .negation = kernel.symbols_.intern_symbol("not"),
+                     .equivalence = kernel.symbols_.intern_symbol("xnor"),
+                     .alternative_denial = kernel.symbols_.intern_symbol("nand"),
+                     .joint_denial = kernel.symbols_.intern_symbol("nor"),
+                     .implication = kernel.symbols_.intern_symbol("imp"),
+                     .majority = kernel.symbols_.intern_symbol("maj")}
     , point_symbol_(kernel.symbols_.intern_symbol("point"))
     , less_symbol_(kernel.symbols_.intern_symbol("lt"))
     , element_fit_(kernel, {"#0"}, fit_limits, pw_symbols_, point_symbol_, less_symbol_)
@@ -34,7 +43,8 @@ list_fit_rules_manifest::list_fit_rules_manifest(
     , prime_table_(k_num_default_max_value)
     , numbers_(element_fit_.pw_evaluator_, element_fit_.conditions_, kernel.literals_, kernel.literals_, prime_table_,
                prime_table_, num_symbols_)
-    , evaluator_(values_, values_, kernel.exprs_, kernel.literals_, numbers_, numbers_, step_fit_.pw_evaluator_,
+    , conditions_(numbers_, logic_symbols_)
+    , evaluator_(values_, values_, kernel.exprs_, kernel.literals_, numbers_, conditions_, step_fit_.pw_evaluator_,
                  binders_, binders_, list_symbols_, point_symbol_, less_symbol_)
     , applying_(binders_, evaluator_)
     , pw_evaluator_(applying_, evaluator_, pw_symbols_)
@@ -49,8 +59,12 @@ list_fit_rules_manifest::list_fit_rules_manifest(
                     list_symbols_)
     , integer_folds_(kernel.literals_, step_fit_.converter_, step_fit_.hypotheses_, kernel.exprs_, list_symbols_)
     , primes_(kernel.literals_, prime_table_, prime_table_, kernel.exprs_, num_symbols_, list_symbols_.element)
-    , filterings_(values_, kernel.literals_, kernel.literals_, kernel.exprs_, primes_, list_symbols_, less_symbol_,
-                  point_symbol_)
+    , atoms_(kernel.literals_, kernel.literals_, kernel.exprs_, list_symbols_.element, less_symbol_,
+             element_fit_.equal_symbol_, element_fit_.modulo_symbol_, num_symbols_.is_prime)
+    , combinations_(atoms_, conditions_, kernel.sizes_, kernel.literals_, kernel.exprs_, logic_symbols_)
+    , conditions_union_(primes_, combinations_)
+    , filterings_(values_, kernel.literals_, kernel.literals_, kernel.exprs_, conditions_union_, list_symbols_,
+                  less_symbol_, point_symbol_)
     , maps_(values_, element_fit_.hypotheses_, kernel.exprs_, list_symbols_, point_symbol_)
     , folds_(step_fit_.hypotheses_, kernel.exprs_, list_symbols_, point_symbol_)
     , affine_solver_()

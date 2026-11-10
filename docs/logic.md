@@ -16,7 +16,8 @@ examples below that name an input (`x`, `xs`, `n`, `a`) mean its index: one inpu
 
 ## Modules
 
-- `logic` (`logic_`): the vocabulary and its evaluator.
+- `logic` (`logic_`): the vocabulary, its evaluator, the structural laws (`logic_simplifier`), and the condition
+  evaluator that lets any domain's predicates be combined with the connectives (`logic_condition_evaluator`).
 - `logic_fit` (`logic_`): the composition. The table reader, the two solvers and their detectors, the rule set, the
   solver manifests and the runtime. It runs on a polynomial kernel for the pool, the literals and the printer.
 
@@ -27,6 +28,7 @@ examples below that name an input (`x`, `xs`, `n`, `a`) mean its index: one inpu
 | `0`, `1` | the truth values (integer literals) |
 | `a`, `b`, ... | the input variables, in the order each sample lists them |
 | `and(x, y)`, `or(x, y)`, `xor(x, y)`, `not(x)` | the connectives |
+| `xnor(x, y)`, `nand(x, y)`, `nor(x, y)`, `imp(x, y)`, `maj(x, y, z)` | primitives: equivalence, not-and, not-or, implication, at least two of three |
 
 `logic_evaluator` gives a formula's value at `point(v1, ..., vk)` as the literal 0 or 1. As a region condition, a
 formula holds where it is 1, so a piecewise can split on any formula.
@@ -47,34 +49,61 @@ before a solver runs.
   becomes `or(and(a, or(b, c)), and(b, c))`, cost 9 (#10). The cover is capped at 8 variables
   (`k_logic_default_max_cover_width`).
 
-There are no local rules yet: the detectors propose finished formulas.
+- **`logic_primitive_hypotheses`**: one primitive over some of the inputs, each argument plain or negated, checked
+  against the rows the data gives, so unseen rows are don't cares: `maj` from six of its eight rows.
+- **`logic_decomposition_hypotheses`**: a composition `c(g, x)` of an easy outer combiner (`and`, `or`, `xor`) with
+  one input, split outer-inner: assuming c and x, each row says what g must be or leaves it free, and g's partial
+  table goes to the primitive and parity detectors. `xor(maj(a, b, c), d)` is read in one step, with rows unseen too.
+  One level deep for now.
+- **`logic_condition_hypotheses`**: condition data (a value kept or removed) as one atomic predicate or a
+  connective of two, the atoms coming from another domain (`list_condition_atoms`: thresholds, residues,
+  primality). This is how list filters take Boolean conditions: `and(is_prime(#0), lt(2, #0))` for the odd primes.
+
+## Rules
+
+- **`logic_simplifier`**: the laws of Boolean algebra as structural rewrites, at any width, over any subformulas:
+  constants, double negation, the negated forms (`not(and)` is `nand`, ...), De Morgan, idempotence, complement,
+  absorption, cancellation in xor chains (parity stays linear), and the expansions of `xor`, `xnor` and `maj`.
+  Soundness is fuzzed against truth tables.
+- **`logic_formula_refitter`**: reduces a subformula by its meaning, bounded in width
+  (`k_logic_default_max_refit_width`, 8 inputs, 256 rows): its truth table is refitted by the parity, cover and primitive detectors, and the smallest
+  exact fit is proposed when it shrinks. Holes are don't cares: a row the holes can change is free, so the formula
+  becomes the smallest one reachable under any binding (`or(x, ?0)` becomes `1`). It complements the structural rules;
+  it is never the only way, since tables are exponential in width.
 
 ## Benchmark
 
-`bench/logic_bench.cpp` (`make logic_bench`, gated in `make bench_check`, baseline `bench/baseline/logic.tsv`): 12
-problems, all solved by both solvers in milliseconds.
+`bench/logic_bench.cpp` (`make logic_bench`, gated in `make bench_check`, baseline `bench/baseline/logic.tsv`), costs
+as the benchmark counts them (with the closing `lams`):
 
-| problem | target | form |
+| problem | cost | form |
 |---|---|---|
-| #9 parity of 4 bits | 7 | `xor(xor(xor(a, b), c), d)` |
-| #10 majority of 3 bits | 9 | `or(and(a, or(b, c)), and(b, c))` |
-| parity of 3 and of 6 bits | 5, 11 | xor chains |
-| equivalence | 4 | `not(xor(a, b))` |
-| implication | 4 | `or(not(a), b)` |
-| and of 3 bits | 5 | `and(and(a, b), c)` |
-| multiplexer | 8 | `or(and(s, a), and(not(s), b))` |
-| majority, two rows unseen | 9 | reaches 6: the don't cares allow a smaller formula |
-| parity of 4, wrong label | 15 | the parity plus one `case` |
-| exactly one of 3 | 12 | `pw(case(point(1, 1, 1), 0), xor(xor(a, b), c))` |
-| majority of 5 bits | 37 | the factored cover of the ten triples |
+| #9 parity of 4 bits, parity of 3 and of 6 | 9, 7, 13 | xor chains |
+| #10 majority of 3 bits, and with two rows unseen | 6 | `maj(#2, #1, #0)` |
+| equivalence, implication, nand, nor | 5 | `xnor`, `imp`, `nand`, `nor` of two |
+| nand of two of three, two rows unseen | 5 | `nand(#2, #1)` |
+| majority of three of five inputs | 6 | `maj(#4, #2, #0)` |
+| xor of a majority and a fourth, also with three rows unseen | 8 | `xor(maj(#3, #2, #1), #0)` |
+| and of an equivalence and a third | 7 | `and(xnor(#2, #1), #0)` |
+| multiplexer | 10 | `or(and(s, a), and(not(s), b))` |
+| parity of 4, wrong label | 17 | the parity plus one `case` |
+| majority of 5 bits | 29 | was 39; uses `maj` twice, still no sharing |
+
+Every problem takes milliseconds except parity of 6 bits (0.3 s): the refit tables a 6-input formula's subformulas
+at 64 rows each.
 
 ## Gaps (the open problems)
 
-- **Shared subformulas.** Majority of 5 is cost 37 because `maj(c, d, e)` appears twice. Sharing it needs helpers
-  (`plans.md`, abstraction).
-- **Exact minimization.** The cover is greedy and factoring is one heuristic. Neither is the smallest formula in
-  general. Mixed forms like `and(xor(...), not(...))` are found only by luck (exactly one of 3 reaches 12 as a parity
-  with an exception).
-- **Local rules**: absorption, De Morgan, double negation, distribution, for formulas that come from elsewhere.
-- **More than 8 variables** for the cover, and wrong labels in data that is not a parity.
-- **Booleans in other domains**: list conditions (`all`, `any`, #4) and region conditions could use this vocabulary.
+- **Holes as missing pieces.** The refit binds holes to whatever is smallest, so `or(and(not(#1), #0), ?0)` becomes
+  `1`, not the `xor(#1, #0)` reduce request #19 asks for. Recovering "the rest of a shape" needs an objective that
+  keeps the known part's structure (completion against primitive expansions), to be decided.
+- **Compositions deeper than one level** (`c(g, x)` with g itself a composition), and of two unknown functions
+  (`c(g, h)`, Ashenhurst decomposition).
+- **Shared subformulas.** Majority of 5 repeats `maj(c, d, e)`; sharing it needs helpers (`plans.md`, abstraction).
+- **Exact minimization** for small formulas; the cover is greedy.
+- **Algebraic normal form** (xor of ands, the GF(2) polynomial) as a second normal form beside the cover: parities
+  are linear there and sums of products are exponential, and the reverse holds for ors, so each catches what the other
+  cannot.
+- **Wide formulas**: the refit stops at 8 inputs; structural rules are the only reduction beyond.
+- **Conditions of three atoms or more** for filters and regions, and Boolean conditions in `map(f, filter(c, xs))`
+  and in fold conditions (sums and counts over a Boolean condition).

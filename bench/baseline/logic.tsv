@@ -1,33 +1,47 @@
 # problem	solver	cost	target	seconds	sound
-#9 parity of 4 bits	best-1st	9	9	0.000147699	1
-#9 parity of 4 bits	mcts	9	9	0.000134844	1
-#10 majority of 3 bits	best-1st	11	11	7.4367e-05	1
-#10 majority of 3 bits	mcts	11	11	8.4917e-05	1
-parity of 3 bits	best-1st	7	7	9.7859e-05	1
-parity of 3 bits	mcts	7	7	4.8671e-05	1
-parity of 6 bits	best-1st	13	13	0.000816046	1
-parity of 6 bits	mcts	13	13	0.000823548	1
-equivalence	best-1st	6	6	5.7415e-05	1
-equivalence	mcts	6	6	6.287e-05	1
-implication	best-1st	6	6	9.2165e-05	1
-implication	mcts	6	6	5.2207e-05	1
-and of 3 bits	best-1st	7	7	6.7896e-05	1
-and of 3 bits	mcts	7	7	8.94e-05	1
-multiplexer	best-1st	10	10	5.6179e-05	1
-multiplexer	mcts	10	10	6.8965e-05	1
-majority, two rows unseen	best-1st	8	11	4.4187e-05	1
-majority, two rows unseen	mcts	8	11	6.5666e-05	1
-parity of 4, wrong label	best-1st	17	17	0.000136558	1
-parity of 4, wrong label	mcts	17	17	9.7137e-05	1
-exactly one of 3	best-1st	14	14	3.6155e-05	1
-exactly one of 3	mcts	14	14	4.8828e-05	1
-majority of 5 bits	best-1st	39	39	0.000459491	1
-majority of 5 bits	mcts	39	39	0.000381952	1
-showcase: access rule	best-1st	8	8	5.104e-05	1
-showcase: access rule	mcts	8	8	8.9258e-05	1
-showcase: alarm	best-1st	7	7	5.0353e-05	1
-showcase: alarm	mcts	7	7	8.617e-05	1
-showcase: seat belt warning	best-1st	8	8	4.4763e-05	1
-showcase: seat belt warning	mcts	8	8	5.3119e-05	1
-showcase: implication into a conjunction	best-1st	8	8	3.379e-05	1
-showcase: implication into a conjunction	mcts	8	8	5.4653e-05	1
+#9 parity of 4 bits	best-1st	9	9	0.0221014	1
+#9 parity of 4 bits	mcts	9	9	0.00698254	1
+#10 majority of 3 bits	best-1st	6	11	0.00251876	1
+#10 majority of 3 bits	mcts	6	11	0.00156755	1
+parity of 3 bits	best-1st	7	7	0.00252097	1
+parity of 3 bits	mcts	7	7	0.00185944	1
+parity of 6 bits	best-1st	13	13	0.31457	1
+parity of 6 bits	mcts	13	13	0.140964	1
+equivalence	best-1st	5	6	0.000307229	1
+equivalence	mcts	5	6	0.000616404	1
+implication	best-1st	5	6	0.000961306	1
+implication	mcts	5	6	0.00106437	1
+and of 3 bits	best-1st	7	7	0.00193608	1
+and of 3 bits	mcts	7	7	0.00142831	1
+multiplexer	best-1st	10	10	0.00101455	1
+multiplexer	mcts	10	10	0.000898095	1
+majority, two rows unseen	best-1st	6	11	0.00302895	1
+majority, two rows unseen	mcts	6	11	0.00135438	1
+parity of 4, wrong label	best-1st	17	17	0.0134456	1
+parity of 4, wrong label	mcts	17	17	0.00787085	1
+exactly one of 3	best-1st	14	14	0.00282425	1
+exactly one of 3	mcts	14	14	0.00121083	1
+majority of 5 bits	best-1st	29	39	0.11867	1
+majority of 5 bits	mcts	29	39	0.0812619	1
+showcase: access rule	best-1st	8	8	0.0020124	1
+showcase: access rule	mcts	8	8	0.00126859	1
+showcase: alarm	best-1st	7	7	0.00213218	1
+showcase: alarm	mcts	7	7	0.00137072	1
+showcase: seat belt warning	best-1st	7	8	0.00239571	1
+showcase: seat belt warning	mcts	7	8	0.00160645	1
+showcase: implication into a conjunction	best-1st	7	8	0.00177619	1
+showcase: implication into a conjunction	mcts	7	8	0.00118484	1
+nand	best-1st	5	5	0.00119254	1
+nand	mcts	5	5	0.00096274	1
+nor	best-1st	5	5	0.00142968	1
+nor	mcts	5	5	0.000964831	1
+nand of two of three, two rows unseen	best-1st	5	5	0.00170236	1
+nand of two of three, two rows unseen	mcts	5	5	0.00176978	1
+majority of three of five	best-1st	6	6	0.0111193	1
+majority of three of five	mcts	6	6	0.0077016	1
+xor of a majority and a fourth	best-1st	8	8	0.0136239	1
+xor of a majority and a fourth	mcts	8	8	0.00858522	1
+xor of a majority and a fourth, three rows unseen	best-1st	8	8	0.00480561	1
+xor of a majority and a fourth, three rows unseen	mcts	8	8	0.0039162	1
+and of an equivalence and a third	best-1st	7	7	0.00115364	1
+and of an equivalence and a third	mcts	7	7	0.000971425	1

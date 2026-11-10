@@ -420,6 +420,28 @@ int main(int argc, char** argv) {
         {"showcase: maximum of 2x + 1", random_lists(30, 3, 10, -20, 20, 84), false,
          [](const list_t& l) { return fold_right(l, -100, [](integer h, integer acc) { return 2 * h + 1 < acc ? acc : 2 * h + 1; }); },
          {}, 21, "lam(fold(lam(lam(pw(when(lt(#1, 2*#0 + 1), 2*#0 + 1), #1))), 0, #0))"},
+        // filters by Boolean combinations of element predicates (thresholds, residues, primality)
+        {"filter odd primes", random_lists(30, 3, 10, 0, 60, 90), true,
+         [](const list_t& l) { return keep(keep_primes(l), [](integer e) { return e % 2 != 0; }); }, {}, 10,
+         "lam(filter(lam(and(is_prime(#0), eq(mod(#0, 2), 1))), #0))"},
+        {"filter evens above 10", random_lists(30, 3, 10, 0, 30, 91), true,
+         [](const list_t& l) { return keep(l, [](integer e) { return e % 2 == 0 && e > 10; }); }, {}, 13,
+         "lam(filter(lam(and(eq(mod(#0, 2), 0), lt(10, #0))), #0))"},
+        {"filter primes or below 5", random_lists(30, 3, 10, 0, 40, 92), true,
+         [](const list_t& l) {
+             list_t kept;
+             for (const integer& value : l)
+                 if (value < 5 || !keep_primes(list_t{value}).empty())
+                     kept.push_back(value);
+             return kept;
+         },
+         {}, 10, "lam(filter(lam(or(is_prime(#0), lt(#0, 5))), #0))"},
+        {"filter nonzero", random_lists(30, 3, 10, -9, 9, 93), true,
+         [](const list_t& l) { return keep(l, [](integer e) { return e != 0; }); }, {}, 11,
+         "lam(filter(lam(or(lt(#0, 0), lt(0, #0))), #0))"},
+        {"filter not multiples of 3", random_lists(30, 3, 10, -20, 20, 94), true,
+         [](const list_t& l) { return keep(l, [](integer e) { return e % 3 != 0; }); }, {}, 10,
+         "lam(filter(lam(not(eq(mod(#0, 3), 0))), #0))"},
     };
 
     std::printf("budgets: best-first %zu rewrites; mcts %zu simulations x depth %zu\n", k_rewrites, k_simulations,

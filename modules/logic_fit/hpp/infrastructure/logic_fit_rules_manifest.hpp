@@ -14,9 +14,13 @@
 #include "infrastructure/expr_size.hpp"
 #include "infrastructure/logic_cover_hypotheses.hpp"
 #include "infrastructure/logic_cover_solver.hpp"
+#include "infrastructure/logic_decomposition_hypotheses.hpp"
 #include "infrastructure/logic_evaluator.hpp"
+#include "infrastructure/logic_formula_refitter.hpp"
 #include "infrastructure/logic_parity_hypotheses.hpp"
 #include "infrastructure/logic_parity_solver.hpp"
+#include "infrastructure/logic_primitive_hypotheses.hpp"
+#include "infrastructure/logic_simplifier.hpp"
 #include "infrastructure/logic_table_reader.hpp"
 #include "infrastructure/poly_kernel_manifest.hpp"
 #include "infrastructure/poly_sample_converter.hpp"
@@ -37,12 +41,15 @@
 #include "value_objects/poly_sample.hpp"
 #include "value_objects/pw_symbols.hpp"
 
-// The rules for fitting boolean functions to truth-table data over `arity` inputs; a piecewise is a function of
-// them, so what replaces its catch-all is `lam(b)` or `lams(arity, b)`, the first input `#(arity-1)` and the last `#0`
-// in b, on a polynomial kernel (for its
-// pool, literals and printer): the samples (inputs and outputs of 0s and 1s) become a piecewise with an open
-// catch-all; the piecewise rules bind it to constants, parities (`logic_parity_hypotheses`) and factored sums of
-// products (`logic_cover_hypotheses`), and drop the branches they reproduce. `rules_` is what a search injects and
+// The rules for fitting boolean functions to truth-table data over `arity` inputs, on a polynomial kernel (for its
+// pool, literals and printer). A piecewise is a function of its inputs, so what replaces its catch-all is `lam(b)` or
+// `lams(arity, b)`, the first input `#(arity-1)` and the last `#0` in b. The samples (inputs and outputs of 0s and 1s)
+// become a piecewise with an open catch-all; the piecewise rules bind it to constants, parities
+// (`logic_parity_hypotheses`), factored sums of products (`logic_cover_hypotheses`), primitives
+// (`logic_primitive_hypotheses`) and compositions of a primitive with an input (`logic_decomposition_hypotheses`),
+// and drop the branches they reproduce. The laws of Boolean algebra simplify any formula structurally, at any width
+// (`logic_simplifier`), and any Boolean subformula is also refitted from its truth table by the cheaper detectors
+// (`logic_formula_refitter`, bounded in width), its holes as don't cares. `rules_` is what a search injects and
 // `initial_` is where it starts.
 struct logic_fit_rules_manifest {
     using kernel_t = poly_kernel_manifest;
@@ -76,8 +83,28 @@ struct logic_fit_rules_manifest {
     struct covers_t : logic_cover_hypotheses<reader_t, logic_cover_solver, expr_pool> {
         using logic_cover_hypotheses<reader_t, logic_cover_solver, expr_pool>::logic_cover_hypotheses;
     };
-    struct hypotheses_t : pw_hypotheses_union<constants_t, parities_t, covers_t> {
-        using pw_hypotheses_union<constants_t, parities_t, covers_t>::pw_hypotheses_union;
+    struct primitives_t : logic_primitive_hypotheses<reader_t, expr_pool> {
+        using logic_primitive_hypotheses<reader_t, expr_pool>::logic_primitive_hypotheses;
+    };
+    struct inner_t : pw_hypotheses_union<parities_t, primitives_t> {
+        using pw_hypotheses_union<parities_t, primitives_t>::pw_hypotheses_union;
+    };
+    struct decompositions_t : logic_decomposition_hypotheses<reader_t, inner_t, kernel_t::literals_t, expr_pool> {
+        using logic_decomposition_hypotheses<reader_t, inner_t, kernel_t::literals_t,
+                                             expr_pool>::logic_decomposition_hypotheses;
+    };
+    struct hypotheses_t
+        : pw_hypotheses_union<constants_t, parities_t, covers_t, primitives_t, decompositions_t> {
+        using pw_hypotheses_union<constants_t, parities_t, covers_t, primitives_t,
+                                  decompositions_t>::pw_hypotheses_union;
+    };
+    struct refits_t : pw_hypotheses_union<parities_t, covers_t, primitives_t> {
+        using pw_hypotheses_union<parities_t, covers_t, primitives_t>::pw_hypotheses_union;
+    };
+    struct refitter_t : logic_formula_refitter<expr_size, evaluator_t, refits_t, kernel_t::literals_t,
+                                               kernel_t::literals_t, expr_pool> {
+        using logic_formula_refitter<expr_size, evaluator_t, refits_t, kernel_t::literals_t,
+                                     kernel_t::literals_t, expr_pool>::logic_formula_refitter;
     };
     struct closing_t : abs_closing_hypotheses<hypotheses_t, function_maker_t> {
         using abs_closing_hypotheses<hypotheses_t, function_maker_t>::abs_closing_hypotheses;
@@ -103,8 +130,11 @@ struct logic_fit_rules_manifest {
     struct absorber_t : pw_branch_absorber<filter_t, assembler_t> {
         using pw_branch_absorber<filter_t, assembler_t>::pw_branch_absorber;
     };
-    struct union_t : proposer_union<binder_t, absorber_t> {
-        using proposer_union<binder_t, absorber_t>::proposer_union;
+    struct simplifier_t : logic_simplifier<kernel_t::literals_t, kernel_t::literals_t, expr_pool> {
+        using logic_simplifier<kernel_t::literals_t, kernel_t::literals_t, expr_pool>::logic_simplifier;
+    };
+    struct union_t : proposer_union<binder_t, absorber_t, simplifier_t, refitter_t> {
+        using proposer_union<binder_t, absorber_t, simplifier_t, refitter_t>::proposer_union;
     };
     struct rules_t : subterm_proposer<union_t, expr_pool> {
         using subterm_proposer<union_t, expr_pool>::subterm_proposer;
@@ -129,6 +159,9 @@ struct logic_fit_rules_manifest {
     parities_t parities_;
     logic_cover_solver cover_solver_;
     covers_t covers_;
+    primitives_t primitives_;
+    inner_t inner_;
+    decompositions_t decompositions_;
     hypotheses_t hypotheses_;
     closing_t closing_;
     assembler_t assembler_;
@@ -138,6 +171,9 @@ struct logic_fit_rules_manifest {
     filter_t filter_;
     binder_t binder_;
     absorber_t absorber_;
+    simplifier_t simplifier_;
+    refits_t refits_;
+    refitter_t refitter_;
     union_t union_;
     rules_t rules_;
     const expr* initial_;

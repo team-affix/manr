@@ -13,8 +13,9 @@
 #include "value_objects/logic_symbols.hpp"
 
 // The truth value of a formula at an input `point(v1, ..., vk)` of 0s and 1s, binding the i-th variable to the i-th
-// coordinate, as the literal 0 or 1. Also decides a formula used as a region condition: it holds where it is 1. No
-// value for anything outside the logic vocabulary, a literal other than 0 or 1, or an unknown variable.
+// coordinate, as the literal 0 or 1, over every connective and primitive of `logic_symbols`. Also decides a formula
+// used as a region condition: it holds where it is 1. No value for anything outside the logic vocabulary, a literal
+// other than 0 or 1, or an unknown variable.
 template<typename IFindLiteralValue, typename IMakeLiteral>
 struct logic_evaluator {
     logic_evaluator(IFindLiteralValue& find_literal_value,
@@ -79,9 +80,21 @@ LOGIC_EVALUATOR_TEMPLATE std::optional<bool> LOGIC_EVALUATOR::find_truth(
             return std::nullopt;
         return !operand.value();
     }
+    if (f->id == symbols_.majority && f->args.size() == 3) {
+        size_t ones = 0;
+        for (const expr* arg : f->args) {
+            const std::optional<bool> operand = find_truth(arg, coordinates);
+            if (!operand.has_value())
+                return std::nullopt;
+            ones += operand.value() ? 1 : 0;
+        }
+        return ones >= 2;
+    }
     const bool connective = f->args.size() == 2
                             && (f->id == symbols_.conjunction || f->id == symbols_.disjunction
-                                || f->id == symbols_.exclusion);
+                                || f->id == symbols_.exclusion || f->id == symbols_.equivalence
+                                || f->id == symbols_.alternative_denial || f->id == symbols_.joint_denial
+                                || f->id == symbols_.implication);
     if (!connective)
         return std::nullopt;
     const std::optional<bool> left = find_truth(f->args[0], coordinates);
@@ -94,7 +107,15 @@ LOGIC_EVALUATOR_TEMPLATE std::optional<bool> LOGIC_EVALUATOR::find_truth(
         return left.value() && right.value();
     if (f->id == symbols_.disjunction)
         return left.value() || right.value();
-    return left.value() != right.value();
+    if (f->id == symbols_.exclusion)
+        return left.value() != right.value();
+    if (f->id == symbols_.equivalence)
+        return left.value() == right.value();
+    if (f->id == symbols_.alternative_denial)
+        return !(left.value() && right.value());
+    if (f->id == symbols_.joint_denial)
+        return !(left.value() || right.value());
+    return !left.value() || right.value();
 }
 
 #undef LOGIC_EVALUATOR

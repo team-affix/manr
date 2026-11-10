@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -20,6 +21,11 @@ struct ListDetectorsIntegrationTest : ::testing::Test {
 
     std::vector<pw_data_point> points(const std::vector<list_sample>& samples) {
         return rules.converter_.convert(samples);
+    }
+    std::string print(const expr* e) {
+        std::ostringstream os;
+        manifest.kernel_.printer_.print(os, e);
+        return os.str();
     }
     std::vector<std::string> printed() {
         std::vector<std::string> texts;
@@ -83,11 +89,11 @@ TEST_F(ListDetectorsIntegrationTest, TheFilterDetectorKeepsValuesBelowAThreshold
                                              return kept;
                                          })),
                                          out);
-    EXPECT_EQ(printed(), std::vector<std::string>{"filter(lam(lt(#0, 1)), #0)"});
+    EXPECT_THAT(printed(), Contains("filter(lam(lt(#0, 1)), #0)"));
 }
 
-TEST_F(ListDetectorsIntegrationTest, TheFilterDetectorProposesNothingWhenNoThresholdSeparatesTheValues) {
-    rules.filterings_.propose_hypotheses(points(sample_listed(all_lists(-2, 2, 2), [](const std::vector<integer>& list) {
+TEST_F(ListDetectorsIntegrationTest, TheFilterDetectorCombinesThresholdsWhenNoOneThresholdSeparatesTheValues) {
+    rules.filterings_.propose_hypotheses(points(sample_listed(all_lists(-7, 7, 2), [](const std::vector<integer>& list) {
                                              std::vector<integer> kept;
                                              for (const integer& value : list)
                                                  if (value != 0)
@@ -95,7 +101,12 @@ TEST_F(ListDetectorsIntegrationTest, TheFilterDetectorProposesNothingWhenNoThres
                                              return kept;
                                          })),
                                          out);
-    EXPECT_TRUE(out.empty());
+    ASSERT_FALSE(out.empty());
+    const auto literal = [&](int value) { return manifest.kernel_.literals_.make_literal(value); };
+    const expr* input = rules.values_.make_list({literal(-12), literal(0), literal(9), literal(0), literal(-1)});
+    const expr* nonzero = rules.values_.make_list({literal(-12), literal(9), literal(-1)});
+    for (const expr* proposal : out)
+        EXPECT_EQ(rules.evaluator_.evaluate_at(proposal, input), std::optional<const expr*>(nonzero)) << print(proposal);
 }
 
 TEST_F(ListDetectorsIntegrationTest, TheExtremumFoldDetectorReadsTheLargestElementWithTheEmptyListsOutputAsBase) {

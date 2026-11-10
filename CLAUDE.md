@@ -58,9 +58,12 @@ modules/<name>/{hpp,cpp,test}/...             one directory per rule module; pre
   number/     (num_)                          number-theory primitives over another domain: `prime(n)`, `is_prime(n)`,
                                               a sieve-backed prime table, their evaluator, and a detector comparing
                                               data with the primes (wired into poly, seq and list fitting)
-  logic/      (logic_)                        boolean functions: and, or, xor, not over 0 and 1, evaluator
-  logic_fit/  (logic_)                        composition: parity (exact solve mod 2) and factored sum-of-products
-                                              detectors over truth tables, rule set, solver manifests, runtime
+  logic/      (logic_)                        boolean functions: and, or, xor, not and the primitives xnor, nand,
+                                              nor, imp, maj over 0 and 1; evaluator, the structural laws, and a
+                                              condition evaluator combining any domain's predicates
+  logic_fit/  (logic_)                        composition: parity, cover, primitive and decomposition detectors over
+                                              truth tables, Boolean conditions over atoms, the truth-table refit
+                                              (holes as don't cares), rule set, solver manifests, runtime
 bench/                                        release benchmarks and the regression gate (`make bench_check`), not
                                               tests; committed baselines in bench/baseline/
 modules/test_main.cpp                         GTest entry for the modules binary
@@ -114,8 +117,9 @@ A module depends on core and on other modules' headers; core never depends on a 
   as polynomials, and a closing rule turns affine recurrences into powers.
 - Number theory (`docs/number.md`) is vocabulary on top of the other domains: primitives for the primes, evaluated over
   a domain's evaluator, and a detector that also serves list filters as a condition domain.
-- Logic is the fourth domain. Read `docs/logic.md`: parities by an exact solve mod 2, everything else by a factored
-  Quine-McCluskey cover, with unseen inputs as don't cares.
+- Logic is the fourth domain. Read `docs/logic.md`: primitives and compositions read from truth tables (unseen rows
+  as don't cares), parities by an exact solve mod 2, factored covers, Boolean laws as structural rules at any width,
+  and a width-bounded refit of subformulas from their truth tables.
 - **Detecting a hard shape is decomposed** (`docs/decomposing-detection.md`): split it into subproblems, each made
   easy by one assumption, and keep each solution generic by handing the rest to another domain's detectors (e.g. a
   fold step as an easy outer combiner over an unknown inner function). Read it before adding a detector.

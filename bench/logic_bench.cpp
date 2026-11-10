@@ -157,6 +157,31 @@ solved solve(const logic_problem& p, bool) {
 
 }
 
+// primitives and compositions
+int nand2(const std::vector<int>& bits) {
+    return !(bits[0] && bits[1]);
+}
+
+int nor2(const std::vector<int>& bits) {
+    return !(bits[0] || bits[1]);
+}
+
+int majority_xor_fourth(const std::vector<int>& bits) {  // xor(maj(a, b, c), d)
+    return (bits[0] + bits[1] + bits[2] >= 2) != bits[3];
+}
+
+int equivalence_and_third(const std::vector<int>& bits) {  // and(xnor(a, b), c)
+    return (bits[0] == bits[1]) && bits[2];
+}
+
+int majority_of_alternate(const std::vector<int>& bits) {  // maj(a, c, e) of five
+    return bits[0] + bits[2] + bits[4] >= 2;
+}
+
+int nand_ignoring_third(const std::vector<int>& bits) {  // nand(a, b) over three inputs
+    return !(bits[0] && bits[1]);
+}
+
 // showcase rules
 int access_rule(const std::vector<int>& bits) {  // admin, or owner and not locked
     return bits[0] || (bits[1] && !bits[2]);
@@ -202,6 +227,19 @@ int main(int argc, char** argv) {
         {"showcase: seat belt warning", {"ignition", "moving", "buckled"}, seat_belt, {}, {}, 8,
          "lams(3, and(and(#2, #1), not(#0)))"},
         {"showcase: implication into a conjunction", {"a", "b", "c"}, implication_chain, {}, {}, 8, "lams(3, or(not(#2), and(#1, #0)))"},
+        // Boolean primitives, with unseen rows, and composed (docs/logic.md)
+        {"nand", {"a", "b"}, nand2, {}, {}, 5, "lams(2, nand(#1, #0))"},
+        {"nor", {"a", "b"}, nor2, {}, {}, 5, "lams(2, nor(#1, #0))"},
+        {"nand of two of three, two rows unseen", {"a", "b", "c"}, nand_ignoring_third, {1, 6}, {}, 5,
+         "lams(3, nand(#2, #1))"},
+        {"majority of three of five", {"a", "b", "c", "d", "e"}, majority_of_alternate, {}, {}, 6,
+         "lams(5, maj(#4, #2, #0))"},
+        {"xor of a majority and a fourth", {"a", "b", "c", "d"}, majority_xor_fourth, {}, {}, 8,
+         "lams(4, xor(maj(#3, #2, #1), #0))"},
+        {"xor of a majority and a fourth, three rows unseen", {"a", "b", "c", "d"}, majority_xor_fourth, {2, 9, 14}, {},
+         8, "lams(4, xor(maj(#3, #2, #1), #0))"},
+        {"and of an equivalence and a third", {"a", "b", "c"}, equivalence_and_third, {}, {}, 7,
+         "lams(3, and(xnor(#2, #1), #0))"},
     };
 
     std::printf("budgets: best-first %zu rewrites; mcts %zu simulations x depth %zu\n", k_rewrites, k_simulations,

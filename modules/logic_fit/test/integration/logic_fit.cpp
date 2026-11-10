@@ -146,9 +146,9 @@ TEST_F(LogicFitIntegrationTest, EveryProposalOnMajorityWithAWrongLabelReproduces
     EXPECT_GT(checked, 30u);
 }
 
-TEST_F(LogicFitIntegrationTest, TheRuntimeReducesMajorityToItsFactoredForm) {
+TEST_F(LogicFitIntegrationTest, TheRuntimeReducesMajorityToItsPrimitive) {
     logic_fit_runtime runtime{3, table(majority), k_poly_default_limits, 20000};
     while (runtime.rewrites() < 500 && runtime.next()) {}
-    EXPECT_EQ(runtime.best(), "lams(3, or(and(#2, or(#1, #0)), and(#1, #0)))");
-    EXPECT_EQ(runtime.best_cost(), 11u);
+    EXPECT_EQ(runtime.best(), "lams(3, maj(#2, #1, #0))");
+    EXPECT_EQ(runtime.best_cost(), 6u);
 }

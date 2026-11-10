@@ -113,14 +113,20 @@ LIST_FILTER_HYPOTHESES_TEMPLATE void LIST_FILTER_HYPOTHESES::propose_hypotheses(
     propose_conditions_.propose_hypotheses(labelled, conditions_);
     for (const expr* condition : conditions_) {
         const expr* function = make_functor_.make_functor(symbols_.lambda, {condition});
-        out.push_back(make_functor_.make_functor(symbols_.filter, {function, list}));
+        const expr* filter = make_functor_.make_functor(symbols_.filter, {function, list});
+        const bool proposed = std::find(out.begin(), out.end(), filter) != out.end();
+        if (proposed)
+            continue;
+        out.push_back(filter);
     }
     const bool above = *removed.rbegin() < *kept.begin();
     if (above) {
         const expr* condition =
             make_functor_.make_functor(less_symbol_, {make_literal_.make_literal(*removed.rbegin()), element});
         const expr* function = make_functor_.make_functor(symbols_.lambda, {condition});
-        out.push_back(make_functor_.make_functor(symbols_.filter, {function, list}));
+        const expr* filter = make_functor_.make_functor(symbols_.filter, {function, list});
+        if (std::find(out.begin(), out.end(), filter) == out.end())
+            out.push_back(filter);
         return;
     }
     const bool below = *kept.rbegin() < *removed.begin();
@@ -129,7 +135,9 @@ LIST_FILTER_HYPOTHESES_TEMPLATE void LIST_FILTER_HYPOTHESES::propose_hypotheses(
     const expr* condition =
         make_functor_.make_functor(less_symbol_, {element, make_literal_.make_literal(*removed.begin())});
     const expr* function = make_functor_.make_functor(symbols_.lambda, {condition});
-    out.push_back(make_functor_.make_functor(symbols_.filter, {function, list}));
+    const expr* filter = make_functor_.make_functor(symbols_.filter, {function, list});
+    if (std::find(out.begin(), out.end(), filter) == out.end())
+        out.push_back(filter);
 }
 
 // The literal values of a list of literals.
