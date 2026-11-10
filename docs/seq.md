@@ -45,8 +45,12 @@ regions can compare recurrences.
   the step point `(j, a(j-1), ..., a(j-k)) -> a(j)`. These points go to polynomial interpolation over `i, p1, ..., pk`.
   Each step body it proposes, closed under `k + 1` lambdas, becomes `rec(lam(...lam(step)), a(0), ..., a(k-1), n)`. The step may use the index, so `i * p1`
   (factorial) is found as easily as `p1 + p2`. Interpolation starts from several places, so a wrong label costs only
-  a branch. Before any interpolation the detector rules data out cheaply: too few terms for its order (`2k + 3`), a
-  constant sequence (left to the constant detector), or a missing base.
+  a branch. Before any interpolation the detector rules data out cheaply: too few terms for its order (`2k + 3`), or
+  a constant sequence (left to the constant detector). Bases the data does not have are solved by running each step
+  backwards from the first `k` observed terms (#11), up to 64 indices: a step back solves
+  `a(j) = s(j, a(j-1), ..., a(j-k))` for the oldest term, read as a line through its values at 0 and 1 and checked
+  exactly. So Fibonacci observed from index 10 reads as `rec(lam(lam(lam(#1 + #2))), 0, 1, n)`. A step with no
+  integer inverse there (`p1^2 + 1`) gives no recurrence.
 - **`seq_power_closer`** (local rule): closes an affine recurrence of order one, step `r * p1 + d` (`r` not 0 or 1),
   into `a * exp(r, n) + b`, with `b = -d / (r - 1)` the fixed point and `a = a(0) - b`. It fires only when `b` is an
   integer, and drops the trivial parts. It always shrinks the expression. So `rec(lam(lam(2 * #1)), 1, n)` (cost 8)
@@ -76,7 +80,10 @@ problems, 12 solved by both solvers.
 | #15 Fibonacci, unknown term `?1` | 10 | `lam(rec(lams(3, #1 + #2), 0, 1, #0))`, `?1 = 13` |
 | Pell numbers, two unknown terms | 12 | `lam(rec(lams(3, 2*#1 + #2), 0, 1, #0))` |
 | powers of two, a term `4 * ?1` | 4 | `lam(exp(2, #0))`, `?1 = 256` |
-| Fibonacci from index 1 (open) | 10 | `rec(lam(lam(lam(#1 + #2))), 0, 1, n)` |
+| #11 Fibonacci from index 10, and from index 1 | 10 | `lam(rec(lams(3, #1 + #2), 0, 1, #0))` |
+| Pell from index 6, tribonacci from index 5 | 12, 13 | bases solved backwards |
+| factorial from index 4, powers of 3 from index 8 | 9, 4 | `lam(rec(lam(lam(#0 * #1)), 1, #0))`, `lam(exp(3, #0))` |
+| `p1^2 + 1` from index 2 | 27 | no recurrence: the step has no inverse |
 
 Best-first spends 6.7 s on powers of -2, though it reaches `exp(-2, n)` in its first rewrites. Plain polynomial
 fitting spends its whole budget on that data too (9.7 s, ending at cost 66): best-first keeps expanding split fits of
@@ -84,8 +91,8 @@ the alternating terms (`plans.md`, search: stopping at a form nothing can improv
 
 ## Gaps (the open problems)
 
-- **Data that does not start at index 0.** The bases are read from the data's first terms, so Fibonacci from index 1
-  has no reading. Bases could be solved for instead: run the step backwards, or treat them as unknowns of the fit.
+- **Data that starts late with a step that has no inverse** (`p1^2 + 1`): its bases could be unknowns of the fit
+  instead, or the recurrence could carry its start index.
 - **Closed forms of higher order.** Only order-one affine steps close. Fibonacci's closed form (Binet) is irrational.
   An integer one, like `a(n) = 2^n + 3^n` from a second-order step, needs the roots of the characteristic polynomial.
 - **Recurrences inside larger expressions** are evaluated, but nothing proposes one as part of a larger model, e.g.

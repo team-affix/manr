@@ -33,11 +33,11 @@ seq_fit_rules_manifest::seq_fit_rules_manifest(
     , applying_(binders_, body_evaluator_)
     , pw_evaluator_(applying_, conditions_, pw_symbols_)
     , first_order_(kernel.literals_, first_steps_.converter_, first_steps_.interpolations_, kernel.literals_,
-                   kernel.exprs_, seq_symbols_, fit_.variables_[0], 1)
+                   kernel.exprs_, first_steps_.evaluator_, seq_symbols_, fit_.variables_[0], point_symbol_, 1)
     , second_order_(kernel.literals_, second_steps_.converter_, second_steps_.interpolations_, kernel.literals_,
-                    kernel.exprs_, seq_symbols_, fit_.variables_[0], 2)
+                    kernel.exprs_, second_steps_.evaluator_, seq_symbols_, fit_.variables_[0], point_symbol_, 2)
     , third_order_(kernel.literals_, third_steps_.converter_, third_steps_.interpolations_, kernel.literals_,
-                   kernel.exprs_, seq_symbols_, fit_.variables_[0], 3)
+                   kernel.exprs_, third_steps_.evaluator_, seq_symbols_, fit_.variables_[0], point_symbol_, 3)
     , hypotheses_(fit_.hypotheses_, first_order_, second_order_, third_order_)
     , closing_(hypotheses_, function_maker_, point_symbol_)
     , assembler_(kernel.exprs_, pw_symbols_)

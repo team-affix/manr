@@ -70,7 +70,8 @@ struct seq_fit_rules_manifest {
         using pw_evaluator<applying_t, conditions_t>::pw_evaluator;
     };
     using recurrences_base_t = seq_recurrence_hypotheses<kernel_t::literals_t, fit_t::converter_t,
-                                                         fit_t::interpolations_t, kernel_t::literals_t, expr_pool>;
+                                                         fit_t::interpolations_t, kernel_t::literals_t, expr_pool,
+                                                         fit_t::evaluator_t>;
     struct recurrences_t : recurrences_base_t {
         using recurrences_base_t::recurrences_base_t;
     };

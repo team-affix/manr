@@ -1,30 +1,42 @@
 # problem	solver	cost	target	seconds	sound
-#7 powers of two	best-1st	4	4	0.0411119	1
-#7 powers of two	mcts	4	4	0.0406928	1
-#6 Fibonacci	best-1st	10	10	0.107358	1
-#6 Fibonacci	mcts	10	10	0.0883318	1
-five times powers of 3	best-1st	6	6	0.026699	1
-five times powers of 3	mcts	6	6	0.0168343	1
-powers of -2	best-1st	4	4	7.54148	1
-powers of -2	mcts	4	4	0.412649	1
-Lucas numbers	best-1st	10	10	0.147852	1
-Lucas numbers	mcts	10	10	0.108679	1
-Pell numbers	best-1st	12	12	0.0711709	1
-Pell numbers	mcts	12	12	0.0655058	1
-tribonacci	best-1st	13	13	0.190465	1
-tribonacci	mcts	13	13	0.140631	1
-factorial	best-1st	9	9	0.0124033	1
-factorial	mcts	9	9	0.0117122	1
-Fibonacci, wrong label	best-1st	15	15	0.15034	1
-Fibonacci, wrong label	mcts	15	15	0.112001	1
-squares	best-1st	4	4	0.00425906	1
-squares	mcts	4	4	0.00354497	1
-powers of two, long	best-1st	4	4	0.235822	1
-powers of two, long	mcts	4	4	0.199903	1
-Mersenne numbers	best-1st	6	6	0.0267969	1
-Mersenne numbers	mcts	6	6	0.0266623	1
-#15 Fibonacci, unknown term	best-1st	10	10	0.0444985	1
-Pell numbers, two unknown terms	best-1st	12	12	0.0696082	1
-powers of two, scaled unknown	best-1st	4	4	0.0797371	1
-Fibonacci from index 1 (open)	best-1st	95	10	0.0286903	1
-Fibonacci from index 1 (open)	mcts	95	10	0.0279348	1
+#7 powers of two	best-1st	4	4	0.0409976	1
+#7 powers of two	mcts	4	4	0.040077	1
+#6 Fibonacci	best-1st	10	10	0.161042	1
+#6 Fibonacci	mcts	10	10	0.122167	1
+five times powers of 3	best-1st	6	6	0.0292943	1
+five times powers of 3	mcts	6	6	0.0294265	1
+powers of -2	best-1st	4	4	7.12865	1
+powers of -2	mcts	4	4	0.427869	1
+Lucas numbers	best-1st	10	10	0.18903	1
+Lucas numbers	mcts	10	10	0.146008	1
+Pell numbers	best-1st	12	12	0.0751847	1
+Pell numbers	mcts	12	12	0.0524662	1
+tribonacci	best-1st	13	13	0.159571	1
+tribonacci	mcts	13	13	0.13346	1
+factorial	best-1st	9	9	0.0193392	1
+factorial	mcts	9	9	0.0201185	1
+Fibonacci, wrong label	best-1st	15	15	0.187827	1
+Fibonacci, wrong label	mcts	15	15	0.119748	1
+squares	best-1st	4	4	0.00689263	1
+squares	mcts	4	4	0.00691116	1
+powers of two, long	best-1st	4	4	0.330354	1
+powers of two, long	mcts	4	4	0.212737	1
+Mersenne numbers	best-1st	6	6	0.0322611	1
+Mersenne numbers	mcts	6	6	0.032164	1
+#15 Fibonacci, unknown term	best-1st	10	10	0.0436591	1
+Pell numbers, two unknown terms	best-1st	12	12	0.0655446	1
+powers of two, scaled unknown	best-1st	4	4	0.0761202	1
+#11 Fibonacci from index 10	best-1st	10	10	0.185937	1
+#11 Fibonacci from index 10	mcts	10	10	0.179127	1
+Fibonacci from index 1	best-1st	10	10	0.113619	1
+Fibonacci from index 1	mcts	10	10	0.0949289	1
+Pell numbers from index 6	best-1st	12	12	0.110527	1
+Pell numbers from index 6	mcts	12	12	0.0705269	1
+tribonacci from index 5	best-1st	13	13	0.263885	1
+tribonacci from index 5	mcts	13	13	0.192515	1
+factorial from index 4	best-1st	9	9	0.0218483	1
+factorial from index 4	mcts	9	9	0.0214402	1
+powers of 3 from index 8	best-1st	4	4	0.0250699	1
+powers of 3 from index 8	mcts	4	4	0.0263786	1
+p1^2 + 1 from index 2 (not invertible)	best-1st	27	27	0.00406364	1
+p1^2 + 1 from index 2 (not invertible)	mcts	27	27	0.00397585	1

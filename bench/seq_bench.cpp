@@ -187,8 +187,18 @@ int main(int argc, char** argv) {
         {"Pell numbers, two unknown terms", "2*p1 + p2", {0, 1}, 0, 20, {}, {{5, 1}, {12, 1}}, 12,
          "lam(rec(lams(3, 2*#1 + #2), 0, 1, #0))"},
         {"powers of two, scaled unknown", "2*p1", {1}, 0, 25, {}, {{10, 4}}, 4, "lam(exp(2, #0)), ?1 = 256"},
-        // open: no solver reaches the target yet; kept so the gate reports when one does
-        {"Fibonacci from index 1 (open)", "p1 + p2", {0, 1}, 1, 25, {}, {}, 10, "lam(rec(lams(3, #1 + #2), 0, 1, #0))"},
+        // reduce request #11, and similar sequences observed from the middle: the bases are solved by running the step
+        // backwards from the first observed terms
+        {"#11 Fibonacci from index 10", "p1 + p2", {0, 1}, 10, 35, {}, {}, 10, "lam(rec(lams(3, #1 + #2), 0, 1, #0))"},
+        {"Fibonacci from index 1", "p1 + p2", {0, 1}, 1, 25, {}, {}, 10, "lam(rec(lams(3, #1 + #2), 0, 1, #0))"},
+        {"Pell numbers from index 6", "2*p1 + p2", {0, 1}, 6, 26, {}, {}, 12,
+         "lam(rec(lams(3, 2*#1 + #2), 0, 1, #0))"},
+        {"tribonacci from index 5", "p1 + p2 + p3", {0, 0, 1}, 5, 30, {}, {}, 13,
+         "lam(rec(lams(4, #1 + #2 + #3), 0, 0, 1, #0))"},
+        {"factorial from index 4", "i*p1", {1}, 4, 18, {}, {}, 9, "lam(rec(lam(lam(#0*#1)), 1, #0))"},
+        {"powers of 3 from index 8", "3*p1", {1}, 8, 25, {}, {}, 4, "lam(exp(3, #0))"},
+        {"p1^2 + 1 from index 2 (not invertible)", "p1^2 + 1", {1}, 2, 8, {}, {}, 27,
+         "no recurrence: the step has no inverse, so the data stays as cases"},
     };
 
     std::printf("budgets: best-first %zu rewrites; mcts %zu simulations x depth %zu\n", k_rewrites, k_simulations,

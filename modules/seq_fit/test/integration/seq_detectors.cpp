@@ -131,8 +131,26 @@ TEST_F(SeqDetectorsIntegrationTest, TheFirstOrderDetectorFindsNoStepForFibonacci
         EXPECT_NE(value_at(proposal, 15), integer(610)) << print(proposal);
 }
 
-TEST_F(SeqDetectorsIntegrationTest, TheDetectorNeedsTheBasesInTheData) {
-    rules.second_order_.propose_hypotheses(points(recurrence_samples({0, 1}, fibonacci_step, 1, 15)), out);
+TEST_F(SeqDetectorsIntegrationTest, TheDetectorSolvesBasesTheDataDoesNotHaveByRunningTheStepBackwards) {
+    rules.second_order_.propose_hypotheses(points(recurrence_samples({0, 1}, fibonacci_step, 10, 30)), out);
+    EXPECT_THAT(printed(), Contains("rec(lam(lam(lam(#1 + #2))), 0, 1, #0)"));
+}
+
+TEST_F(SeqDetectorsIntegrationTest, TheDetectorRunsAStepThatUsesTheIndexBackwards) {
+    rules.first_order_.propose_hypotheses(points(recurrence_samples({1}, factorial_step, 4, 14)), out);
+    EXPECT_THAT(printed(), Contains("rec(lam(lam(#0 * #1)), 1, #0)"));
+}
+
+TEST_F(SeqDetectorsIntegrationTest, TheDetectorProposesNoRecurrenceWhoseStepCannotBeRunBackwards) {
+    // a(j) = a(j-1)^2 + 1 from a(0) = 1, observed from index 2: no term before 5 steps to it linearly
+    std::vector<poly_sample> samples;
+    integer term = 1;
+    for (int position = 0; position <= 7; ++position) {
+        if (position >= 2)
+            samples.push_back(poly_sample{.inputs = {position}, .output = term});
+        term = term * term + 1;
+    }
+    rules.first_order_.propose_hypotheses(points(samples), out);
     EXPECT_TRUE(out.empty());
 }
 
