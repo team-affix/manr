@@ -29,7 +29,7 @@ tables. Reducing polynomial expressions: cancellation, factoring, perfect powers
 
 | gap | example | today |
 |---|---|---|
-| holes in expressions | `?0 + ?0`; `(?0 + 1)^2 - ?0^2` | `?0 + ?0` stays; `2 * ?0 + 1`, the hole never chosen (#17) |
+| holes in expressions | `?0 + ?0`; `(?0 + 1)^2 - ?0^2` | both should reduce to a literal (`0` with `?0 = 0`; `1`, #17); today nothing binds a hole, so they stay or only simplify around it |
 | unknown functors | data `n -> g(n^2 + 1)` | no reduction at all: nothing reads structure it has no vocabulary for |
 | formulas without data | `not(not(x))`, `and(x, or(x, y))`, De Morgan | unchanged: logic has detectors over data, no rules |
 | composition across domains | sum of the primes in a list; squares of the primes; `map(f, reverse(xs))` | unsolved: each detector hands inner functions to polynomial fitting only |
@@ -78,11 +78,13 @@ tables. Reducing polynomial expressions: cancellation, factoring, perfect powers
 
 Holes are part of every expression, so every domain needs to reduce around them and choose them.
 
-- **Normal forms that hold holes.** Treat `?n` as a variable in each domain's normal form (the polynomial expander
-  today refuses them, so `?0 + ?0` stays). Then local rules work around holes as around any variable.
-- **Binding rules.** A binding rewrite substitutes `?n` everywhere in the whole expression (one hole, one binding),
-  beside the local rewrites. Detectors propose bindings: in a normal form, a hole whose coefficients can make
-  monomials vanish (`2 * ?0 + 1` with `?0 = 0`); the identity or absorbing element of the operator a hole sits in;
+A hole is not an opaque variable: reduction chooses its value, so an expression holding holes reduces to the
+smallest expression reachable under any binding. `?0 + ?0` reduces to `0`, not to `2 * ?0`.
+
+- **Binding rules, the core of it.** A binding rewrite substitutes `?n` everywhere in the whole expression (one
+  hole, one binding), beside the local rewrites. Detectors propose the bindings that shrink the whole: the identity
+  or absorbing element of the operator a hole sits in; a value that makes a subterm a literal (`?0 + ?0` with
+  `?0 = 0`); in a normal form, the coefficients a hole can make vanish (`(?0 + 1)^2 - ?0^2` with `?0 = 0` gives `1`);
   the missing half of a known shape (`or(and(not(x), y), ?0)` completed to `xor(x, y)`, #19, by Shannon expansion
   over the formula's truth table); a value that makes a subterm a literal.
 - **Holes in data keys and open structures.** A key holding a hole (#20) is solved by evaluating the model with the
@@ -133,8 +135,8 @@ oracle, a benchmark.
 
 ## Order
 
-1. **Foundations.** The parser; the hypothesis service; anti-unification; semantic re-fitting; normal forms with
-   holes and the binding rewrite; the dart board, so every later step is measured. These are domain-free and each
+1. **Foundations.** The parser; the hypothesis service; anti-unification; semantic re-fitting; binding rules for
+   holes; the dart board, so every later step is measured. These are domain-free and each
    lifts every domain at once.
 2. **Substrate.** Laws as data (Boolean algebra first, then max/min/gcd), Booleans in every domain, rationals and
    division, common-subexpression helpers.
