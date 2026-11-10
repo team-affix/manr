@@ -214,6 +214,11 @@ list_t keep_primes(const list_t& list) {
     return kept;
 }
 
+// Whether a value is prime.
+bool is_prime_value(const integer& value) {
+    return !keep_primes(list_t{value}).empty();
+}
+
 }
 
 int main(int argc, char** argv) {
@@ -442,6 +447,21 @@ int main(int argc, char** argv) {
         {"filter not multiples of 3", random_lists(30, 3, 10, -20, 20, 94), true,
          [](const list_t& l) { return keep(l, [](integer e) { return e % 3 != 0; }); }, {}, 10,
          "lam(filter(lam(not(eq(mod(#0, 3), 0))), #0))"},
+        // filters by Boolean functions of three or more predicates: separating atoms, then logic fitting over them
+        {"filter large primes or small values", random_lists(30, 4, 12, 0, 60, 95), true,
+         [](const list_t& l) { return keep(l, [](integer e) { return (is_prime_value(e) && e > 20) || e < 5; }); }, {},
+         15, "lam(filter(lam(or(and(is_prime(#0), lt(20, #0)), lt(#0, 5))), #0))"},
+        {"filter evens, or primes above 10", random_lists(30, 4, 12, 0, 60, 96), true,
+         [](const list_t& l) { return keep(l, [](integer e) { return e % 2 == 0 || (is_prime_value(e) && e > 10); }); },
+         {}, 16, "lam(filter(lam(or(eq(mod(#0, 2), 0), and(is_prime(#0), lt(10, #0)))), #0))"},
+        {"filter by majority of three predicates", random_lists(30, 4, 12, 0, 60, 97), true,
+         [](const list_t& l) {
+             return keep(l, [](integer e) { return (e % 2 == 0) + (e > 30) + is_prime_value(e) >= 2; });
+         },
+         {}, 15, "lam(filter(lam(maj(eq(mod(#0, 2), 0), lt(30, #0), is_prime(#0))), #0))"},
+        {"filter by xor of three predicates", random_lists(30, 4, 12, 0, 60, 98), true,
+         [](const list_t& l) { return keep(l, [](integer e) { return ((e % 3 == 0) != (e > 25)) != is_prime_value(e); }); },
+         {}, 16, "lam(filter(lam(xor(xor(eq(mod(#0, 3), 0), lt(25, #0)), is_prime(#0))), #0))"},
     };
 
     std::printf("budgets: best-first %zu rewrites; mcts %zu simulations x depth %zu\n", k_rewrites, k_simulations,

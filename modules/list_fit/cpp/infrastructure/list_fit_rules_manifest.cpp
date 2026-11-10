@@ -61,7 +61,9 @@ list_fit_rules_manifest::list_fit_rules_manifest(
     , primes_(kernel.literals_, prime_table_, prime_table_, kernel.exprs_, num_symbols_, list_symbols_.element)
     , atoms_(kernel.literals_, kernel.literals_, kernel.exprs_, list_symbols_.element, less_symbol_,
              element_fit_.equal_symbol_, element_fit_.modulo_symbol_, num_symbols_.is_prime)
-    , combinations_(atoms_, conditions_, kernel.sizes_, kernel.literals_, kernel.exprs_, logic_symbols_)
+    , condition_logic_(kernel, logic_symbols_, intern_placeholders(kernel), point_symbol_)
+    , combinations_(atoms_, conditions_, condition_logic_.hypotheses_, kernel.sizes_, kernel.literals_,
+                    kernel.literals_, kernel.exprs_, logic_symbols_, condition_logic_.variables_, point_symbol_)
     , conditions_union_(primes_, combinations_)
     , filterings_(values_, kernel.literals_, kernel.literals_, kernel.exprs_, conditions_union_, list_symbols_,
                   less_symbol_, point_symbol_)
@@ -99,3 +101,11 @@ list_fit_rules_manifest::list_fit_rules_manifest(
     , union_(binder_, absorber_, poly_rules_.union_)
     , rules_(union_, kernel.exprs_)
     , initial_(builder_.build(converter_.convert(samples), 0)) {}
+
+// The placeholder inputs of a condition's truth table over its atoms, one per atom a condition may combine.
+std::vector<uint32_t> list_fit_rules_manifest::intern_placeholders(kernel_t& kernel) {
+    std::vector<uint32_t> ids;
+    for (size_t index = 0; index < k_list_condition_atoms; ++index)
+        ids.push_back(kernel.symbols_.intern_symbol("%atom" + std::to_string(index)));
+    return ids;
+}

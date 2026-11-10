@@ -476,3 +476,39 @@ TEST_F(ListDetectorsIntegrationTest, TheFilterDetectorHandsKeptAndRemovedValuesT
         out);
     EXPECT_THAT(printed(), Contains("filter(lam(is_prime(#0)), #0)"));
 }
+
+TEST_F(ListDetectorsIntegrationTest, TheFilterDetectorReadsAConditionOfThreePredicates) {
+    // keep the values where exactly one or all three of: a multiple of 3, above 25, prime
+    const auto condition = [](const integer& value) {
+        bool prime = value >= 2;
+        for (integer divisor = 2; divisor * divisor <= value; ++divisor)
+            prime = prime && value % divisor != 0;
+        return ((value % 3 == 0) != (value > 25)) != prime;
+    };
+    std::vector<list_sample> samples;
+    for (int start = 0; start < 60; start += 4) {
+        std::vector<integer> list{start, start + 1, start + 2, start + 3};
+        std::vector<integer> kept;
+        for (const integer& value : list)
+            if (condition(value))
+                kept.push_back(value);
+        samples.push_back(list_sample{.input = list, .output = kept, .output_is_list = true});
+    }
+    rules.filterings_.propose_hypotheses(points(samples), out);
+    // the smallest proposal keeps exactly the right values of a list beyond the data
+    ASSERT_FALSE(out.empty());
+    const std::vector<integer> fresh{61, 66, 3, 27, 97, 10, 9, 89, 90};
+    std::vector<const expr*> input;
+    std::vector<const expr*> expected;
+    for (const integer& value : fresh) {
+        input.push_back(manifest.kernel_.literals_.make_literal(value));
+        if (condition(value))
+            expected.push_back(manifest.kernel_.literals_.make_literal(value));
+    }
+    const expr* smallest = out.front();
+    for (const expr* proposal : out)
+        smallest = manifest.kernel_.sizes_.cost(proposal) < manifest.kernel_.sizes_.cost(smallest) ? proposal : smallest;
+    EXPECT_EQ(rules.evaluator_.evaluate_at(smallest, rules.values_.make_list(input)),
+              std::optional<const expr*>(rules.values_.make_list(expected)))
+        << print(smallest);
+}

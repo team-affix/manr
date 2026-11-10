@@ -35,7 +35,10 @@ logic_fit_rules_manifest::logic_fit_rules_manifest(
     , primitives_(reader_, kernel.exprs_, logic_symbols_, variables_)
     , inner_(parities_, primitives_)
     , decompositions_(reader_, inner_, kernel.literals_, kernel.exprs_, logic_symbols_, variables_, point_symbol_)
-    , hypotheses_(constants_, parities_, covers_, primitives_, decompositions_)
+    , leaves_(parities_, covers_, primitives_)
+    , compositions_(leaves_, reader_, evaluator_, kernel.sizes_, kernel.literals_, kernel.exprs_, logic_symbols_,
+                    point_symbol_, variables_.size())
+    , hypotheses_(constants_, parities_, covers_, primitives_, decompositions_, compositions_)
     , closing_(hypotheses_, function_maker_, point_symbol_)
     , assembler_(kernel.exprs_, pw_symbols_)
     , builder_(kernel.exprs_, kernel.exprs_, assembler_, pw_symbols_)
@@ -45,7 +48,7 @@ logic_fit_rules_manifest::logic_fit_rules_manifest(
     , binder_(closing_, filter_, assembler_, pw_symbols_)
     , absorber_(filter_, assembler_, pw_symbols_)
     , simplifier_(kernel.literals_, kernel.literals_, kernel.exprs_, logic_symbols_)
-    , refits_(parities_, covers_, primitives_)
+    , refits_(leaves_, compositions_)
     , refitter_(kernel.sizes_, evaluator_, refits_, kernel.literals_, kernel.literals_, kernel.exprs_,
                 logic_symbols_, variables_, point_symbol_)
     , union_(binder_, absorber_, simplifier_, refitter_)

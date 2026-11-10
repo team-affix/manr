@@ -54,10 +54,21 @@ before a solver runs.
 - **`logic_decomposition_hypotheses`**: a composition `c(g, x)` of an easy outer combiner (`and`, `or`, `xor`) with
   one input, split outer-inner: assuming c and x, each row says what g must be or leaves it free, and g's partial
   table goes to the primitive and parity detectors. `xor(maj(a, b, c), d)` is read in one step, with rows unseen too.
-  One level deep for now.
-- **`logic_condition_hypotheses`**: condition data (a value kept or removed) as one atomic predicate or a
-  connective of two, the atoms coming from another domain (`list_condition_atoms`: thresholds, residues,
-  primality). This is how list filters take Boolean conditions: `and(is_prime(#0), lt(2, #0))` for the odd primes.
+  One level, kept beside the general reading below.
+- **`logic_bidecomposition_hypotheses`**: compositions of any depth. f = c(g(A), h(B)) for `or`, `and` or `xor` and
+  two functions of disjoint groups of inputs, each decomposed again, down to leaves (primitives, parities, covers).
+  For a split, each test is one pass over the table with unseen rows as don't cares (`or`: g(a) is 1 where every known
+  f(a, .) is 1, and every known 1 must be covered; `and` the same with 0s; `xor` by propagating parities over the
+  known rows). Every split of the support is tried and the smallest result kept, memoized per table; depth is bounded
+  only by the inputs, with a work budget (`k_logic_default_max_decompositions`). `xor(maj(a, b, c), maj(d, e, f))` is
+  read from 56 of its 64 rows. `logic_fit_hypotheses_manifest` packages these detectors for other domains.
+- **`logic_condition_hypotheses`**: condition data (a value kept or removed) as a Boolean function of atomic
+  predicates from another domain (`list_condition_atoms`: thresholds, residues, primality; any domain's predicates
+  can be atoms). One atom, or a connective of two; beyond that, atoms are chosen until every kept value is told apart
+  from every removed one (greedily from several starts, and every triple when the greedy choice needs more than three,
+  since each atom of an xor separates only half), and the labels over the chosen atoms are fitted as a truth table by
+  `logic_fit_hypotheses_manifest`, any depth. This is how list filters take Boolean conditions:
+  `and(is_prime(#0), lt(2, #0))` for the odd primes, `maj(...)` and `xor(xor(...), ...)` of three predicates.
 
 ## Rules
 
@@ -88,6 +99,10 @@ as the benchmark counts them (with the closing `lams`):
 | multiplexer | 10 | `or(and(s, a), and(not(s), b))` |
 | parity of 4, wrong label | 17 | the parity plus one `case` |
 | majority of 5 bits | 29 | was 39; uses `maj` twice, still no sharing |
+| xnor of an and and an or | 9 | `xor(and(#3, #2), nor(#1, #0))` |
+| two levels over six inputs | 12 | `or(xor(#5, #4), and(#3, maj(#2, #1, #0)))` |
+| xor of two majorities, also with eight rows unseen | 11 | `xor(maj(#5, #4, #3), maj(#2, #1, #0))` |
+| three levels over six inputs | 13 | `and(or(xor(#5, #4), #3), imp(#2, xor(#1, #0)))` |
 
 Every problem takes milliseconds except parity of 6 bits (0.3 s): the refit tables a 6-input formula's subformulas
 at 64 rows each.
@@ -97,13 +112,15 @@ at 64 rows each.
 - **Holes as missing pieces.** The refit binds holes to whatever is smallest, so `or(and(not(#1), #0), ?0)` becomes
   `1`, not the `xor(#1, #0)` reduce request #19 asks for. Recovering "the rest of a shape" needs an objective that
   keeps the known part's structure (completion against primitive expansions), to be decided.
-- **Compositions deeper than one level** (`c(g, x)` with g itself a composition), and of two unknown functions
-  (`c(g, h)`, Ashenhurst decomposition).
+- **Compositions with shared inputs.** Bi-decomposition splits the inputs into disjoint groups; a composition whose
+  parts share inputs (`or(and(a, b), and(a, c))` is fine factored, but `xor(maj(a, b, c), and(a, d))` is not
+  disjoint) needs non-disjoint decomposition, and `maj` of three subfunctions is not read yet.
 - **Shared subformulas.** Majority of 5 repeats `maj(c, d, e)`; sharing it needs helpers (`plans.md`, abstraction).
 - **Exact minimization** for small formulas; the cover is greedy.
 - **Algebraic normal form** (xor of ands, the GF(2) polynomial) as a second normal form beside the cover: parities
   are linear there and sums of products are exponential, and the reverse holds for ors, so each catches what the other
   cannot.
 - **Wide formulas**: the refit stops at 8 inputs; structural rules are the only reduction beyond.
-- **Conditions of three atoms or more** for filters and regions, and Boolean conditions in `map(f, filter(c, xs))`
-  and in fold conditions (sums and counts over a Boolean condition).
+- **Conditions in other readings**: Boolean conditions in `map(f, filter(c, xs))`, in fold conditions (sums and
+  counts over a Boolean condition), and in piecewise regions. Separating sets beyond three atoms rely on the greedy
+  choice.

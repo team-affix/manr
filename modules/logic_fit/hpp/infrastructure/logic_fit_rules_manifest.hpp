@@ -12,6 +12,7 @@
 #include "infrastructure/arith_hole_solver.hpp"
 #include "infrastructure/expr_pool.hpp"
 #include "infrastructure/expr_size.hpp"
+#include "infrastructure/logic_bidecomposition_hypotheses.hpp"
 #include "infrastructure/logic_cover_hypotheses.hpp"
 #include "infrastructure/logic_cover_solver.hpp"
 #include "infrastructure/logic_decomposition_hypotheses.hpp"
@@ -46,11 +47,12 @@
 // `lams(arity, b)`, the first input `#(arity-1)` and the last `#0` in b. The samples (inputs and outputs of 0s and 1s)
 // become a piecewise with an open catch-all; the piecewise rules bind it to constants, parities
 // (`logic_parity_hypotheses`), factored sums of products (`logic_cover_hypotheses`), primitives
-// (`logic_primitive_hypotheses`) and compositions of a primitive with an input (`logic_decomposition_hypotheses`),
-// and drop the branches they reproduce. The laws of Boolean algebra simplify any formula structurally, at any width
-// (`logic_simplifier`), and any Boolean subformula is also refitted from its truth table by the cheaper detectors
-// (`logic_formula_refitter`, bounded in width), its holes as don't cares. `rules_` is what a search injects and
-// `initial_` is where it starts.
+// (`logic_primitive_hypotheses`), compositions of a primitive with an input (`logic_decomposition_hypotheses`) and
+// compositions of any depth by bi-decomposition (`logic_bidecomposition_hypotheses`), and drop the branches they
+// reproduce. The laws of Boolean algebra simplify any formula structurally, at any width
+// (`logic_simplifier`), and any Boolean subformula is also refitted from its truth table by the leaf detectors and
+// bi-decomposition (`logic_formula_refitter`, bounded in width), its holes as don't cares. `rules_` is what a search
+// injects and `initial_` is where it starts.
 struct logic_fit_rules_manifest {
     using kernel_t = poly_kernel_manifest;
     struct converter_t : poly_sample_converter<kernel_t::literals_t, expr_pool, kernel_t::literals_t> {
@@ -93,13 +95,21 @@ struct logic_fit_rules_manifest {
         using logic_decomposition_hypotheses<reader_t, inner_t, kernel_t::literals_t,
                                              expr_pool>::logic_decomposition_hypotheses;
     };
-    struct hypotheses_t
-        : pw_hypotheses_union<constants_t, parities_t, covers_t, primitives_t, decompositions_t> {
-        using pw_hypotheses_union<constants_t, parities_t, covers_t, primitives_t,
-                                  decompositions_t>::pw_hypotheses_union;
-    };
-    struct refits_t : pw_hypotheses_union<parities_t, covers_t, primitives_t> {
+    struct leaves_t : pw_hypotheses_union<parities_t, covers_t, primitives_t> {
         using pw_hypotheses_union<parities_t, covers_t, primitives_t>::pw_hypotheses_union;
+    };
+    struct compositions_t : logic_bidecomposition_hypotheses<leaves_t, reader_t, evaluator_t, expr_size,
+                                                             kernel_t::literals_t, expr_pool> {
+        using logic_bidecomposition_hypotheses<leaves_t, reader_t, evaluator_t, expr_size, kernel_t::literals_t,
+                                               expr_pool>::logic_bidecomposition_hypotheses;
+    };
+    struct hypotheses_t : pw_hypotheses_union<constants_t, parities_t, covers_t, primitives_t, decompositions_t,
+                                              compositions_t> {
+        using pw_hypotheses_union<constants_t, parities_t, covers_t, primitives_t, decompositions_t,
+                                  compositions_t>::pw_hypotheses_union;
+    };
+    struct refits_t : pw_hypotheses_union<leaves_t, compositions_t> {
+        using pw_hypotheses_union<leaves_t, compositions_t>::pw_hypotheses_union;
     };
     struct refitter_t : logic_formula_refitter<expr_size, evaluator_t, refits_t, kernel_t::literals_t,
                                                kernel_t::literals_t, expr_pool> {
@@ -162,6 +172,8 @@ struct logic_fit_rules_manifest {
     primitives_t primitives_;
     inner_t inner_;
     decompositions_t decompositions_;
+    leaves_t leaves_;
+    compositions_t compositions_;
     hypotheses_t hypotheses_;
     closing_t closing_;
     assembler_t assembler_;

@@ -182,6 +182,22 @@ int nand_ignoring_third(const std::vector<int>& bits) {  // nand(a, b) over thre
     return !(bits[0] && bits[1]);
 }
 
+int two_levels(const std::vector<int>& bits) {  // or(xor(a, b), and(c, maj(d, e, f)))
+    return (bits[0] != bits[1]) || (bits[2] && bits[3] + bits[4] + bits[5] >= 2);
+}
+
+int two_majorities(const std::vector<int>& bits) {  // xor(maj(a, b, c), maj(d, e, f))
+    return (bits[0] + bits[1] + bits[2] >= 2) != (bits[3] + bits[4] + bits[5] >= 2);
+}
+
+int equivalence_of_and_or(const std::vector<int>& bits) {  // xnor(and(a, b), or(c, d))
+    return (bits[0] && bits[1]) == (bits[2] || bits[3]);
+}
+
+int three_levels(const std::vector<int>& bits) {  // and(or(xor(a, b), c), nand(d, xnor(e, f)))
+    return ((bits[0] != bits[1]) || bits[2]) && !(bits[3] && (bits[4] == bits[5]));
+}
+
 // showcase rules
 int access_rule(const std::vector<int>& bits) {  // admin, or owner and not locked
     return bits[0] || (bits[1] && !bits[2]);
@@ -240,6 +256,17 @@ int main(int argc, char** argv) {
          8, "lams(4, xor(maj(#3, #2, #1), #0))"},
         {"and of an equivalence and a third", {"a", "b", "c"}, equivalence_and_third, {}, {}, 7,
          "lams(3, and(xnor(#2, #1), #0))"},
+        // compositions of any depth, by bi-decomposition
+        {"xnor of an and and an or", {"a", "b", "c", "d"}, equivalence_of_and_or, {}, {}, 9,
+         "lams(4, xnor(and(#3, #2), or(#1, #0)))"},
+        {"two levels over six inputs", {"a", "b", "c", "d", "e", "f"}, two_levels, {}, {}, 12,
+         "lams(6, or(xor(#5, #4), and(#3, maj(#2, #1, #0))))"},
+        {"xor of two majorities", {"a", "b", "c", "d", "e", "f"}, two_majorities, {}, {}, 11,
+         "lams(6, xor(maj(#5, #4, #3), maj(#2, #1, #0)))"},
+        {"xor of two majorities, eight rows unseen", {"a", "b", "c", "d", "e", "f"}, two_majorities,
+         {3, 10, 17, 26, 33, 41, 50, 60}, {}, 11, "lams(6, xor(maj(#5, #4, #3), maj(#2, #1, #0)))"},
+        {"three levels over six inputs", {"a", "b", "c", "d", "e", "f"}, three_levels, {}, {}, 13,
+         "lams(6, and(or(xor(#5, #4), #3), nand(#2, xnor(#1, #0))))"},
     };
 
     std::printf("budgets: best-first %zu rewrites; mcts %zu simulations x depth %zu\n", k_rewrites, k_simulations,

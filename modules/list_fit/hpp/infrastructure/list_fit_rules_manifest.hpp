@@ -34,6 +34,7 @@
 #include "infrastructure/list_values.hpp"
 #include "infrastructure/logic_condition_evaluator.hpp"
 #include "infrastructure/logic_condition_hypotheses.hpp"
+#include "infrastructure/logic_fit_hypotheses_manifest.hpp"
 #include "infrastructure/num_evaluator.hpp"
 #include "infrastructure/num_prime_hypotheses.hpp"
 #include "infrastructure/num_prime_table.hpp"
@@ -75,6 +76,9 @@
 // `element_fit_` over `#0` for map bodies, `step_fit_` over `#0` (the head) and `#1` (the accumulator) for fold steps.
 // The full polynomial rule set then compresses the bodies, all at every position. `rules_` is what a search injects and
 // `initial_` is where it starts.
+// The most atoms a filter condition combines (the placeholder inputs of its truth table).
+constexpr size_t k_list_condition_atoms = 6;
+
 struct list_fit_rules_manifest {
     using kernel_t = poly_kernel_manifest;
     using fit_t = poly_fit_hypotheses_manifest;
@@ -171,8 +175,11 @@ struct list_fit_rules_manifest {
     struct atoms_t : list_condition_atoms<kernel_t::literals_t, kernel_t::literals_t, expr_pool> {
         using list_condition_atoms<kernel_t::literals_t, kernel_t::literals_t, expr_pool>::list_condition_atoms;
     };
-    struct combinations_t : logic_condition_hypotheses<atoms_t, conditions_t, expr_size, kernel_t::literals_t, expr_pool> {
-        using logic_condition_hypotheses<atoms_t, conditions_t, expr_size, kernel_t::literals_t, expr_pool>::logic_condition_hypotheses;
+    using formulas_t = logic_fit_hypotheses_manifest::hypotheses_t;
+    using combinations_base_t = logic_condition_hypotheses<atoms_t, conditions_t, formulas_t, expr_size,
+                                                           kernel_t::literals_t, kernel_t::literals_t, expr_pool>;
+    struct combinations_t : combinations_base_t {
+        using combinations_base_t::combinations_base_t;
     };
     struct conditions_union_t : pw_hypotheses_union<primes_t, combinations_t> {
         using pw_hypotheses_union<primes_t, combinations_t>::pw_hypotheses_union;
@@ -270,6 +277,7 @@ struct list_fit_rules_manifest {
     integer_folds_t integer_folds_;
     primes_t primes_;
     atoms_t atoms_;
+    logic_fit_hypotheses_manifest condition_logic_;
     combinations_t combinations_;
     conditions_union_t conditions_union_;
     filterings_t filterings_;
@@ -295,6 +303,8 @@ struct list_fit_rules_manifest {
     union_t union_;
     rules_t rules_;
     const expr* initial_;
+private:
+    static std::vector<uint32_t> intern_placeholders(kernel_t& kernel);
 };
 
 #endif
