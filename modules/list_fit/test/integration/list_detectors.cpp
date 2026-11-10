@@ -261,7 +261,7 @@ TEST_F(ListDetectorsIntegrationTest, TheMapFilterDetectorStartsLongListsFromTheL
     EXPECT_THAT(printed(), Contains("map(lam(2 * #0 + 1), filter(lam(lt(#0, 17)), #0))"));
 }
 
-TEST_F(ListDetectorsIntegrationTest, TheMapFilterDetectorProposesNothingForAFilterThatIsNoThreshold) {
+TEST_F(ListDetectorsIntegrationTest, TheMapFilterDetectorHandsAFilterThatIsNoThresholdToTheConditionDomain) {
     rules.map_filters_.propose_hypotheses(
         points(sample_listed(random_lists(30, 20, 40, -50, 50, 31), [](const std::vector<integer>& list) {
             std::vector<integer> result;
@@ -271,7 +271,7 @@ TEST_F(ListDetectorsIntegrationTest, TheMapFilterDetectorProposesNothingForAFilt
             return result;
         })),
         out);
-    EXPECT_TRUE(out.empty());
+    EXPECT_THAT(printed(), Contains("map(lam(2 * #0 + 1), filter(lam(eq(mod(#0, 2), 0)), #0))"));
 }
 
 TEST_F(ListDetectorsIntegrationTest, TheMapFilterDetectorPairsNoValueWhoseListsAnotherValueShares) {
@@ -511,4 +511,20 @@ TEST_F(ListDetectorsIntegrationTest, TheFilterDetectorReadsAConditionOfThreePred
     EXPECT_EQ(rules.evaluator_.evaluate_at(smallest, rules.values_.make_list(input)),
               std::optional<const expr*>(rules.values_.make_list(expected)))
         << print(smallest);
+}
+
+TEST_F(ListDetectorsIntegrationTest, TheSumFoldDetectorReadsASumOverAPrimalityCondition) {
+    std::vector<list_sample> samples;
+    for (const std::vector<integer>& list : random_lists(40, 3, 10, 0, 20, 80)) {
+        integer total = 0;
+        for (const integer& value : list) {
+            bool prime = value >= 2;
+            for (integer divisor = 2; divisor * divisor <= value; ++divisor)
+                prime = prime && value % divisor != 0;
+            total += prime ? value : integer(0);
+        }
+        samples.push_back(list_sample{.input = list, .output = {total}, .output_is_list = false});
+    }
+    rules.sum_folds_.propose_hypotheses(points(samples), out);
+    EXPECT_THAT(printed(), Contains("fold(lam(lam(pw(when(is_prime(#0), #0 + #1), 0 + #1))), 0, #0)"));
 }

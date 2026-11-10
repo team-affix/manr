@@ -181,3 +181,30 @@ TEST_F(LogicFormulasIntegrationTest, DataOfAPrimitiveComposedWithAnInputIsReadAs
     while (runtime.rewrites() < 500 && runtime.next()) {}
     EXPECT_EQ(runtime.best(), "lams(4, xor(maj(#3, #2, #1), #0))");
 }
+
+TEST_F(LogicFormulasIntegrationTest, DataOfCompositionsSharingAnInputIsReadThroughTheSharedInput) {
+    // xor(maj(#3, #2, #1), and(#3, #0)): both parts read #3
+    std::vector<poly_sample> samples;
+    for (int row = 0; row < 16; ++row) {
+        const int w = row & 1, x = (row >> 1) & 1, y = (row >> 2) & 1, z = (row >> 3) & 1;
+        samples.push_back(poly_sample{.inputs = {w, x, y, z}, .output = (w + x + y >= 2 ? 1 : 0) ^ (w & z)});
+    }
+    logic_fit_runtime runtime{4, samples, k_poly_default_limits, 20000};
+    while (runtime.rewrites() < 500 && runtime.next()) {}
+    EXPECT_EQ(runtime.best(), "lams(4, xor(maj(#3, #2, #1), and(#3, #0)))");
+}
+
+TEST_F(LogicFormulasIntegrationTest, DataOfATwoLevelCompositionIsReadAtEveryLevel) {
+    // or(xor(#5, #4), and(#3, maj(#2, #1, #0)))
+    std::vector<poly_sample> samples;
+    for (int row = 0; row < 64; ++row) {
+        std::vector<int> bits;
+        for (int position = 0; position < 6; ++position)
+            bits.push_back((row >> position) & 1);
+        const int output = (bits[0] != bits[1]) || (bits[2] && bits[3] + bits[4] + bits[5] >= 2);
+        samples.push_back(poly_sample{.inputs = {bits[0], bits[1], bits[2], bits[3], bits[4], bits[5]}, .output = output});
+    }
+    logic_fit_runtime runtime{6, samples, k_poly_default_limits, 20000};
+    while (runtime.rewrites() < 500 && runtime.next()) {}
+    EXPECT_EQ(runtime.best(), "lams(6, or(xor(#5, #4), and(#3, maj(#2, #1, #0))))");
+}

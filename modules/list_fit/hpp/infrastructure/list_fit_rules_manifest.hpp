@@ -49,6 +49,7 @@
 #include "infrastructure/pw_constant_hypotheses.hpp"
 #include "infrastructure/pw_evaluator.hpp"
 #include "infrastructure/pw_extension_binder.hpp"
+#include "infrastructure/pw_guarded_hypotheses.hpp"
 #include "infrastructure/pw_hole_matcher.hpp"
 #include "infrastructure/pw_hypotheses_union.hpp"
 #include "infrastructure/subterm_proposer.hpp"
@@ -99,8 +100,22 @@ struct list_fit_rules_manifest {
     struct conditions_t : logic_condition_evaluator<numbers_t> {
         using logic_condition_evaluator<numbers_t>::logic_condition_evaluator;
     };
-    using evaluator_base_t = list_evaluator<values_t, values_t, expr_pool, kernel_t::literals_t, numbers_t,
-                                            conditions_t, fit_t::pw_evaluator_t, binders_t, binders_t>;
+    struct element_values_t : pw_evaluator<numbers_t, conditions_t> {
+        using pw_evaluator<numbers_t, conditions_t>::pw_evaluator;
+    };
+    struct step_numbers_t : num_evaluator<fit_t::pw_evaluator_t, fit_t::conditions_t, kernel_t::literals_t, kernel_t::literals_t, num_prime_table,
+                                          num_prime_table> {
+        using num_evaluator<fit_t::pw_evaluator_t, fit_t::conditions_t, kernel_t::literals_t, kernel_t::literals_t, num_prime_table,
+                            num_prime_table>::num_evaluator;
+    };
+    struct step_conditions_t : logic_condition_evaluator<step_numbers_t> {
+        using logic_condition_evaluator<step_numbers_t>::logic_condition_evaluator;
+    };
+    struct step_values_t : pw_evaluator<step_numbers_t, step_conditions_t> {
+        using pw_evaluator<step_numbers_t, step_conditions_t>::pw_evaluator;
+    };
+    using evaluator_base_t = list_evaluator<values_t, values_t, expr_pool, kernel_t::literals_t, element_values_t,
+                                            conditions_t, step_values_t, binders_t, binders_t>;
     struct evaluator_t : evaluator_base_t {
         using evaluator_base_t::evaluator_base_t;
     };
@@ -189,10 +204,11 @@ struct list_fit_rules_manifest {
         using list_filter_hypotheses<values_t, kernel_t::literals_t, kernel_t::literals_t, expr_pool,
                                      conditions_union_t>::list_filter_hypotheses;
     };
-    struct map_filters_t : list_map_filter_hypotheses<values_t, kernel_t::literals_t, fit_t::converter_t,
-                                                      fit_t::hypotheses_t, kernel_t::literals_t, expr_pool> {
-        using list_map_filter_hypotheses<values_t, kernel_t::literals_t, fit_t::converter_t, fit_t::hypotheses_t,
-                                         kernel_t::literals_t, expr_pool>::list_map_filter_hypotheses;
+    using map_filters_base_t =
+        list_map_filter_hypotheses<values_t, kernel_t::literals_t, fit_t::converter_t, fit_t::hypotheses_t,
+                                   conditions_union_t, kernel_t::literals_t, expr_pool>;
+    struct map_filters_t : map_filters_base_t {
+        using map_filters_base_t::map_filters_base_t;
     };
     using selection_folds_base_t =
         list_selection_fold_hypotheses<values_t, kernel_t::literals_t, fit_t::converter_t, fit_t::hypotheses_t,
@@ -206,9 +222,15 @@ struct list_fit_rules_manifest {
     struct factor_folds_t : factor_folds_base_t {
         using factor_folds_base_t::factor_folds_base_t;
     };
+    struct guarded_t : pw_guarded_hypotheses<conditions_union_t, fit_t::hypotheses_t, kernel_t::literals_t, expr_pool> {
+        using pw_guarded_hypotheses<conditions_union_t, fit_t::hypotheses_t, kernel_t::literals_t, expr_pool>::pw_guarded_hypotheses;
+    };
+    struct element_union_t : pw_hypotheses_union<fit_t::hypotheses_t, guarded_t> {
+        using pw_hypotheses_union<fit_t::hypotheses_t, guarded_t>::pw_hypotheses_union;
+    };
     using sum_folds_base_t =
         list_sum_fold_hypotheses<values_t, kernel_t::literals_t, list_sum_fold_solver, list_sum_fold_solver,
-                                 fit_t::converter_t, fit_t::hypotheses_t, kernel_t::literals_t, expr_pool>;
+                                 fit_t::converter_t, element_union_t, kernel_t::literals_t, expr_pool>;
     struct sum_folds_t : sum_folds_base_t {
         using sum_folds_base_t::sum_folds_base_t;
     };
@@ -263,6 +285,10 @@ struct list_fit_rules_manifest {
     num_prime_table prime_table_;
     numbers_t numbers_;
     conditions_t conditions_;
+    element_values_t element_values_;
+    step_numbers_t step_numbers_;
+    step_conditions_t step_conditions_;
+    step_values_t step_values_;
     evaluator_t evaluator_;
     applying_t applying_;
     pw_evaluator_t pw_evaluator_;
@@ -293,6 +319,8 @@ struct list_fit_rules_manifest {
     list_factor_fold_solver factor_solver_;
     factor_folds_t factor_folds_;
     list_sum_fold_solver sum_solver_;
+    guarded_t guarded_;
+    element_union_t element_union_;
     sum_folds_t sum_folds_;
     listed_folds_t listed_folds_;
     reversals_t reversals_;

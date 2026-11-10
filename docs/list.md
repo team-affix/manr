@@ -78,7 +78,12 @@ not reproduce as branches.
     condition it proposes becomes `filter(lam(c), xs)`: the primes detector (`filter(lam(is_prime(#0)), xs)`, #14,
     `number.md`), and Boolean combinations of one or two atomic predicates (thresholds, residues, primality) by
     `logic_condition_hypotheses` (`logic.md`): the odd primes as `and(is_prime(#0), lt(2, #0))`, the nonzero values
-    as `xnor(lt(-1, #0), lt(0, #0))`.
+    as `xnor(lt(-1, #0), lt(0, #0))`. `list_map_filter_hypotheses` hands its kept and removed values to the same
+    condition domain, so `map(lam(#0^2), filter(lam(is_prime(#0)), xs))` is read too.
+  - Sums and counts over any condition: the sum fold's inner function g goes to the element domain together with
+    `pw_guarded_hypotheses` (`pw(when(c, v), d)`: the most common value as default, the condition read by the
+    condition domain), so the sum of the primes is `fold(lam(lam(pw(when(is_prime(#0), #0 + #1), #1))), 0, xs)`. The
+    element and step evaluators decide such conditions (Boolean connectives over primality, residues, thresholds).
 - **Affine folds, from whole lists.** `list_affine_fold_hypotheses` needs no tails and no empty list. It assumes the
   step is affine in the accumulator, `p(h) + c * acc`. Then a list's output is `sum_i c^(i-1) p(x_i) + c^n b`, so
   the value of every tail drops out: once `c` is fixed, the output is linear in `p`'s coefficients and the base `b`,

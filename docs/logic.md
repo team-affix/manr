@@ -61,7 +61,10 @@ before a solver runs.
   f(a, .) is 1, and every known 1 must be covered; `and` the same with 0s; `xor` by propagating parities over the
   known rows). Every split of the support is tried and the smallest result kept, memoized per table; depth is bounded
   only by the inputs, with a work budget (`k_logic_default_max_decompositions`). `xor(maj(a, b, c), maj(d, e, f))` is
-  read from 56 of its 64 rows. `logic_fit_hypotheses_manifest` packages these detectors for other domains.
+  read from 56 of its 64 rows. The parts may share inputs: f = c(g(A, C), h(B, C)) for a shared set C of at most
+  two inputs (`k_logic_default_max_shared_inputs`), with the same tests taken over each part's inputs and C, so
+  `xor(maj(a, b, c), and(a, d))` is read through the shared a. `logic_fit_hypotheses_manifest` packages these
+  detectors for other domains.
 - **`logic_condition_hypotheses`**: condition data (a value kept or removed) as a Boolean function of atomic
   predicates from another domain (`list_condition_atoms`: thresholds, residues, primality; any domain's predicates
   can be atoms). One atom, or a connective of two; beyond that, atoms are chosen until every kept value is told apart
@@ -112,15 +115,15 @@ at 64 rows each.
 - **Holes as missing pieces.** The refit binds holes to whatever is smallest, so `or(and(not(#1), #0), ?0)` becomes
   `1`, not the `xor(#1, #0)` reduce request #19 asks for. Recovering "the rest of a shape" needs an objective that
   keeps the known part's structure (completion against primitive expansions), to be decided.
-- **Compositions with shared inputs.** Bi-decomposition splits the inputs into disjoint groups; a composition whose
-  parts share inputs (`or(and(a, b), and(a, c))` is fine factored, but `xor(maj(a, b, c), and(a, d))` is not
-  disjoint) needs non-disjoint decomposition, and `maj` of three subfunctions is not read yet.
+- **Other outer connectives.** Bi-decomposition reads `or`, `and` and `xor` of two parts (negations and the other
+  binary connectives fall out of the parts); `maj` of three subfunctions, or a multiplexer of subfunctions, is not
+  read as such. Shared sets are at most two inputs.
 - **Shared subformulas.** Majority of 5 repeats `maj(c, d, e)`; sharing it needs helpers (`plans.md`, abstraction).
 - **Exact minimization** for small formulas; the cover is greedy.
 - **Algebraic normal form** (xor of ands, the GF(2) polynomial) as a second normal form beside the cover: parities
   are linear there and sums of products are exponential, and the reverse holds for ors, so each catches what the other
   cannot.
 - **Wide formulas**: the refit stops at 8 inputs; structural rules are the only reduction beyond.
-- **Conditions in other readings**: Boolean conditions in `map(f, filter(c, xs))`, in fold conditions (sums and
-  counts over a Boolean condition), and in piecewise regions. Separating sets beyond three atoms rely on the greedy
-  choice.
+- **Conditions in other readings**: maps with a guarded value (`map(lam(pw(when(c, v), d)), xs)`) and piecewise
+  regions of polynomial data do not use the condition domain yet. Separating sets beyond three atoms rely on the
+  greedy choice.

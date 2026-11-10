@@ -1,6 +1,7 @@
 #ifndef LIST_MAP_FILTER_HYPOTHESES_HPP
 #define LIST_MAP_FILTER_HYPOTHESES_HPP
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <map>
@@ -25,13 +26,16 @@
 // rest (an empty output removes all). Points are revisited until
 // nothing new is learned, since each one read can settle another. A point that contradicts what is known (a value
 // both kept and removed, two images of one value) is ignored and stays as a branch.
-// The kept and removed values must be split by a threshold, as for `list_filter_hypotheses`, and f's values go to the
-// element domain; each body it proposes becomes `map(f, filter(c, #0))`. Nothing is proposed when no value is removed
+// The kept and removed values give the condition: a threshold when one splits them, as for `list_filter_hypotheses`,
+// and whatever the condition domain reads from them as data (`point(v) -> 1` kept, `-> 0` removed: primality, Boolean
+// combinations of predicates). f's values go to the element domain; each body it proposes, with each condition,
+// becomes `map(f, filter(c, #0))`. Nothing is proposed when no value is removed
 // (a map) or f is the identity on every kept value (a filter): the map and filter detectors read those.
 template<typename IFindElements,
          typename IFindLiteralValue,
          typename IConvertSamples,
          typename IProposeElementHypotheses,
+         typename IProposeConditions,
          typename IMakeLiteral,
          typename IMakeFunctor>
 struct list_map_filter_hypotheses {
@@ -39,10 +43,12 @@ struct list_map_filter_hypotheses {
                                IFindLiteralValue& find_literal_value,
                                IConvertSamples& convert_samples,
                                IProposeElementHypotheses& propose_element_hypotheses,
+                               IProposeConditions& propose_conditions,
                                IMakeLiteral& make_literal,
                                IMakeFunctor& make_functor,
                                list_symbols symbols,
-                               uint32_t less_symbol);
+                               uint32_t less_symbol,
+                               uint32_t point_symbol);
     void propose_hypotheses(const std::vector<pw_data_point>& points, std::vector<const expr*>& out);
 private:
     std::optional<std::vector<integer>> find_values(const expr* list) const;
@@ -51,38 +57,47 @@ private:
     IFindLiteralValue& find_literal_value_;
     IConvertSamples& convert_samples_;
     IProposeElementHypotheses& propose_element_hypotheses_;
+    IProposeConditions& propose_conditions_;
     IMakeLiteral& make_literal_;
     IMakeFunctor& make_functor_;
     list_symbols symbols_;
     uint32_t less_symbol_;
+    uint32_t point_symbol_;
     std::vector<const expr*> bodies_;
+    std::vector<const expr*> conditions_;
 };
 
 #define LIST_MAP_FILTER_HYPOTHESES_TEMPLATE                                                           \
     template<typename IFindElements, typename IFindLiteralValue, typename IConvertSamples,          \
-             typename IProposeElementHypotheses, typename IMakeLiteral, typename IMakeFunctor>
+             typename IProposeElementHypotheses, typename IProposeConditions, typename IMakeLiteral,     \
+             typename IMakeFunctor>
 #define LIST_MAP_FILTER_HYPOTHESES                                                                    \
     list_map_filter_hypotheses<IFindElements, IFindLiteralValue, IConvertSamples, IProposeElementHypotheses, \
-                               IMakeLiteral, IMakeFunctor>
+                               IProposeConditions, IMakeLiteral, IMakeFunctor>
 
 LIST_MAP_FILTER_HYPOTHESES_TEMPLATE LIST_MAP_FILTER_HYPOTHESES::list_map_filter_hypotheses(
     IFindElements& find_elements,
     IFindLiteralValue& find_literal_value,
     IConvertSamples& convert_samples,
     IProposeElementHypotheses& propose_element_hypotheses,
+    IProposeConditions& propose_conditions,
     IMakeLiteral& make_literal,
     IMakeFunctor& make_functor,
     list_symbols symbols,
-    uint32_t less_symbol)
+    uint32_t less_symbol,
+    uint32_t point_symbol)
     : find_elements_(find_elements)
     , find_literal_value_(find_literal_value)
     , convert_samples_(convert_samples)
     , propose_element_hypotheses_(propose_element_hypotheses)
+    , propose_conditions_(propose_conditions)
     , make_literal_(make_literal)
     , make_functor_(make_functor)
     , symbols_(symbols)
     , less_symbol_(less_symbol)
-    , bodies_() {}
+    , point_symbol_(point_symbol)
+    , bodies_()
+    , conditions_() {}
 
 LIST_MAP_FILTER_HYPOTHESES_TEMPLATE void LIST_MAP_FILTER_HYPOTHESES::propose_hypotheses(
     const std::vector<pw_data_point>& points, std::vector<const expr*>& out) {
@@ -168,25 +183,45 @@ LIST_MAP_FILTER_HYPOTHESES_TEMPLATE void LIST_MAP_FILTER_HYPOTHESES::propose_hyp
     if (identity)
         return;
     const expr* element = make_functor_.make_functor(symbols_.element, {});
+    std::vector<const expr*> conditions;
     const bool above = *removed.rbegin() < images.begin()->first;
     const bool below = images.rbegin()->first < *removed.begin();
-    if (!above && !below)
+    if (above)
+        conditions.push_back(
+            make_functor_.make_functor(less_symbol_, {make_literal_.make_literal(*removed.rbegin()), element}));
+    if (below)
+        conditions.push_back(
+            make_functor_.make_functor(less_symbol_, {element, make_literal_.make_literal(*removed.begin())}));
+    std::vector<pw_data_point> labelled;
+    const expr* holds = make_literal_.make_literal(integer(1));
+    const expr* fails = make_literal_.make_literal(integer(0));
+    for (const auto& [value, image] : images)
+        labelled.push_back(pw_data_point{
+            .input = make_functor_.make_functor(point_symbol_, {make_literal_.make_literal(value)}), .output = holds});
+    for (const integer& value : removed)
+        labelled.push_back(pw_data_point{
+            .input = make_functor_.make_functor(point_symbol_, {make_literal_.make_literal(value)}), .output = fails});
+    conditions_.clear();
+    propose_conditions_.propose_hypotheses(labelled, conditions_);
+    for (const expr* condition : conditions_)
+        if (std::find(conditions.begin(), conditions.end(), condition) == conditions.end())
+            conditions.push_back(condition);
+    if (conditions.empty())
         return;
-    const expr* condition =
-        above ? make_functor_.make_functor(less_symbol_, {make_literal_.make_literal(*removed.rbegin()), element})
-              : make_functor_.make_functor(less_symbol_, {element, make_literal_.make_literal(*removed.begin())});
     std::vector<poly_sample> samples;
     samples.reserve(images.size());
     for (const auto& [value, image] : images)
         samples.push_back(poly_sample{.inputs = {value}, .output = image});
     bodies_.clear();
     propose_element_hypotheses_.propose_hypotheses(convert_samples_.convert(samples), bodies_);
-    const expr* kept = make_functor_.make_functor(symbols_.lambda, {condition});
-    const expr* filtered =
-        make_functor_.make_functor(symbols_.filter, {kept, make_functor_.make_functor(symbols_.input, {})});
-    for (const expr* body : bodies_) {
-        const expr* function = make_functor_.make_functor(symbols_.lambda, {body});
-        out.push_back(make_functor_.make_functor(symbols_.map, {function, filtered}));
+    for (const expr* condition : conditions) {
+        const expr* kept = make_functor_.make_functor(symbols_.lambda, {condition});
+        const expr* filtered =
+            make_functor_.make_functor(symbols_.filter, {kept, make_functor_.make_functor(symbols_.input, {})});
+        for (const expr* body : bodies_) {
+            const expr* function = make_functor_.make_functor(symbols_.lambda, {body});
+            out.push_back(make_functor_.make_functor(symbols_.map, {function, filtered}));
+        }
     }
 }
 

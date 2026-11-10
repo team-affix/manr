@@ -44,7 +44,12 @@ list_fit_rules_manifest::list_fit_rules_manifest(
     , numbers_(element_fit_.pw_evaluator_, element_fit_.conditions_, kernel.literals_, kernel.literals_, prime_table_,
                prime_table_, num_symbols_)
     , conditions_(numbers_, logic_symbols_)
-    , evaluator_(values_, values_, kernel.exprs_, kernel.literals_, numbers_, conditions_, step_fit_.pw_evaluator_,
+    , element_values_(numbers_, conditions_, pw_symbols_)
+    , step_numbers_(step_fit_.pw_evaluator_, step_fit_.conditions_, kernel.literals_, kernel.literals_, prime_table_,
+                    prime_table_, num_symbols_)
+    , step_conditions_(step_numbers_, logic_symbols_)
+    , step_values_(step_numbers_, step_conditions_, pw_symbols_)
+    , evaluator_(values_, values_, kernel.exprs_, kernel.literals_, element_values_, conditions_, step_values_,
                  binders_, binders_, list_symbols_, point_symbol_, less_symbol_)
     , applying_(binders_, evaluator_)
     , pw_evaluator_(applying_, evaluator_, pw_symbols_)
@@ -79,8 +84,8 @@ list_fit_rules_manifest::list_fit_rules_manifest(
                      k_list_default_max_factor_slope, k_list_default_max_factor_offset)
     , count_folds_(values_, kernel.literals_, kernel.renderer_, kernel.literals_, kernel.exprs_, list_symbols_,
                    pw_symbols_, less_symbol_)
-    , map_filters_(values_, kernel.literals_, element_fit_.converter_, element_fit_.hypotheses_, kernel.literals_,
-                   kernel.exprs_, list_symbols_, less_symbol_)
+    , map_filters_(values_, kernel.literals_, element_fit_.converter_, element_fit_.hypotheses_, conditions_union_,
+                   kernel.literals_, kernel.exprs_, list_symbols_, less_symbol_, point_symbol_)
     , selection_folds_(values_, kernel.literals_, element_fit_.converter_, element_fit_.hypotheses_,
                        kernel.literals_, kernel.exprs_, list_symbols_, pw_symbols_, less_symbol_)
     , factor_solver_()
@@ -88,7 +93,9 @@ list_fit_rules_manifest::list_fit_rules_manifest(
                     element_fit_.hypotheses_, kernel.literals_, kernel.exprs_, list_symbols_,
                     kernel.poly_symbols_.mul)
     , sum_solver_()
-    , sum_folds_(values_, kernel.literals_, sum_solver_, sum_solver_, element_fit_.converter_, element_fit_.hypotheses_,
+    , guarded_(conditions_union_, element_fit_.hypotheses_, kernel.literals_, kernel.exprs_, pw_symbols_)
+    , element_union_(element_fit_.hypotheses_, guarded_)
+    , sum_folds_(values_, kernel.literals_, sum_solver_, sum_solver_, element_fit_.converter_, element_union_,
                  kernel.literals_, kernel.exprs_, list_symbols_, pw_symbols_, kernel.poly_symbols_.add)
     , listed_folds_(values_, kernel.exprs_, list_symbols_)
     , reversals_(values_, kernel.exprs_, list_symbols_)

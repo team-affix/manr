@@ -198,6 +198,18 @@ int three_levels(const std::vector<int>& bits) {  // and(or(xor(a, b), c), nand(
     return ((bits[0] != bits[1]) || bits[2]) && !(bits[3] && (bits[4] == bits[5]));
 }
 
+int shared_majority_and(const std::vector<int>& bits) {  // xor(maj(a, b, c), and(a, d)), a shared
+    return (bits[0] + bits[1] + bits[2] >= 2) != (bits[0] && bits[3]);
+}
+
+int shared_and_xor(const std::vector<int>& bits) {  // or(and(a, b), xor(a, c)), a shared
+    return (bits[0] && bits[1]) || (bits[0] != bits[2]);
+}
+
+int shared_two(const std::vector<int>& bits) {  // and(xor(a, b, c), or(a, b, d)), a and b shared
+    return ((bits[0] != bits[1]) != bits[2]) && (bits[0] || bits[1] || bits[3]);
+}
+
 // showcase rules
 int access_rule(const std::vector<int>& bits) {  // admin, or owner and not locked
     return bits[0] || (bits[1] && !bits[2]);
@@ -267,6 +279,13 @@ int main(int argc, char** argv) {
          {3, 10, 17, 26, 33, 41, 50, 60}, {}, 11, "lams(6, xor(maj(#5, #4, #3), maj(#2, #1, #0)))"},
         {"three levels over six inputs", {"a", "b", "c", "d", "e", "f"}, three_levels, {}, {}, 13,
          "lams(6, and(or(xor(#5, #4), #3), nand(#2, xnor(#1, #0))))"},
+        // compositions whose parts share inputs (non-disjoint bi-decomposition)
+        {"xor of a majority and an and sharing an input", {"a", "b", "c", "d"}, shared_majority_and, {}, {}, 10,
+         "lams(4, xor(maj(#3, #2, #1), and(#3, #0)))"},
+        {"or of an and and an xor sharing an input", {"a", "b", "c"}, shared_and_xor, {}, {}, 9,
+         "lams(3, or(and(#2, #1), xor(#2, #0)))"},
+        {"and of a parity and an or sharing two inputs", {"a", "b", "c", "d"}, shared_two, {}, {}, 13,
+         "lams(4, and(xor(xor(#3, #2), #1), or(or(#3, #2), #0)))"},
     };
 
     std::printf("budgets: best-first %zu rewrites; mcts %zu simulations x depth %zu\n", k_rewrites, k_simulations,

@@ -462,6 +462,21 @@ int main(int argc, char** argv) {
         {"filter by xor of three predicates", random_lists(30, 4, 12, 0, 60, 98), true,
          [](const list_t& l) { return keep(l, [](integer e) { return ((e % 3 == 0) != (e > 25)) != is_prime_value(e); }); },
          {}, 16, "lam(filter(lam(xor(xor(eq(mod(#0, 3), 0), lt(25, #0)), is_prime(#0))), #0))"},
+        // general conditions inside other readings: map after a filter, sums and counts over a condition
+        {"squares of the primes", random_lists(30, 3, 10, 0, 40, 85), true,
+         [](const list_t& l) { return map_each(keep_primes(l), [](integer e) { return e * e; }); }, {}, 11,
+         "lam(map(lam(#0^2), filter(lam(is_prime(#0)), #0)))"},
+        {"sum of the primes", random_lists(40, 3, 10, 0, 20, 80), false, [](const list_t& l) { return sum(keep_primes(l)); },
+         {}, 14, "lam(fold(lam(lam(pw(when(is_prime(#0), #0 + #1), #1))), 0, #0))"},
+        {"count of the primes", random_lists(40, 3, 10, 0, 20, 99), false,
+         [](const list_t& l) { return fold_right(keep_primes(l), 0, [](integer, integer acc) { return acc + 1; }); }, {},
+         14, "lam(fold(lam(lam(pw(when(is_prime(#0), #1 + 1), #1))), 0, #0))"},
+        {"sum of the squares above a threshold", random_lists(40, 3, 10, 0, 20, 83), false,
+         [](const list_t& l) { return fold_right(l, 0, [](integer h, integer acc) { return integer(10) < h ? h * h + acc : acc; }); },
+         {}, 17, "lam(fold(lam(lam(pw(when(lt(10, #0), #0^2 + #1), #1))), 0, #0))"},
+        {"sum of the odd primes", random_lists(40, 3, 10, 0, 20, 100), false,
+         [](const list_t& l) { return sum(keep(keep_primes(l), [](integer e) { return e % 2 != 0; })); }, {}, 18,
+         "lam(fold(lam(lam(pw(when(and(is_prime(#0), lt(2, #0)), #0 + #1), #1))), 0, #0))"},
     };
 
     std::printf("budgets: best-first %zu rewrites; mcts %zu simulations x depth %zu\n", k_rewrites, k_simulations,
