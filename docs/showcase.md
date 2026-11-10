@@ -61,12 +61,14 @@ and commit the benchmark and baseline. From then on the gate catches any regress
 
 ## 6. Report
 
-Post one Discussion in the **Show and tell** category, titled `showcase: <date>`, with:
+Post one Discussion in the **Show and tell** category, titled `showcase: <date>`. Report problems as plain input and
+output, with no story: readers can see the domain and the use for themselves.
 
-- **Summary**: how many problems, how many solved, the domains covered, and what changed since the last showcase.
-- **One section per domain**: each problem's story, its input (or generator), the model reached, cost and time per
-  solver, and its generalization margin.
-- **Edges**: where generalization stopped, and why, as scout candidates.
-- The commit that added the benchmark problems.
+- One line of preamble: how many were tried and solved, the notation (data is the piecewise MANR builds from it,
+  `?0` the catch-all; lists as `[a, b]`), and the commit that gated them.
+- One section per domain, one entry per problem: the input expression, then `→` the result and its cost. A data
+  input is shortened as the benchmarks print it (`abbreviate_piecewise`: first branches, branches with holes, last
+  branch), plus any wrong-label branch the result keeps.
+- **Not reduced**: each input that failed, what it reached, and the smaller form that exists, in one or two lines.
 
 Give the user the Discussion's link and a few lines of summary.

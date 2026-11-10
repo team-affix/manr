@@ -44,6 +44,7 @@ struct seq_problem {
 };
 
 struct outcome {
+    std::string input;
     size_t cost;
     std::string best;
     double seconds;
@@ -128,7 +129,7 @@ outcome finish(Manifest& m, Search& search, const std::vector<pw_data_point>& po
     }
     std::ostringstream os;
     m.kernel_.printer_.print(os, best);
-    return outcome{.cost = search.best_cost(), .best = os.str(), .seconds = seconds, .sound = sound};
+    return outcome{.input = "", .cost = search.best_cost(), .best = os.str(), .seconds = seconds, .sound = sound};
 }
 
 // A problem with holes starts from its own piecewise, with a search of its own.
@@ -136,13 +137,19 @@ outcome run_best_first(const seq_problem& p, const std::vector<poly_sample>& sam
     const auto start = std::chrono::steady_clock::now();
     seq_fit_manifest m{samples, k_poly_default_limits, k_poly_fit_default_limits, k_frontier};
     const std::vector<pw_data_point> points = find_points(m, p, samples);
+    std::ostringstream input;
+    m.kernel_.printer_.print(input, m.rule_set_.builder_.build(points, 0));
     if (p.holes.empty()) {
         while (m.search_.rewrites() < k_rewrites && m.search_.next()) {}
-        return finish(m, m.search_, points, start);
+        outcome reached = finish(m, m.search_, points, start);
+        reached.input = abbreviate_piecewise(input.str());
+        return reached;
     }
     seq_fit_manifest::search_t search{m.rule_set_.rules_, m.kernel_.sizes_, m.rule_set_.builder_.build(points, 0), k_frontier};
     while (search.rewrites() < k_rewrites && search.next()) {}
-    return finish(m, search, points, start);
+    outcome reached = finish(m, search, points, start);
+    reached.input = abbreviate_piecewise(input.str());
+    return reached;
 }
 
 outcome run_mcts(const std::vector<poly_sample>& samples) {
@@ -171,7 +178,7 @@ struct solved {
 solved solve(const seq_problem& p, bool fast) {
     const std::vector<poly_sample> samples = sample(p);
     const bool skip_mcts = (fast && samples.size() > k_large) || !p.holes.empty();
-    const outcome skipped{.cost = 0, .best = "(skipped)", .seconds = 0, .sound = true};
+    const outcome skipped{.input = "", .cost = 0, .best = "(skipped)", .seconds = 0, .sound = true};
     return solved{.points = samples.size(), .skip_mcts = skip_mcts, .best_first = run_best_first(p, samples),
                   .mcts = skip_mcts ? skipped : run_mcts(samples)};
 }
@@ -263,7 +270,7 @@ int main(int argc, char** argv) {
         if (!skip_mcts)
             gated.push_back(bench_result{.problem = p.name, .solver = "mcts", .cost = mcts.cost, .target = p.target,
                                          .seconds = mcts.seconds, .sound = mcts.sound});
-        notes.push_back(p.name + "\n    target:   " + p.target_text + "\n    best-1st: " + best_first.best.substr(0, 160)
+        notes.push_back(p.name + "\n    input:    " + best_first.input + "\n    target:   " + p.target_text + "\n    best-1st: " + best_first.best.substr(0, 400)
                         + "\n    mcts:     " + mcts.best.substr(0, 160));
     }
     std::printf("\nsolved (of %zu): best-1st %zu, mcts %zu\n\n", problems.size(), solved_counts[0], solved_counts[1]);

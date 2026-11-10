@@ -162,6 +162,40 @@ std::vector<Result> solve_in_parallel(const std::vector<Problem>& problems, Resu
 }
 
 // Writes and checks as the options ask; the process exit code.
+// A printed piecewise shortened to its first two branches, every branch holding a hole (`?`), and its last branch
+// and otherwise, with `...` where branches were left out, so a data set of any size reads as one line. Anything else
+// is returned unchanged.
+inline std::string abbreviate_piecewise(const std::string& text) {
+    if (text.rfind("pw(", 0) != 0)
+        return text;
+    std::vector<std::string> args;
+    int depth = 0;
+    size_t start = 3;
+    for (size_t position = 3; position + 1 < text.size(); ++position) {
+        const char c = text[position];
+        depth += c == '(' ? 1 : c == ')' ? -1 : 0;
+        if (c != ',' || depth != 0)
+            continue;
+        args.push_back(text.substr(start, position - start));
+        start = position + 2;
+    }
+    args.push_back(text.substr(start, text.size() - 1 - start));
+    if (args.size() <= 6)
+        return text;
+    std::string shortened = "pw(";
+    size_t previous = 0;
+    for (size_t index = 0; index < args.size(); ++index) {
+        const bool kept = index < 2 || index + 2 >= args.size() || args[index].find('?') != std::string::npos;
+        if (!kept)
+            continue;
+        if (index > 0)
+            shortened += index > previous + 1 ? ", ..., " : ", ";
+        shortened += args[index];
+        previous = index;
+    }
+    return shortened + ")";
+}
+
 inline int finish_bench(const bench_options& options, const std::vector<bench_result>& results) {
     if (!options.write_path.empty()) {
         write_results(options.write_path, results);

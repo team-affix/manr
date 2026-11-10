@@ -35,6 +35,7 @@ struct logic_problem {
 };
 
 struct outcome {
+    std::string input;
     size_t cost;
     std::string best;
     double seconds;
@@ -111,14 +112,18 @@ outcome finish(Manifest& m, const std::vector<poly_sample>& samples, std::chrono
     }
     std::ostringstream os;
     m.kernel_.printer_.print(os, best);
-    return outcome{.cost = m.search_.best_cost(), .best = os.str(), .seconds = seconds, .sound = sound};
+    return outcome{.input = "", .cost = m.search_.best_cost(), .best = os.str(), .seconds = seconds, .sound = sound};
 }
 
 outcome run_best_first(const logic_problem& p, const std::vector<poly_sample>& samples) {
     const auto start = std::chrono::steady_clock::now();
     logic_fit_manifest m{p.variables.size(), samples, k_poly_default_limits, k_frontier};
+    std::ostringstream input;
+    m.kernel_.printer_.print(input, m.rule_set_.initial_);
     while (m.search_.rewrites() < k_rewrites && m.search_.next()) {}
-    return finish(m, samples, start);
+    outcome reached = finish(m, samples, start);
+    reached.input = abbreviate_piecewise(input.str());
+    return reached;
 }
 
 outcome run_mcts(const logic_problem& p, const std::vector<poly_sample>& samples) {
@@ -214,7 +219,7 @@ int main(int argc, char** argv) {
                                      .target = p.target, .seconds = best_first.seconds, .sound = best_first.sound});
         gated.push_back(bench_result{.problem = p.name, .solver = "mcts", .cost = mcts.cost, .target = p.target,
                                      .seconds = mcts.seconds, .sound = mcts.sound});
-        notes.push_back(p.name + "\n    target:   " + p.target_text + "\n    best-1st: " + best_first.best.substr(0, 160)
+        notes.push_back(p.name + "\n    input:    " + best_first.input + "\n    target:   " + p.target_text + "\n    best-1st: " + best_first.best.substr(0, 400)
                         + "\n    mcts:     " + mcts.best.substr(0, 160));
     }
     std::printf("\nsolved (of %zu): best-1st %zu, mcts %zu\n\n", problems.size(), solved_counts[0], solved_counts[1]);
