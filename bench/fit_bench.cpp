@@ -247,7 +247,7 @@ int main(int argc, char** argv) {
          "lam(pw(when(lt(#0, 10), 12*#0), 10*#0 + 20))"},
         {"showcase: bulk pricing, two typos", {"x"}, {{"12*x", 10}, {"10*x + 20", INT_MAX}}, 0, 0, 40,
          {{7, 3}, {25, -10}}, {}, 23, "two cases + the pricing"},
-        {"showcase: bulk pricing, unknown totals", {"x"}, {{"12*x", 10}, {"10*x + 20", INT_MAX}}, 0, 0, 40, {},
+        {"bulk pricing, unknown totals", {"x"}, {{"12*x", 10}, {"10*x + 20", INT_MAX}}, 0, 0, 40, {},
          {{3, 1}, {18, 1}, {30, 2}}, 14, "the pricing, holes bound"},
         {"showcase: projectile height", {"x"}, {{"-5*x^2 + 30*x + 2", INT_MAX}}, 0, 0, 8, {}, {}, 10,
          "lam(-5*#0^2 + 30*#0 + 2)"},
@@ -270,6 +270,10 @@ int main(int argc, char** argv) {
          0, 40, {}, {}, 26, "four pieces"},
         {"showcase: framed picture area, bad reading", {"x", "y"}, {{"(x + 2)*(y + 2)", INT_MAX}}, 0, 1, 6, {{8, 5}}, {}, 15,
          "one case + the area"},
+        {"showcase: three tiers, a typo and unknown labels", {"x"}, {{"8", 5}, {"2*x - 2", 20}, {"3*x - 22", INT_MAX}}, 0, 0,
+         40, {{12, 5}}, {{3, 1}, {25, 1}}, 26, "pw(case(point(12), 27), lam(pw(when(lt(#0, 6), 8), when(lt(#0, 21), 2*#0 - 2), 3*#0 - 22)))"},
+        {"showcase: three inputs, a typo and unknown labels", {"x", "y", "z"}, {{"x*y - z^2", INT_MAX}}, 0, -2, 2, {{40, 7}},
+         {{11, 1}, {52, 2}}, 16, "pw(case(point(-2, 1, -1), 4), lams(3, #2*#1 - #0^2))"},
     };
 
     std::printf("budgets: best-first %zu rewrites; mcts %zu simulations x depth %zu\n", k_rewrites, k_simulations,

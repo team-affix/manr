@@ -1,129 +1,133 @@
 # problem	solver	cost	target	seconds	sound
-sum	best-1st	9	9	0.00943657	1
-sum	mcts	9	9	0.00874617	1
-length	best-1st	9	9	0.00733988	1
-length	mcts	9	9	0.00616923	1
-product	best-1st	9	9	0.192977	1
-product	mcts	9	9	0.0434135	1
-sum of squares	best-1st	11	11	0.0461191	1
-sum of squares	mcts	11	11	0.0287363	1
-alternating sum	best-1st	9	9	0.00932248	1
-alternating sum	mcts	9	9	0.00848865	1
-digits	best-1st	11	11	0.00421236	1
-digits	mcts	11	11	0.00383527	1
-sum with wrong label	best-1st	17	17	0.779826	1
-sum with wrong label	mcts	17	17	0.58887	1
-sum 781	best-1st	9	9	0.0597324	1
-sum 781	mcts	9	9	0.0532091	1
-map square	best-1st	7	7	0.00631479	1
-map square	mcts	7	7	0.00496375	1
-map affine	best-1st	9	9	0.00927817	1
-map affine	mcts	9	9	0.00473553	1
-map absolute value	best-1st	13	13	0.00505407	1
-map absolute value	mcts	13	13	0.00459851	1
-map with wrong label	best-1st	15	15	0.00617303	1
-map with wrong label	mcts	15	15	0.00516877	1
-filter positives	best-1st	7	7	0.00501337	1
-filter positives	mcts	7	7	0.00328468	1
-filter below one	best-1st	7	7	0.00522142	1
-filter below one	mcts	7	7	0.00373108	1
-#14 primes of a list	best-1st	6	7	0.00152566	1
-#14 primes of a list	mcts	6	7	0.000907157	1
-primes of longer lists	best-1st	6	6	0.0022289	1
-primes of longer lists	mcts	6	6	0.00127785	1
-primes of a list, wrong label	best-1st	24	24	0.00154162	1
-primes of a list, wrong label	mcts	24	24	0.000883447	1
-long sum	best-1st	9	9	0.145146	1
-long sum	mcts	9	9	0.119468	1
-long length	best-1st	9	9	0.161242	1
-long length	mcts	9	9	0.106831	1
-long sum of squares	best-1st	11	11	0.437295	1
-long sum of squares	mcts	11	11	0.227151	1
-long product	best-1st	9	9	1.12921	1
-long product	mcts	9	9	15.6895	1
-long sum with wrong label	best-1st	15	15	0.693585	1
-long sum with wrong label	mcts	15	15	0.46025	1
-long map	best-1st	11	11	0.0129271	1
-long map	mcts	11	11	0.012425	1
-long map absolute value	best-1st	13	13	0.0308746	1
-long map absolute value	mcts	13	13	0.026472	1
-long filter	best-1st	7	7	0.00437471	1
-long filter	mcts	7	7	0.00314991	1
-maximum	best-1st	13	13	0.158757	1
-maximum	mcts	13	13	0.0521546	1
-sum without tails	best-1st	9	9	0.00344575	1
-sum without tails	mcts	9	9	0.00371127	1
-long sum without tails	best-1st	9	9	0.00562987	1
-long sum without tails	mcts	9	9	0.00546785	1
-long minimum without tails	best-1st	13	13	0.0565233	1
-long minimum without tails	mcts	13	13	0.0570704	1
-long maximum with wrong label	best-1st	63	63	0.0616256	1
-long maximum with wrong label	mcts	63	63	0.0621915	1
-product without tails	best-1st	9	9	0.0118348	1
-product without tails	mcts	9	9	0.0119675	1
-long product with wrong label	best-1st	15	15	1.24785	1
-long product with wrong label	mcts	15	15	14.259	1
-long count without tails	best-1st	15	15	0.0608946	1
-long count without tails	mcts	15	15	0.0635045	1
-squares of positives	best-1st	12	12	0.00275593	1
-squares of positives	mcts	12	12	0.00229205	1
-#4 count of evens	best-1st	17	18	0.0132421	1
-#4 count of evens	mcts	17	18	0.0138736	1
-count of multiples of 3	best-1st	17	17	0.0137535	1
-count of multiples of 3	mcts	17	17	0.0141654	1
-sum of the evens	best-1st	17	17	0.0132005	1
-sum of the evens	mcts	17	17	0.0138122	1
-sum of absolute values (open)	best-1st	19	17	0.0204987	1
-sum of absolute values (open)	mcts	19	17	0.019375	1
-count of evens, long (open)	best-1st	1543	18	0.0638443	1
-count of evens, long (open)	mcts	1543	18	0.0644384	1
-#5 reverse	best-1st	3	3	0.0350507	1
-#5 reverse	mcts	3	3	0.0318595	1
-duplicate each element	best-1st	11	11	0.00231077	1
-duplicate each element	mcts	11	11	0.00215428	1
-reverse with each element twice	best-1st	13	13	0.00104816	1
-reverse with each element twice	mcts	13	13	0.00107445	1
-reverse, wrong label	best-1st	19	19	0.0263033	1
-reverse, wrong label	mcts	19	19	0.0268165	1
-#1 long map over filter	best-1st	14	14	0.00635481	1
-#1 long map over filter	mcts	14	14	0.00626796	1
-long squares of positives	best-1st	12	12	0.00507809	1
-long squares of positives	mcts	12	12	0.00476841	1
-long map over filter above	best-1st	14	14	0.00529155	1
-long map over filter above	mcts	14	14	0.0049794	1
-#2 largest square	best-1st	17	17	0.0135694	1
-#2 largest square	mcts	17	17	0.0138823	1
-#3 product of squares	best-1st	11	11	0.0091086	1
-#3 product of squares	mcts	11	11	0.00939337	1
-largest absolute value (open)	best-1st	153	29	0.0285059	1
-largest absolute value (open)	mcts	153	29	0.0281455	1
-smallest of 2h + 1	best-1st	21	21	0.0140387	1
-smallest of 2h + 1	mcts	21	21	0.0144721	1
-product of h^2 + 1	best-1st	13	13	0.012539	1
-product of h^2 + 1	mcts	13	13	0.0119854	1
-long largest square (open)	best-1st	1000	17	0.0630744	1
-long largest square (open)	mcts	1000	17	0.0610465	1
-squares of positives (open)	best-1st	855	12	0.00387934	1
-squares of positives (open)	mcts	855	12	0.00386167	1
-showcase: invoice total, fee 2 per item	best-1st	11	11	0.054201	1
-showcase: invoice total, fee 2 per item	mcts	11	11	0.0429488	1
-showcase: invoice total, no tails	best-1st	11	11	0.00533173	1
-showcase: invoice total, no tails	mcts	11	11	0.00558752	1
-showcase: prices in cents	best-1st	7	7	0.00228334	1
-showcase: prices in cents	mcts	7	7	0.002517	1
-showcase: prime order IDs	best-1st	6	6	0.00207123	1
-showcase: prime order IDs	mcts	6	6	0.00232447	1
-showcase: prime order IDs, a typo	best-1st	78	78	0.0021777	1
-showcase: prime order IDs, a typo	mcts	78	78	0.00207832	1
-showcase: highest score	best-1st	13	13	0.0211432	1
-showcase: highest score	mcts	13	13	0.0253906	1
-showcase: passing grades counted	best-1st	15	15	0.0190892	1
-showcase: passing grades counted	mcts	15	15	0.0157752	1
-showcase: playlist reversed	best-1st	3	3	0.259029	1
-showcase: playlist reversed	mcts	3	3	0.25114	1
-showcase: squared positive readings	best-1st	12	12	0.00145582	1
-showcase: squared positive readings	mcts	12	12	0.00172605	1
-showcase: invoice total with 5 shipping	best-1st	11	11	0.00367644	1
-showcase: invoice total with 5 shipping	mcts	11	11	0.00383601	1
-showcase: discounted positive prices	best-1st	14	14	0.00271386	1
-showcase: discounted positive prices	mcts	14	14	0.00301586	1
+sum	best-1st	9	9	0.00815091	1
+sum	mcts	9	9	0.00812149	1
+length	best-1st	9	9	0.00649882	1
+length	mcts	9	9	0.0060094	1
+product	best-1st	9	9	0.175752	1
+product	mcts	9	9	0.0434283	1
+sum of squares	best-1st	11	11	0.0444233	1
+sum of squares	mcts	11	11	0.0288875	1
+alternating sum	best-1st	9	9	0.00912023	1
+alternating sum	mcts	9	9	0.00841847	1
+digits	best-1st	11	11	0.00440703	1
+digits	mcts	11	11	0.00403584	1
+sum with wrong label	best-1st	17	17	0.753667	1
+sum with wrong label	mcts	17	17	0.585144	1
+sum 781	best-1st	9	9	0.0481218	1
+sum 781	mcts	9	9	0.049846	1
+map square	best-1st	7	7	0.00738009	1
+map square	mcts	7	7	0.00634607	1
+map affine	best-1st	9	9	0.00533054	1
+map affine	mcts	9	9	0.00459484	1
+map absolute value	best-1st	13	13	0.00497003	1
+map absolute value	mcts	13	13	0.00457303	1
+map with wrong label	best-1st	15	15	0.00544678	1
+map with wrong label	mcts	15	15	0.00513732	1
+filter positives	best-1st	7	7	0.00373735	1
+filter positives	mcts	7	7	0.00297632	1
+filter below one	best-1st	7	7	0.00498252	1
+filter below one	mcts	7	7	0.00420725	1
+#14 primes of a list	best-1st	6	7	0.00116751	1
+#14 primes of a list	mcts	6	7	0.000791212	1
+primes of longer lists	best-1st	6	6	0.00200534	1
+primes of longer lists	mcts	6	6	0.00120493	1
+primes of a list, wrong label	best-1st	24	24	0.00103235	1
+primes of a list, wrong label	mcts	24	24	0.000823113	1
+long sum	best-1st	9	9	0.143469	1
+long sum	mcts	9	9	0.0813858	1
+long length	best-1st	9	9	0.157692	1
+long length	mcts	9	9	0.112289	1
+long sum of squares	best-1st	11	11	0.378614	1
+long sum of squares	mcts	11	11	0.181463	1
+long product	best-1st	9	9	1.05815	1
+long product	mcts	9	9	16.9897	1
+long sum with wrong label	best-1st	15	15	0.680789	1
+long sum with wrong label	mcts	15	15	0.452532	1
+long map	best-1st	11	11	0.015343	1
+long map	mcts	11	11	0.0133316	1
+long map absolute value	best-1st	13	13	0.0239724	1
+long map absolute value	mcts	13	13	0.0258064	1
+long filter	best-1st	7	7	0.00380008	1
+long filter	mcts	7	7	0.00350829	1
+maximum	best-1st	13	13	0.159562	1
+maximum	mcts	13	13	0.0469478	1
+sum without tails	best-1st	9	9	0.00311833	1
+sum without tails	mcts	9	9	0.00330302	1
+long sum without tails	best-1st	9	9	0.00564898	1
+long sum without tails	mcts	9	9	0.00544695	1
+long minimum without tails	best-1st	13	13	0.0591469	1
+long minimum without tails	mcts	13	13	0.06147	1
+long maximum with wrong label	best-1st	63	63	0.0562184	1
+long maximum with wrong label	mcts	63	63	0.0558245	1
+product without tails	best-1st	9	9	0.011477	1
+product without tails	mcts	9	9	0.0116358	1
+long product with wrong label	best-1st	15	15	1.34653	1
+long product with wrong label	mcts	15	15	12.7594	1
+long count without tails	best-1st	15	15	0.0634174	1
+long count without tails	mcts	15	15	0.0626959	1
+squares of positives	best-1st	12	12	0.00229925	1
+squares of positives	mcts	12	12	0.00321755	1
+#4 count of evens	best-1st	17	18	0.0118227	1
+#4 count of evens	mcts	17	18	0.0119871	1
+count of multiples of 3	best-1st	17	17	0.0141528	1
+count of multiples of 3	mcts	17	17	0.0141769	1
+sum of the evens	best-1st	17	17	0.0129268	1
+sum of the evens	mcts	17	17	0.0130537	1
+sum of absolute values (open)	best-1st	19	17	0.0219959	1
+sum of absolute values (open)	mcts	19	17	0.0198844	1
+count of evens, long (open)	best-1st	1543	18	0.0635497	1
+count of evens, long (open)	mcts	1543	18	0.0639332	1
+#5 reverse	best-1st	3	3	0.0416979	1
+#5 reverse	mcts	3	3	0.0393972	1
+duplicate each element	best-1st	11	11	0.00215845	1
+duplicate each element	mcts	11	11	0.00232117	1
+reverse with each element twice	best-1st	13	13	0.00105199	1
+reverse with each element twice	mcts	13	13	0.00101204	1
+reverse, wrong label	best-1st	19	19	0.0247625	1
+reverse, wrong label	mcts	19	19	0.0250715	1
+#1 long map over filter	best-1st	14	14	0.00491241	1
+#1 long map over filter	mcts	14	14	0.00468222	1
+long squares of positives	best-1st	12	12	0.00482199	1
+long squares of positives	mcts	12	12	0.00455361	1
+long map over filter above	best-1st	14	14	0.00626007	1
+long map over filter above	mcts	14	14	0.00537656	1
+#2 largest square	best-1st	17	17	0.011016	1
+#2 largest square	mcts	17	17	0.011584	1
+#3 product of squares	best-1st	11	11	0.0106177	1
+#3 product of squares	mcts	11	11	0.0113107	1
+largest absolute value (open)	best-1st	153	29	0.0233885	1
+largest absolute value (open)	mcts	153	29	0.0236676	1
+smallest of 2h + 1	best-1st	21	21	0.0114167	1
+smallest of 2h + 1	mcts	21	21	0.0120198	1
+product of h^2 + 1	best-1st	13	13	0.0122285	1
+product of h^2 + 1	mcts	13	13	0.0115408	1
+long largest square (open)	best-1st	1000	17	0.0625304	1
+long largest square (open)	mcts	1000	17	0.0587497	1
+squares of positives (open)	best-1st	855	12	0.0039665	1
+squares of positives (open)	mcts	855	12	0.00404892	1
+showcase: invoice total, fee 2 per item	best-1st	11	11	0.0463791	1
+showcase: invoice total, fee 2 per item	mcts	11	11	0.03044	1
+showcase: invoice total, no tails	best-1st	11	11	0.00535406	1
+showcase: invoice total, no tails	mcts	11	11	0.00593184	1
+showcase: prices in cents	best-1st	7	7	0.00156862	1
+showcase: prices in cents	mcts	7	7	0.00185462	1
+prime order IDs	best-1st	6	6	0.00202623	1
+prime order IDs	mcts	6	6	0.00203535	1
+prime order IDs, a typo	best-1st	78	78	0.00202642	1
+prime order IDs, a typo	mcts	78	78	0.00183833	1
+highest score	best-1st	13	13	0.0150882	1
+highest score	mcts	13	13	0.0133899	1
+passing grades counted	best-1st	15	15	0.0210562	1
+passing grades counted	mcts	15	15	0.0202097	1
+playlist reversed	best-1st	3	3	0.335099	1
+playlist reversed	mcts	3	3	0.251068	1
+squared positive readings	best-1st	12	12	0.00145739	1
+squared positive readings	mcts	12	12	0.00173456	1
+showcase: invoice total with 5 shipping	best-1st	11	11	0.00289473	1
+showcase: invoice total with 5 shipping	mcts	11	11	0.00317198	1
+showcase: discounted positive prices	best-1st	14	14	0.00350689	1
+showcase: discounted positive prices	mcts	14	14	0.00372347	1
+showcase: cubic map after a threshold filter	best-1st	14	14	0.022698	1
+showcase: cubic map after a threshold filter	mcts	14	14	0.00683663	1
+showcase: maximum of 2x + 1	best-1st	21	21	0.0182401	1
+showcase: maximum of 2x + 1	mcts	21	21	0.0178818	1

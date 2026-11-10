@@ -174,6 +174,10 @@ int two_of_four(const std::vector<int>& bits) {  // at least two of four approve
     return ones(bits) >= 2;
 }
 
+int implication_chain(const std::vector<int>& bits) {  // not a, or b and c
+    return !bits[0] || (bits[1] && bits[2]);
+}
+
 int main(int argc, char** argv) {
     const bench_options options = parse_bench_options(argc, argv);
     const std::vector<logic_problem> problems{
@@ -197,6 +201,7 @@ int main(int argc, char** argv) {
         {"showcase: alarm", {"door", "armed", "smoke"}, alarm, {}, {}, 7, "lams(3, or(and(#2, #1), #0))"},
         {"showcase: seat belt warning", {"ignition", "moving", "buckled"}, seat_belt, {}, {}, 8,
          "lams(3, and(and(#2, #1), not(#0)))"},
+        {"showcase: implication into a conjunction", {"a", "b", "c"}, implication_chain, {}, {}, 8, "lams(3, or(not(#2), and(#1, #0)))"},
     };
 
     std::printf("budgets: best-first %zu rewrites; mcts %zu simulations x depth %zu\n", k_rewrites, k_simulations,
