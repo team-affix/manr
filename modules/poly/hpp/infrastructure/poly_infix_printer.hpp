@@ -48,8 +48,11 @@ POLY_INFIX_PRINTER_TEMPLATE void POLY_INFIX_PRINTER::print_at(
         os << (wrap ? "(" : "") << name << (wrap ? ")" : "");
         return;
     }
-    const bool algebra = f.args.size() == 2
-                      && (f.id == symbols_.add || f.id == symbols_.sub || f.id == symbols_.mul || f.id == symbols_.pow);
+    // the quotient `div` prints as `/`, at the precedence of `*`, as the parser reads it
+    const bool quotient = f.args.size() == 2 && get_symbol_name_.name(f.id) == "div";
+    const bool algebra = quotient
+                      || (f.args.size() == 2
+                          && (f.id == symbols_.add || f.id == symbols_.sub || f.id == symbols_.mul || f.id == symbols_.pow));
     if (!algebra) {
         // any other functor (a piecewise, a data point) prints in prefix form
         os << get_symbol_name_.name(f.id) << '(';
@@ -61,12 +64,16 @@ POLY_INFIX_PRINTER_TEMPLATE void POLY_INFIX_PRINTER::print_at(
         return;
     }
     const bool sum = f.id == symbols_.add || f.id == symbols_.sub;
-    const int precedence = sum ? 1 : f.id == symbols_.mul ? 2 : 3;
+    const int precedence = sum ? 1 : f.id == symbols_.mul || quotient ? 2 : 3;
     const bool wrap = precedence < context;
     const bool inner_leading = wrap || leading;
     if (wrap)
         os << '(';
-    const char* op = f.id == symbols_.add ? " + " : f.id == symbols_.sub ? " - " : f.id == symbols_.mul ? " * " : "^";
+    const char* op = quotient              ? " / "
+                     : f.id == symbols_.add ? " + "
+                     : f.id == symbols_.sub ? " - "
+                     : f.id == symbols_.mul ? " * "
+                                            : "^";
     print_at(os, f.args[0], precedence == 3 ? 4 : precedence, inner_leading);
     os << op;
     print_at(os, f.args[1], precedence == 3 ? 4 : precedence + 1, false);

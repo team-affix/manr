@@ -6,6 +6,7 @@
 
 using ::testing::Contains;
 using ::testing::IsEmpty;
+using ::testing::Not;
 
 namespace {
 
@@ -73,4 +74,20 @@ TEST_F(PolyHolesIntegrationTest, SearchReducesExpressionsWithHolesToLiterals) {
     EXPECT_EQ(reduced("?0^2 - x^2 + 1"), "1");
     EXPECT_EQ(reduced("x * ?0 + x * y"), "0");
     EXPECT_EQ(reduced("?0 * ?1 - 5"), "-5");
+}
+
+TEST_F(PolyHolesIntegrationTest, AHoleIsBoundToTheShiftThatCompletesASquare) {
+    // reduce request #32
+    EXPECT_THAT(bound("(?0 - x)^2 + y"), Contains("y"));
+    EXPECT_THAT(bound("2 * ?0^2 - 4 * x * ?0 + 2 * x^2 + z"), Contains("z"));
+}
+
+TEST_F(PolyHolesIntegrationTest, HolesLinearInTheExpressionAreBoundJointly) {
+    // reduce request #33: every coefficient cancels, or every one but the constant
+    EXPECT_THAT(bound("?0 * x^2 + ?1 * x + ?0 - (x + 1)^2"), Contains("0"));
+    EXPECT_THAT(bound("?0 * x + ?1 * y - x + 2 * y + 5"), Contains("5"));
+}
+
+TEST_F(PolyHolesIntegrationTest, HolesInOneTermAreNotBoundJointly) {
+    EXPECT_THAT(bound("?0 * ?1 * x - x + 3"), Not(Contains("3")));
 }

@@ -135,6 +135,7 @@ at 64 rows each.
   are linear there and sums of products are exponential, and the reverse holds for ors, so each catches what the other
   cannot.
 - **Wide formulas**: the refit stops at 8 inputs; structural rules are the only reduction beyond.
-- **Several guarded branches**: `pw_guarded_hypotheses` nests constants under conditions before a default (#30), but
-  only when the common outputs cover half the points; several branches whose values are models, not constants, are
-  read only where splits by thresholds or residues apply. Separating sets beyond three atoms rely on the greedy choice.
+- **Several guarded branches**: `pw_guarded_hypotheses` nests constants under conditions before a default (#30),
+  and models under single atoms (#34: `#0^2` at the primes, `2 * #0` at the multiples of 4, `#0 + 1` elsewhere), the
+  condition read first, at most two peels deep, and only when no model, piecewise or not, already reproduces the data.
+  Models under conditions combining atoms are not peeled; separating sets beyond three atoms rely on the greedy choice.

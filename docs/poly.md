@@ -42,8 +42,15 @@ Free variables (`?n`, parsed as text too) are bound by `poly_hole_binder`, at th
 substitutes the hole everywhere. It reads the expression as a polynomial in each hole and proposes the bindings that
 cancel the most, when strictly smaller: 0; for a hole of degree 1, `c1 * ?k + c0`, the exact quotient `-c0 / c1`
 (`x * ?0 + x * y` -> `0`, `?0 = -y`) or, for a constant c1, the nearest one (`(?0 + 1)^2 - ?0^2` -> `1`, `?0 = 0`);
-for `c * ?k^d + c0`, the d-th roots of `-c0 / c` by completing the power (`?0^2 - x^2 + 1` -> `1`, `?0 = x`). Not yet:
-a hole of degree above 1 with middle terms, several holes solved jointly, and holes inside other domains' functors.
+for `c * ?k^d + c0`, the d-th roots of `-c0 / c` by completing the power (`?0^2 - x^2 + 1` -> `1`, `?0 = x`); for a
+hole of degree d with a term of degree d - 1, the shift `-c(d-1) / (d * cd)` that completes the square or power
+(`(?0 - x)^2 + y` -> `y`, `?0 = x`, #32). Holes the expression is linear in are also bound jointly, to integers, by
+solving the linear system that cancels every coefficient of the other variables, or every one but the constant
+(`?0 * x^2 + ?1 * x + ?0 - (x + 1)^2` -> `0`, `?0 = 1, ?1 = 2`, #33; `arith_linear_solver`). Not yet: holes in one
+term together (`?0 * ?1 * x`), joint bindings that are polynomials, and holes inside other domains' functors.
+
+Quotients `n / d` (the `rational` module, `docs/rational.md`) are part of the full rule set: `rat_quotient_canceller`
+cancels a divisor or, over one variable, the common factor (`(x^2 - 1) / (x - 1)` -> `x + 1`, #38).
 
 ## Solvers
 
@@ -164,9 +171,13 @@ the other points read again, when the common outputs cover half the points.
 
 Labels holding holes (#18, #22, #23): `x^2 + 1` with labels `?1` and `2 * ?2` reduces to `lam(#0^2 + 1)` with
 `?1 = 2`, `?2 = 5`: the branch filter matches a label under a binding, solving a label polynomial in a hole for its
-integer roots (`?1^2 + 1`), the label's other holes set to 0 or 1. Keys holding holes (#24) are solved through the
-model: its value at `point(?1)` is the residual `?1^2 + 1`, matched against the label. A label with no integer
-solution (`2 * ?1` where the model gives 5) stays a case.
+integer roots (`?1^2 + 1`). A label holding several holes binds one in terms of the others when it occurs once under
+sums (`?1 + ?2 = 7` gives `?2 = 7 - ?1`), so a later label pins them together (`?1 * ?2 = 10`); failing that, the
+others are set to 0 or 1, and labels with fewer holes are matched first. Keys holding holes (#24) are solved through
+the model: its value at `point(?1)` is the residual `?1^2 + 1`, matched against the label. A label with no integer
+solution (`2 * ?1` where the model gives 5) stays a case. A hole is one value everywhere (#31): every binding a rewrite
+makes is carried into the branches it keeps, so `?1` labelling two points that a line gives 7 and 10 reduces to
+`pw(case(point(3), 7), lam(3 * #0 + 1))`, never to the line alone.
 
 Gaps:
 

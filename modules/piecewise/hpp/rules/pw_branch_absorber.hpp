@@ -2,10 +2,13 @@
 #define PW_BRANCH_ABSORBER_HPP
 
 #include <algorithm>
+#include <cstdint>
+#include <map>
 #include <set>
 #include <variant>
 #include <vector>
 #include "value_objects/expr.hpp"
+#include "value_objects/pw_coverage.hpp"
 #include "value_objects/pw_symbols.hpp"
 #include "value_objects/rewrite.hpp"
 
@@ -13,24 +16,30 @@
 // Later cases apply only at their own key, so what follows a case at its key is the `when` branches and the
 // otherwise (a `when` branch before the case that applies there makes the case dead, so dropping it is sound too).
 // A case whose key a later case repeats is kept: dropping it would hand its key to the later one. Detection
-// evaluates the branches to decide; the rewrite only assembles the smaller piecewise.
-template<typename IFindUncovered, typename IAssemble>
+// evaluates the branches to decide; the rewrite only assembles the smaller piecewise. The dropped cases are reproduced
+// under one binding of their labels' holes, which the result carries into the cases it keeps.
+template<typename IFindUncovered, typename IAssemble, typename ISubstituteHoles>
 struct pw_branch_absorber {
-    pw_branch_absorber(IFindUncovered& find_uncovered, IAssemble& assemble, pw_symbols symbols);
+    pw_branch_absorber(IFindUncovered& find_uncovered,
+                       IAssemble& assemble,
+                       ISubstituteHoles& substitute_holes,
+                       pw_symbols symbols);
     void detect(const expr* e, std::vector<rewrite>& out);
 private:
     IFindUncovered& find_uncovered_;
     IAssemble& assemble_;
+    ISubstituteHoles& substitute_holes_;
     pw_symbols symbols_;
 };
 
-#define PW_BRANCH_ABSORBER_TEMPLATE template<typename IFindUncovered, typename IAssemble>
-#define PW_BRANCH_ABSORBER          pw_branch_absorber<IFindUncovered, IAssemble>
+#define PW_BRANCH_ABSORBER_TEMPLATE template<typename IFindUncovered, typename IAssemble, typename ISubstituteHoles>
+#define PW_BRANCH_ABSORBER          pw_branch_absorber<IFindUncovered, IAssemble, ISubstituteHoles>
 
 PW_BRANCH_ABSORBER_TEMPLATE PW_BRANCH_ABSORBER::pw_branch_absorber(
-    IFindUncovered& find_uncovered, IAssemble& assemble, pw_symbols symbols)
+    IFindUncovered& find_uncovered, IAssemble& assemble, ISubstituteHoles& substitute_holes, pw_symbols symbols)
     : find_uncovered_(find_uncovered)
     , assemble_(assemble)
+    , substitute_holes_(substitute_holes)
     , symbols_(symbols) {}
 
 PW_BRANCH_ABSORBER_TEMPLATE void PW_BRANCH_ABSORBER::detect(const expr* e, std::vector<rewrite>& out) {
@@ -55,10 +64,10 @@ PW_BRANCH_ABSORBER_TEMPLATE void PW_BRANCH_ABSORBER::detect(const expr* e, std::
     }
     std::reverse(regions.begin(), regions.end());
     std::reverse(candidates.begin(), candidates.end());
-    const std::vector<const expr*> uncovered = find_uncovered_.find_uncovered(candidates, assemble_.assemble(regions, otherwise));
-    if (uncovered.size() == candidates.size())
+    const pw_coverage coverage = find_uncovered_.find_uncovered(candidates, assemble_.assemble(regions, otherwise));
+    if (coverage.uncovered.size() == candidates.size())
         return;
-    const std::set<const expr*> uncovered_set(uncovered.begin(), uncovered.end());
+    const std::set<const expr*> uncovered_set(coverage.uncovered.begin(), coverage.uncovered.end());
     const std::set<const expr*> candidate_set(candidates.begin(), candidates.end());
     std::vector<const expr*> kept;
     for (const expr* branch : branches) {
@@ -67,7 +76,10 @@ PW_BRANCH_ABSORBER_TEMPLATE void PW_BRANCH_ABSORBER::detect(const expr* e, std::
             continue;
         kept.push_back(branch);
     }
-    out.push_back([this, kept, otherwise]() { return assemble_.assemble(kept, otherwise); });
+    const std::map<uint32_t, const expr*> bindings = coverage.bindings;
+    out.push_back([this, kept, otherwise, bindings]() {
+        return substitute_holes_.substitute_holes(assemble_.assemble(kept, otherwise), bindings);
+    });
 }
 
 #undef PW_BRANCH_ABSORBER

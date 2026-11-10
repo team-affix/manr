@@ -28,6 +28,9 @@ seq_fit_rules_manifest::seq_fit_rules_manifest(
     , first_steps_(kernel, {"#0", "#1"}, fit_limits, pw_symbols_, point_symbol_, less_symbol_)
     , second_steps_(kernel, {"#0", "#1", "#2"}, fit_limits, pw_symbols_, point_symbol_, less_symbol_)
     , third_steps_(kernel, {"#0", "#1", "#2", "#3"}, fit_limits, pw_symbols_, point_symbol_, less_symbol_)
+    , first_free_steps_(kernel, {"#1"}, fit_limits, pw_symbols_, point_symbol_, less_symbol_)
+    , second_free_steps_(kernel, {"#1", "#2"}, fit_limits, pw_symbols_, point_symbol_, less_symbol_)
+    , third_free_steps_(kernel, {"#1", "#2", "#3"}, fit_limits, pw_symbols_, point_symbol_, less_symbol_)
     , prime_table_(k_num_default_max_value)
     , binders_(kernel.literals_, abs_symbols_)
     , function_maker_(kernel.literals_, kernel.exprs_, abs_symbols_)
@@ -39,11 +42,14 @@ seq_fit_rules_manifest::seq_fit_rules_manifest(
                num_symbols_)
     , applying_(binders_, numbers_)
     , pw_evaluator_(applying_, conditions_, pw_symbols_)
-    , first_order_(kernel.literals_, first_steps_.converter_, first_steps_.interpolations_, kernel.literals_,
+    , first_order_(kernel.literals_, first_steps_.converter_, first_steps_.interpolations_,
+                   first_free_steps_.converter_, first_free_steps_.interpolations_, kernel.literals_,
                    kernel.exprs_, first_steps_.evaluator_, seq_symbols_, fit_.variables_[0], point_symbol_, 1)
-    , second_order_(kernel.literals_, second_steps_.converter_, second_steps_.interpolations_, kernel.literals_,
+    , second_order_(kernel.literals_, second_steps_.converter_, second_steps_.interpolations_,
+                    second_free_steps_.converter_, second_free_steps_.interpolations_, kernel.literals_,
                     kernel.exprs_, second_steps_.evaluator_, seq_symbols_, fit_.variables_[0], point_symbol_, 2)
-    , third_order_(kernel.literals_, third_steps_.converter_, third_steps_.interpolations_, kernel.literals_,
+    , third_order_(kernel.literals_, third_steps_.converter_, third_steps_.interpolations_,
+                   third_free_steps_.converter_, third_free_steps_.interpolations_, kernel.literals_,
                    kernel.exprs_, third_steps_.evaluator_, seq_symbols_, fit_.variables_[0], point_symbol_, 3)
     , primes_(kernel.literals_, prime_table_, prime_table_, kernel.exprs_, num_symbols_, seq_symbols_.index)
     , hypotheses_(fit_.hypotheses_, first_order_, second_order_, third_order_, primes_)
@@ -52,11 +58,15 @@ seq_fit_rules_manifest::seq_fit_rules_manifest(
                  kernel.poly_symbols_.pow)
     , closer_(binders_, kernel.expander_, kernel.literals_, kernel.literals_, kernel.exprs_, seq_symbols_,
               kernel.poly_symbols_)
+    , linear_solver_()
+    , linear_closer_(binders_, kernel.expander_, kernel.literals_, kernel.literals_, kernel.exprs_, linear_solver_,
+                     kernel.sizes_, seq_symbols_, kernel.poly_symbols_)
     , unfolder_(binders_, kernel.exprs_, seq_symbols_)
     , merger_(binders_, kernel.literals_, kernel.exprs_, abs_symbols_)
     , open_lists_(kernel.literals_, kernel.literals_, kernel.exprs_, kernel.symbols_.intern_symbol("cons"),
                   point_symbol_, seq_symbols_.tabulation, pw_symbols_)
-    , local_rules_(piecewise_.binder_, piecewise_.absorber_, closer_, unfolder_, merger_, poly_rules_.local_rules_)
+    , local_rules_(piecewise_.binder_, piecewise_.absorber_, closer_, linear_closer_, unfolder_, merger_,
+                   poly_rules_.local_rules_)
     , root_rules_(open_lists_)
     , subterms_(local_rules_, kernel.exprs_)
     , rules_(subterms_, root_rules_)

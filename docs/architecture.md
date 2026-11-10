@@ -31,6 +31,7 @@ every module's `hpp/` is on the include path.
 | `seq` | `seq_` | integer sequences: recurrences, powers, infinite lists |
 | `number` | `num_` | number theory over another domain: primes |
 | `logic` | `logic_` | Boolean functions |
+| `rational` | `rat_` | quotients of polynomials (`docs/rational.md`) |
 
 Inside a module, a file's directory says what it is:
 

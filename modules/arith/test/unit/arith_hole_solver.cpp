@@ -43,9 +43,9 @@ struct ArithHoleSolverTest : ::testing::Test {
 
     ::testing::NiceMock<MockFindLiteralValue> find_literal_value;
     ::testing::NiceMock<MockMakeLiteral> make_literal;
-    arith_hole_solver<MockFindLiteralValue, MockMakeLiteral> solver{find_literal_value, make_literal, k_add, k_sub,
-                                                                    k_mul, k_pow};
     expr_pool pool{};
+    arith_hole_solver<MockFindLiteralValue, MockMakeLiteral, expr_pool> solver{find_literal_value, make_literal, pool,
+                                                                               k_add, k_sub, k_mul, k_pow};
     const expr* hole = pool.make_var(2);
     std::map<uint32_t, const expr*> bindings{};
 
@@ -92,10 +92,24 @@ TEST_F(ArithHoleSolverTest, AHoleOfVanishingCoefficientsIsFreeAndBoundToZero) {
     EXPECT_EQ(solve(pattern, literal(4)), only(0));
 }
 
-TEST_F(ArithHoleSolverTest, OtherUnboundHolesAreSetToZeroAndTheLastSolvedFor) {
-    // ?1 + ?2 = 10  gives  ?1 = 0, ?2 = 10
+TEST_F(ArithHoleSolverTest, AHoleOccurringOnceInASumIsSolvedInTermsOfTheOthers) {
+    // ?1 + ?2 = 10  gives  ?2 = 10 - ?1, ?1 left free for a later equation
     const expr* pattern = pool.make_functor(k_add, {pool.make_var(1), hole});
-    EXPECT_EQ(solve(pattern, literal(10)), (solution_t{{{1, literal(0)}, {2, literal(10)}}}));
+    const expr* rest = pool.make_functor(k_sub, {literal(10), pool.make_var(1)});
+    EXPECT_EQ(solve(pattern, literal(10)), (solution_t{{{2, rest}}}));
+}
+
+TEST_F(ArithHoleSolverTest, AHoleSubtractedFromTheRestIsIsolatedWithItsSign) {
+    // ?1 - ?2 = 3  gives  ?2 = ?1 - 3
+    const expr* pattern = pool.make_functor(k_sub, {pool.make_var(1), hole});
+    const expr* rest = pool.make_functor(k_sub, {pool.make_var(1), literal(3)});
+    EXPECT_EQ(solve(pattern, literal(3)), (solution_t{{{2, rest}}}));
+}
+
+TEST_F(ArithHoleSolverTest, AHoleBoundToAnExpressionOfAnotherIsSolvedThroughIt) {
+    // ?1 = 7 - ?2 and ?1 * ?2 = 10 give ?2 = 2 (or 5)
+    bindings.emplace(1, pool.make_functor(k_sub, {literal(7), hole}));
+    EXPECT_EQ(solve(pool.make_functor(k_mul, {pool.make_var(1), hole}), literal(10)), only(2));
 }
 
 TEST_F(ArithHoleSolverTest, OtherUnboundHolesAreSetToOneWhenZeroLeavesNoSolution) {
@@ -124,4 +138,18 @@ TEST_F(ArithHoleSolverTest, AFunctorOutsideThePolynomialVocabularyGivesNothing) 
 TEST_F(ArithHoleSolverTest, AValueThatIsNotALiteralGivesNothing) {
     const expr* pattern = pool.make_functor(k_mul, {literal(2), hole});
     EXPECT_FALSE(solve(pattern, pool.make_functor(k_add, {literal(1), literal(1)})).has_value());
+}
+
+TEST_F(ArithHoleSolverTest, AValueHoldingHolesIsMovedToThePatternsSide) {
+    // ?2 * (3 - ?2) against 3 * ?2 - ?2^2: every coefficient of the difference vanishes, so they match
+    const expr* pattern = pool.make_functor(k_mul, {hole, pool.make_functor(k_sub, {literal(3), hole})});
+    const expr* value = pool.make_functor(
+        k_sub, {pool.make_functor(k_mul, {literal(3), hole}), pool.make_functor(k_pow, {hole, literal(2)})});
+    EXPECT_TRUE(solve(pattern, value).has_value());
+}
+
+TEST_F(ArithHoleSolverTest, AValueHoldingHolesIsSolvedForWhenTheFormsDiffer) {
+    // ?2 * (3 - ?2) against 2 * ?2: -?2^2 + ?2 = 0 gives ?2 = 0 (or 1)
+    const expr* pattern = pool.make_functor(k_mul, {hole, pool.make_functor(k_sub, {literal(3), hole})});
+    EXPECT_EQ(solve(pattern, pool.make_functor(k_mul, {literal(2), hole})), only(0));
 }

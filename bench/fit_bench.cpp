@@ -289,6 +289,13 @@ int main(int argc, char** argv) {
          "lam(#0^2 + 1), ?1 = 0, ?2 = 10", ""},
         {"#24 a key holding a hole", {"x"}, {{"x^2 + 1", INT_MAX}}, 0, 0, 8, {}, {{4, "@h1"}}, 6,
          "lam(#0^2 + 1), ?1 = 4", ""},
+        // reduce request #31: one hole in several labels is one value, and labels that only pin holes together
+        {"#31 a hole shared by two labels", {"x"}, {{"3*x + 1", INT_MAX}}, 0, 0, 7, {}, {{2, "h1"}, {3, "h1"}}, 11,
+         "pw(case(point(3), 7), lam(3*#0 + 1)), ?1 = 7", ""},
+        {"sum and product holes, joint binding", {"x"}, {{"3*x + 1", INT_MAX}}, 0, 0, 7, {},
+         {{2, "h1 + h2"}, {3, "h1 * h2"}}, 6, "lam(3*#0 + 1), ?1 = 5, ?2 = 2", ""},
+        {"sum and product holes, no joint binding", {"x"}, {{"3*x + 1", INT_MAX}}, 0, 0, 7, {},
+         {{2, "h1 + h2"}, {4, "h1 * h2"}}, 15, "pw(case(point(4), ?1 * (7 - ?1)), lam(3*#0 + 1)), ?2 = 7 - ?1", ""},
         {"cubic label, hole cubed", {"x"}, {{"x^3 - x", INT_MAX}}, 0, -3, 4, {}, {{5, "h1^3 - 2"}}, 6,
          "lam(#0^3 - #0), ?1 = 2", ""},
         {"two-variable square, product and square holes", {"x", "y"}, {{"(x + y)^2", INT_MAX}}, 0, -2, 2, {},
@@ -350,6 +357,15 @@ int main(int argc, char** argv) {
         {"zero where prime, five at multiples of 4, else linear", {"x"}, {{"0", 0}, {"5", 0}, {"2*x + 1", 0}}, 0, 0, 40,
          {}, {}, 18, "lam(pw(when(is_prime(#0), 0), when(eq(mod(#0, 4), 0), 5), 2*#0 + 1))",
          "prime, then multiple of 4"},
+        // reduce request #34: models under conditions of different kinds, peeled condition first
+        {"#34 models where prime, at multiples of 4, else", {"x"}, {{"x^2", 0}, {"2*x", 0}, {"x + 1", 0}}, 0, 0, 40,
+         {}, {}, 20, "lam(pw(when(is_prime(#0), #0^2), when(eq(mod(#0, 4), 0), 2*#0), #0 + 1))",
+         "prime, then multiple of 4"},
+        {"models where even, at multiples of 3, else (open)", {"x"}, {{"x^2", 0}, {"3*x", 0}, {"x - 1", 0}}, 0, 0, 40, {},
+         {}, 23, "lam(pw(when(eq(mod(#0, 2), 0), #0^2), when(eq(mod(#0, 3), 0), 3*#0), #0 - 1))",
+         "even, then multiple of 3"},
+        {"cube where prime, else square", {"x"}, {{"x^3", 0}, {"x^2", 0}}, 0, 0, 30, {}, {}, 11,
+         "lam(pw(when(is_prime(#0), #0^3), #0^2))", "prime"},
     };
 
     std::printf("budgets: best-first %zu rewrites; mcts %zu simulations x depth %zu\n", k_rewrites, k_simulations,

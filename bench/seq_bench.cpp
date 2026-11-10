@@ -13,8 +13,10 @@
 #include <chrono>
 #include <cstdint>
 #include <cstdio>
+#include <iterator>
 #include <map>
 #include <optional>
+#include <set>
 #include <sstream>
 #include <string>
 #include <utility>
@@ -137,14 +139,22 @@ outcome finish(Manifest& m, Search& search, const std::vector<pw_data_point>& po
 
 // An "open list:" problem starts from the open-ended list of its terms, `cons(a0, ..., cons(ak, ?0))`, and is sound
 // when the result is that list, or an infinite list (`tabulate(f)` or `unfold(f, b...)`) beginning with its terms.
-outcome run_open_list(const std::vector<poly_sample>& samples) {
+// A term listed among the problem's holes is the hole `?k` (k from 1, in order), and is not checked.
+outcome run_open_list(const seq_problem& p, const std::vector<poly_sample>& samples) {
     const auto start = std::chrono::steady_clock::now();
     seq_fit_manifest m{{}, k_poly_default_limits, k_poly_fit_default_limits, k_frontier};
     poly_kernel_manifest& kernel = m.kernel_;
     const expr* list = kernel.exprs_.make_var(0);
-    for (auto sample = samples.rbegin(); sample != samples.rend(); ++sample)
-        list = kernel.exprs_.make_functor(kernel.symbols_.intern_symbol("cons"),
-                                          {kernel.literals_.make_literal(sample->output), list});
+    std::set<size_t> unknown;
+    for (const auto& [index, coefficient] : p.holes)
+        unknown.insert(index);
+    for (size_t index = samples.size(); index-- > 0;) {
+        const auto hole = unknown.find(index);
+        const expr* term = hole == unknown.end()
+                               ? kernel.literals_.make_literal(samples[index].output)
+                               : kernel.exprs_.make_var(static_cast<uint32_t>(std::distance(unknown.begin(), hole) + 1));
+        list = kernel.exprs_.make_functor(kernel.symbols_.intern_symbol("cons"), {term, list});
+    }
     seq_fit_manifest::search_t search{m.rule_set_.rules_, kernel.sizes_, list, k_frontier};
     while (search.rewrites() < k_rewrites && search.next()) {}
     const double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
@@ -163,7 +173,8 @@ outcome run_open_list(const std::vector<poly_sample>& samples) {
             args.push_back(at);
             term = m.rule_set_.pw_evaluator_.evaluate_at(kernel.exprs_.make_functor(symbols.recurrence, args), point);
         }
-        if (!term.has_value() || term.value() != kernel.literals_.make_literal(samples[index].output))
+        const bool checked = !unknown.contains(index);
+        if (checked && (!term.has_value() || term.value() != kernel.literals_.make_literal(samples[index].output)))
             break;
         sound = index + 1 == samples.size();
     }
@@ -224,7 +235,7 @@ solved solve(const seq_problem& p, bool fast) {
     const bool skip_mcts = (fast && samples.size() > k_large) || !p.holes.empty() || open;
     const outcome skipped{.input = "", .cost = 0, .best = "(skipped)", .seconds = 0, .sound = true};
     if (open)
-        return solved{.points = samples.size(), .skip_mcts = true, .best_first = run_open_list(samples), .mcts = skipped};
+        return solved{.points = samples.size(), .skip_mcts = true, .best_first = run_open_list(p, samples), .mcts = skipped};
     return solved{.points = samples.size(), .skip_mcts = skip_mcts, .best_first = run_best_first(p, samples),
                   .mcts = skip_mcts ? skipped : run_mcts(samples)};
 }
@@ -297,6 +308,19 @@ int main(int argc, char** argv) {
         {"showcase: Pell from a late start, an unknown term and a miscount", "2*p1 + p2", {0, 1}, 4, 24, {{9, 3}}, {{5, 1}}, 17, "pw(case(point(13), 33464), lam(rec(lams(3, 2*#1 + #2), 0, 1, #0)))"},
         // reduce request #16: open-ended lists, `cons(a0, ..., ?0)`, read as infinite lists of sequences
         {"open list: #16 Fibonacci", "p1 + p2", {0, 1}, 0, 7, {}, {}, 8, "unfold(lams(3, #1 + #2), 0, 1)"},
+        // reduce request #35: linear recurrences with integer roots closed into powers and a polynomial
+        {"#35 2^n + 3^n", "5*p1 - 6*p2", {2, 5}, 0, 15, {}, {}, 8, "lam(exp(2, #0) + exp(3, #0))"},
+        {"2^n - n", "3*p1 - 2*p2 + 1", {1, 1}, 0, 15, {}, {}, 6, "lam(exp(2, #0) - #0)"},
+        {"3^n - 2^n", "5*p1 - 6*p2", {0, 1}, 0, 15, {}, {}, 8, "lam(exp(3, #0) - exp(2, #0))"},
+        {"(-1)^n + n^2", "-1*p1 + 2*i^2 - 2*i + 1", {1}, 0, 15, {}, {}, 8, "lam(exp(-1, #0) + #0^2)"},
+        {"2^n + n, order one", "2*p1 - i + 2", {1}, 0, 15, {}, {}, 6, "lam(exp(2, #0) + #0)"},
+        // reduce request #37: open lists with unknown terms, and short sequences, fitted without the index
+        {"open list: #37 Fibonacci, unknown term", "p1 + p2", {0, 1}, 0, 8, {}, {{4, 1}}, 8,
+         "unfold(lams(3, #1 + #2), 0, 1), ?1 = 3"},
+        {"open list: powers of two, unknown term", "2*p1", {1}, 0, 6, {}, {{1, 1}}, 5, "tabulate(lam(exp(2, #0))), ?1 = 2"},
+        {"open list: Pell, two unknown terms", "2*p1 + p2", {0, 1}, 0, 12, {}, {{3, 1}, {9, 1}}, 10,
+         "unfold(lams(3, 2 * #1 + #2), 0, 1)"},
+        {"Lucas, short", "p1 + p2", {2, 1}, 0, 6, {}, {}, 10, "lam(rec(lams(3, #1 + #2), 2, 1, #0))"},
         {"open list: Lucas", "p1 + p2", {2, 1}, 0, 9, {}, {}, 8, "unfold(lams(3, #1 + #2), 2, 1)"},
         {"open list: factorials", "i*p1", {1}, 0, 9, {}, {}, 7, "unfold(lam(lam(#0 * #1)), 1)"},
         {"open list: powers of 3", "3*p1", {1}, 0, 6, {}, {}, 5, "tabulate(lam(exp(3, #0)))"},

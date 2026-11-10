@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <vector>
 #include "composition/poly_kernel_manifest.hpp"
+#include "infrastructure/arith_linear_solver.hpp"
 #include "infrastructure/expr_pool.hpp"
 #include "infrastructure/expr_size.hpp"
 #include "infrastructure/proposer_union.hpp"
@@ -16,9 +17,11 @@
 #include "rules/poly_like_terms.hpp"
 #include "rules/poly_local_rules.hpp"
 #include "rules/poly_power_detector.hpp"
+#include "rules/rat_quotient_canceller.hpp"
+#include "value_objects/rat_symbols.hpp"
 
-// The full polynomial rule set over a kernel: the low-level local rules and every detector, applied at every
-// position, and the hole binder, applied to the whole expression (a binding substitutes everywhere). `rules_` is what a
+// The full polynomial rule set over a kernel: the low-level local rules, every detector and the cancelling of
+// quotients of polynomials (`rational`), applied at every position, and the hole binder, applied to the whole expression (a binding substitutes everywhere). `rules_` is what a
 // search injects; another solver that reduces polynomials borrows `local_rules_t` into its own local rules.
 struct poly_rules_manifest {
     using kernel_t = poly_kernel_manifest;
@@ -55,9 +58,15 @@ struct poly_rules_manifest {
         using poly_like_terms<kernel_t::expander_t, kernel_t::literals_t, expr_pool, kernel_t::literals_t,
                               expr_size>::poly_like_terms;
     };
+    using quotients_base_t = rat_quotient_canceller<kernel_t::expander_t, poly_arithmetic, poly_arithmetic,
+                                                    kernel_t::renderer_t, expr_pool, expr_size>;
+    struct quotients_t : quotients_base_t {
+        using quotients_base_t::quotients_base_t;
+    };
     using holes_base_t = poly_hole_binder<kernel_t::expander_t, kernel_t::renderer_t, kernel_t::renderer_t,
                                           poly_arithmetic, poly_arithmetic, poly_arithmetic, poly_arithmetic,
-                                          kernel_t::roots_t, expr_pool, expr_pool, expr_size>;
+                                          kernel_t::roots_t, expr_pool, expr_pool, expr_size,
+                                          arith_linear_solver>;
     struct holes_t : holes_base_t {
         using holes_base_t::holes_base_t;
     };
@@ -70,7 +79,8 @@ struct poly_rules_manifest {
         factor_t,
         power_t,
         splitter_t,
-        like_terms_t>;
+        like_terms_t,
+        quotients_t>;
     struct local_rules_t : local_rules_base_t {
         using local_rules_base_t::local_rules_base_t;
     };
@@ -96,6 +106,9 @@ struct poly_rules_manifest {
     power_t power_;
     splitter_t splitter_;
     like_terms_t like_terms_;
+    rat_symbols rat_symbols_;
+    quotients_t quotients_;
+    arith_linear_solver linear_solver_;
     holes_t holes_;
     // the rule lists
     local_rules_t local_rules_;

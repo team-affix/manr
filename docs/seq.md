@@ -58,11 +58,20 @@ regions can compare recurrences.
   into `a * exp(r, n) + b`, with `b = -d / (r - 1)` the fixed point and `a = a(0) - b`. It fires only when `b` is an
   integer, and drops the trivial parts. It always shrinks the expression. So `rec(lam(lam(2 * #1)), 1, n)` (cost 8)
   becomes `exp(2, n)` (3), and `rec(lam(lam(2 * #1 + 1)), 0, n)` (10) becomes `exp(2, n) - 1` (5).
+- **`seq_linear_closer`** (local rule): closes a linear recurrence with constant coefficients of any order, step
+  `c1 * #1 + ... + ck * #k + p(#0)`, when its characteristic polynomial splits into integer roots, each other than 1
+  simple (#35): `5 * #1 - 6 * #2` from 2, 5 is `exp(2, #0) + exp(3, #0)`, and `3 * #1 - 2 * #2 + 1` from 1, 1 is
+  `exp(2, #0) - #0`. The closed form is a power per root other than 1 plus a polynomial of degree deg p plus the
+  multiplicity of 1, its coefficients solved exactly from the first terms (`arith_linear_solver`) on more terms than
+  they need, which proves it. Only integer coefficients, only when the result holds a power and is smaller.
 
 - **`seq_open_list_reader`** (at the root, since it rebinds a hole): an open-ended list `cons(a0, ..., cons(a(k-1),
   ?n))` of at least 3 literal terms is the infinite list of a sequence, `tabulate(pw(case(point(0), a0), ...,
   case(point(k-1), a(k-1)), ?n))`: the terms become data over the index and the tail's hole the catch-all, which the
-  binder fits like any sequence (#16). Under a binding of the tail the two are the same list.
+  binder fits like any sequence (#16). Under a binding of the tail the two are the same list. A term holding a hole
+  becomes a label holding it (#37): `0, 1, 1, 2, ?1, 5, 8, 13, 21, ?0` reduces to `unfold(lams(3, #1 + #2), 0, 1)`
+  with `?1 = 3`. When the windows a hole breaks leave the data one step point short, the recurrence detector fits the
+  step without the index (over `#1`, ..., `#k`), which has one unknown fewer.
 - **`seq_unfolder`** (local rule): `tabulate(lam(rec(f, b0, ..., #0)))` is `unfold(f, b0, ...)`. So the open
   Fibonacci list `0, 1, 1, 2, 3, 5, 8, 13, ?0` reduces to `unfold(lams(3, #1 + #2), 0, 1)` (cost 8), the open powers
   of two to `tabulate(lam(exp(2, #0)))`, and open squares to `tabulate(lam(#0^2))`. Nothing evaluates infinite
@@ -105,8 +114,9 @@ the alternating terms (`plans.md`, search: stopping at a form nothing can improv
 
 - **Data that starts late with a step that has no inverse** (`p1^2 + 1`): its bases could be unknowns of the fit
   instead, or the recurrence could carry its start index.
-- **Closed forms of higher order.** Only order-one affine steps close. Fibonacci's closed form (Binet) is irrational.
-  An integer one, like `a(n) = 2^n + 3^n` from a second-order step, needs the roots of the characteristic polynomial.
+- **Closed forms of higher order** close when the characteristic roots are integers and the coefficients too
+  (#35). Not yet: repeated roots other than 1 (`n * 2^n`), rational coefficients (`(n^2 - 3n) / 2 + 2^n`), and
+  irrational roots (Fibonacci's Binet form), which stay recurrences.
 - **Recurrences inside larger expressions** are evaluated, but nothing proposes one as part of a larger model, e.g.
   a piecewise of recurrences, or `rec(...) + n^2`.
 - **Steps the polynomial domain cannot express**: `a(n) = a(n-1) + a(n-1) mod 3`, `a(n) = a(a(n-1))`.

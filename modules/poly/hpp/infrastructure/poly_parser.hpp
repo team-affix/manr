@@ -11,10 +11,11 @@
 #include "value_objects/integer.hpp"
 #include "value_objects/poly_symbols.hpp"
 
-// Parses infix polynomial text: `+ - * ^`, parentheses, integer literals, identifiers (including de Bruijn indices,
-// `#0`, `#1`, ..., which a polynomial treats as variables), free variables `?0`, `?1`, ..., unary minus. `+ - *` are
-// left-associative; `^` takes a non-negative integer literal. Integer literals may have any number of digits. `-e` is a negative literal when e is a literal, and
-// `-1 * e` otherwise. Malformed text throws std::invalid_argument.
+// Parses infix polynomial text: `+ - * ^`, `/` as the quotient `div` of rational functions, parentheses, integer
+// literals, identifiers (including de Bruijn indices, `#0`, `#1`, ..., which a polynomial treats as variables), free
+// variables `?0`, `?1`, ..., unary minus. `+ - *` are left-associative, as is `/` at the level of `*`; `^` takes a
+// non-negative integer literal. Integer literals may have any number of digits. `-e` is a negative literal when e is a
+// literal, and `-1 * e` otherwise. Malformed text throws std::invalid_argument.
 template<typename IInternSymbol, typename IMakeFunctor, typename IMakeVar, typename IMakeLiteral,
          typename IFindLiteralValue>
 struct poly_parser {
@@ -85,9 +86,15 @@ POLY_PARSER_TEMPLATE const expr* POLY_PARSER::parse_sum() {
 
 POLY_PARSER_TEMPLATE const expr* POLY_PARSER::parse_product() {
     const expr* product = parse_unary();
-    while (try_take('*'))
-        product = make_functor_.make_functor(symbols_.mul, {product, parse_unary()});
-    return product;
+    while (true) {
+        if (try_take('*')) {
+            product = make_functor_.make_functor(symbols_.mul, {product, parse_unary()});
+            continue;
+        }
+        if (!try_take('/'))
+            return product;
+        product = make_functor_.make_functor(intern_symbol_.intern_symbol("div"), {product, parse_unary()});
+    }
 }
 
 POLY_PARSER_TEMPLATE const expr* POLY_PARSER::parse_unary() {

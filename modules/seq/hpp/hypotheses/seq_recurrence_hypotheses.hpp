@@ -23,13 +23,19 @@ constexpr size_t k_seq_default_max_backward_steps = 64;
 // else solved by running the step backwards from the first k observed terms, at most `max_backward_steps` indices.
 // A step back solves `a(j) = s(j, a(j-1), ..., a(j-k))` for the oldest term, read as a line through its values at 0
 // and 1 and then checked exactly; a step that is not invertible there gives no recurrence. Needs more step points than
-// a step of degree one has unknowns; a constant sequence is left to the constant detector.
-template<typename IFindLiteralValue, typename IConvertSamples, typename IProposeStepHypotheses, typename IMakeLiteral,
+// a step of degree one has unknowns; a constant sequence is left to the constant detector. When the data is one step
+// point short of that (a short sequence, or one whose unknown terms break windows), the step is fitted without the
+// index instead (`propose_free_step_hypotheses`, over `#1`, ..., `#k`), which has one unknown fewer: most steps
+// (`#1 + #2`) do not use it.
+template<typename IFindLiteralValue, typename IConvertSamples, typename IProposeStepHypotheses,
+         typename IConvertFreeSamples, typename IProposeFreeStepHypotheses, typename IMakeLiteral,
          typename IMakeFunctor, typename IEvaluateStepAt>
 struct seq_recurrence_hypotheses {
     seq_recurrence_hypotheses(IFindLiteralValue& find_literal_value,
                               IConvertSamples& convert_samples,
                               IProposeStepHypotheses& propose_step_hypotheses,
+                              IConvertFreeSamples& convert_free_samples,
+                              IProposeFreeStepHypotheses& propose_free_step_hypotheses,
                               IMakeLiteral& make_literal,
                               IMakeFunctor& make_functor,
                               IEvaluateStepAt& evaluate_step_at,
@@ -46,6 +52,8 @@ private:
     IFindLiteralValue& find_literal_value_;
     IConvertSamples& convert_samples_;
     IProposeStepHypotheses& propose_step_hypotheses_;
+    IConvertFreeSamples& convert_free_samples_;
+    IProposeFreeStepHypotheses& propose_free_step_hypotheses_;
     IMakeLiteral& make_literal_;
     IMakeFunctor& make_functor_;
     IEvaluateStepAt& evaluate_step_at_;
@@ -58,16 +66,19 @@ private:
 };
 
 #define SEQ_RECURRENCE_HYPOTHESES_TEMPLATE                                                                   \
-    template<typename IFindLiteralValue, typename IConvertSamples, typename IProposeStepHypotheses, \
-             typename IMakeLiteral, typename IMakeFunctor, typename IEvaluateStepAt>
+    template<typename IFindLiteralValue, typename IConvertSamples, typename IProposeStepHypotheses,          \
+             typename IConvertFreeSamples, typename IProposeFreeStepHypotheses, typename IMakeLiteral,        \
+             typename IMakeFunctor, typename IEvaluateStepAt>
 #define SEQ_RECURRENCE_HYPOTHESES                                                                         \
-    seq_recurrence_hypotheses<IFindLiteralValue, IConvertSamples, IProposeStepHypotheses, IMakeLiteral, \
-                              IMakeFunctor, IEvaluateStepAt>
+    seq_recurrence_hypotheses<IFindLiteralValue, IConvertSamples, IProposeStepHypotheses, IConvertFreeSamples, \
+                              IProposeFreeStepHypotheses, IMakeLiteral, IMakeFunctor, IEvaluateStepAt>
 
 SEQ_RECURRENCE_HYPOTHESES_TEMPLATE SEQ_RECURRENCE_HYPOTHESES::seq_recurrence_hypotheses(
     IFindLiteralValue& find_literal_value,
     IConvertSamples& convert_samples,
     IProposeStepHypotheses& propose_step_hypotheses,
+    IConvertFreeSamples& convert_free_samples,
+    IProposeFreeStepHypotheses& propose_free_step_hypotheses,
     IMakeLiteral& make_literal,
     IMakeFunctor& make_functor,
     IEvaluateStepAt& evaluate_step_at,
@@ -79,6 +90,8 @@ SEQ_RECURRENCE_HYPOTHESES_TEMPLATE SEQ_RECURRENCE_HYPOTHESES::seq_recurrence_hyp
     : find_literal_value_(find_literal_value)
     , convert_samples_(convert_samples)
     , propose_step_hypotheses_(propose_step_hypotheses)
+    , convert_free_samples_(convert_free_samples)
+    , propose_free_step_hypotheses_(propose_free_step_hypotheses)
     , make_literal_(make_literal)
     , make_functor_(make_functor)
     , evaluate_step_at_(evaluate_step_at)
@@ -125,10 +138,19 @@ SEQ_RECURRENCE_HYPOTHESES_TEMPLATE void SEQ_RECURRENCE_HYPOTHESES::propose_hypot
             continue;
         samples.push_back(sample);
     }
-    if (samples.size() < order_ + 3)
+    if (samples.size() < order_ + 2)
         return;
     steps_.clear();
-    propose_step_hypotheses_.propose_hypotheses(convert_samples_.convert(samples), steps_);
+    const bool short_by_one = samples.size() == order_ + 2;
+    if (!short_by_one)
+        propose_step_hypotheses_.propose_hypotheses(convert_samples_.convert(samples), steps_);
+    for (poly_sample& sample : samples) {
+        if (!short_by_one)
+            break;
+        sample.inputs.erase(sample.inputs.begin());
+    }
+    if (short_by_one)
+        propose_free_step_hypotheses_.propose_hypotheses(convert_free_samples_.convert(samples), steps_);
     for (const expr* step : steps_) {
         const std::optional<std::vector<integer>> bases = find_bases(step, terms);
         if (!bases.has_value())

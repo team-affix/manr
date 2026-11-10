@@ -34,6 +34,19 @@ struct ListHolesIntegrationTest : ::testing::Test {
         }
         return texts;
     }
+    // the positives of every list of up to 3 elements in [-2, 2], plus the given case, under an open catch-all
+    const expr* positives_with(const expr* input, const expr* output) {
+        std::vector<pw_data_point> points = rules.converter_.convert(sample_listed(all_lists(-2, 2, 3), positives));
+        points.push_back(pw_data_point{.input = input, .output = output});
+        return rules.piecewise_.builder_.build(points, 0);
+    }
+    static std::vector<integer> positives(const std::vector<integer>& list) {
+        std::vector<integer> kept;
+        for (const integer& value : list)
+            if (value > 0)
+                kept.push_back(value);
+        return kept;
+    }
     static std::vector<integer> squared(const std::vector<integer>& list) {
         std::vector<integer> result;
         for (const integer& value : list)
@@ -74,4 +87,16 @@ TEST_F(ListHolesIntegrationTest, AnInputListHoldingAHoleNoValueExplainsStays) {
     rules.piecewise_.binder_.detect(squares_with(input, output), out);
     EXPECT_THAT(performed(), Contains("pw(case(cons(3, cons(?2, cons(1, nil))), cons(9, cons(15, cons(1, nil)))), "
                                       "lam(map(lam(#0^2), #0)))"));
+}
+
+TEST_F(ListHolesIntegrationTest, AnInputHoleTheFilterStopsAtIsBoundSoTheFilterReproducesTheCase) {
+    // reduce request #36: `lt(0, ?1)` has no truth value until ?1 is bound; at ?1 = 0 the filter gives [4, 7]
+    const expr* input = rules.values_.make_list({literal(4), manifest.kernel_.exprs_.make_var(1), literal(-5),
+                                                 literal(7)});
+    const expr* start = positives_with(input, rules.values_.make_list({literal(4), literal(7)}));
+    list_fit_manifest::search_t search{rules.rules_, manifest.kernel_.sizes_, start, 20000};
+    while (search.rewrites() < 3000 && search.next()) {}
+    std::ostringstream os;
+    manifest.kernel_.printer_.print(os, search.best());
+    EXPECT_EQ(os.str(), "lam(filter(lam(lt(0, #0)), #0))");
 }

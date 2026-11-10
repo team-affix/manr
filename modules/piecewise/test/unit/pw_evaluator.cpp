@@ -68,3 +68,8 @@ TEST_F(PwEvaluatorTest, ANestedPiecewiseIsEvaluatedThrough) {
     EXPECT_CALL(evaluate_at, evaluate_at(case_value, input)).WillOnce(Return(result));
     EXPECT_EQ(evaluator.evaluate_at(outer, input), std::optional<const expr*>{result});
 }
+
+TEST_F(PwEvaluatorTest, ACaseLabelTheDomainCannotEvaluateIsItsOwnValue) {
+    EXPECT_CALL(evaluate_at, evaluate_at(case_value, input)).WillOnce(Return(std::nullopt));
+    EXPECT_EQ(evaluator.evaluate_at(piecewise, input), std::optional<const expr*>{case_value});
+}

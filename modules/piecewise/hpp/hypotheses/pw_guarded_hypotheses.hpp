@@ -18,6 +18,8 @@ constexpr size_t k_pw_default_max_guards = 2;
 constexpr size_t k_pw_default_max_models = 8;
 constexpr size_t k_pw_default_min_guarded = 3;
 constexpr size_t k_pw_default_max_guarded_proposals = 4;
+constexpr size_t k_pw_default_max_peeled_atoms = 24;
+constexpr size_t k_pw_default_max_atom_depth = 2;
 
 // A detector that reads data as a guarded value, `pw(when(c, v), d)`: a default output d, and where the output is
 // something else, a condition c and a value v, split outer-inner (`docs/decomposing-detection.md`). Assuming d, every
@@ -47,11 +49,22 @@ constexpr size_t k_pw_default_max_guarded_proposals = 4;
 // most common outputs shared by at least `min_guarded` points, with as many others, is tried as k, when at least two
 // outputs are that common (with one, the model default reads the same branch) and together they cover at least half
 // of the points.
-template<typename IProposeConditions, typename IProposeValues, typename IEvaluateAt, typename IFindCost,
-         typename IMakeLiteral, typename IMakeFunctor>
+//
+// The condition may also come first, so a value may be a model: for each of the first `max_atoms` atoms the condition
+// domain offers (`propose_atoms`: primality, residues, ...), the points where it holds are fitted by the value domain's
+// single models (`propose_atom_values`, cheaper than all its readings), and when one model reproduces all of them and
+// at most half of the others, `when(atom, model)` is peeled and the others are read again by this detector, at most
+// `max_atom_depth` peels deep; the first atom that gives a reading ends it. So data that is `#0^2` at the primes, `2 *
+// #0` at the multiples of 4 and `#0 + 1` elsewhere reads as those three branches. Only on data of at least three times
+// `min_guarded` points that no model, piecewise or not, reproduces.
+template<typename IProposeConditions, typename IProposeAtoms, typename IProposeValues,
+         typename IProposeAtomValues, typename IEvaluateAt, typename IFindCost, typename IMakeLiteral,
+         typename IMakeFunctor>
 struct pw_guarded_hypotheses {
     pw_guarded_hypotheses(IProposeConditions& propose_conditions,
+                          IProposeAtoms& propose_atoms,
                           IProposeValues& propose_values,
+                          IProposeAtomValues& propose_atom_values,
                           IEvaluateAt& evaluate_at,
                           IFindCost& find_cost,
                           IMakeLiteral& make_literal,
@@ -60,7 +73,9 @@ struct pw_guarded_hypotheses {
                           size_t max_guards = k_pw_default_max_guards,
                           size_t max_models = k_pw_default_max_models,
                           size_t min_guarded = k_pw_default_min_guarded,
-                          size_t max_proposals = k_pw_default_max_guarded_proposals);
+                          size_t max_proposals = k_pw_default_max_guarded_proposals,
+                          size_t max_atoms = k_pw_default_max_peeled_atoms,
+                          size_t max_atom_depth = k_pw_default_max_atom_depth);
     void propose_hypotheses(const std::vector<pw_data_point>& points, std::vector<const expr*>& out);
 private:
     void propose_fresh(const std::vector<pw_data_point>& all, const std::vector<const expr*>& models,
@@ -68,10 +83,14 @@ private:
     void propose_guarded(const std::vector<pw_data_point>& points, const expr* fallback,
                          const std::vector<bool>& guarded, std::vector<const expr*>& out);
     void propose_peeled(const std::vector<pw_data_point>& points, const expr* value, std::vector<const expr*>& out);
+    void propose_atom_peeled(const std::vector<pw_data_point>& points, std::vector<const expr*>& out);
+    const expr* splice(const expr* region, const expr* fallback);
     bool reproduces(const expr* reading, const std::vector<pw_data_point>& points);
 
     IProposeConditions& propose_conditions_;
+    IProposeAtoms& propose_atoms_;
     IProposeValues& propose_values_;
+    IProposeAtomValues& propose_atom_values_;
     IEvaluateAt& evaluate_at_;
     IFindCost& find_cost_;
     IMakeLiteral& make_literal_;
@@ -81,17 +100,24 @@ private:
     size_t max_models_;
     size_t min_guarded_;
     size_t max_proposals_;
+    size_t max_atoms_;
+    size_t max_atom_depth_;
+    size_t depth_;
     std::map<std::vector<pw_data_point>, std::vector<const expr*>> proposed_;
 };
 
 #define PW_GUARDED_HYPOTHESES_TEMPLATE                                                                      \
-    template<typename IProposeConditions, typename IProposeValues, typename IEvaluateAt, typename IFindCost, \
-             typename IMakeLiteral, typename IMakeFunctor>
-#define PW_GUARDED_HYPOTHESES \
-    pw_guarded_hypotheses<IProposeConditions, IProposeValues, IEvaluateAt, IFindCost, IMakeLiteral, IMakeFunctor>
+    template<typename IProposeConditions, typename IProposeAtoms, typename IProposeValues,                    \
+             typename IProposeAtomValues, typename IEvaluateAt, typename IFindCost, typename IMakeLiteral,     \
+             typename IMakeFunctor>
+#define PW_GUARDED_HYPOTHESES                                                                                   \
+    pw_guarded_hypotheses<IProposeConditions, IProposeAtoms, IProposeValues, IProposeAtomValues, IEvaluateAt,  \
+                          IFindCost, IMakeLiteral, IMakeFunctor>
 
 PW_GUARDED_HYPOTHESES_TEMPLATE PW_GUARDED_HYPOTHESES::pw_guarded_hypotheses(IProposeConditions& propose_conditions,
+                                                                            IProposeAtoms& propose_atoms,
                                                                             IProposeValues& propose_values,
+                                                                            IProposeAtomValues& propose_atom_values,
                                                                             IEvaluateAt& evaluate_at,
                                                                             IFindCost& find_cost,
                                                                             IMakeLiteral& make_literal,
@@ -100,9 +126,13 @@ PW_GUARDED_HYPOTHESES_TEMPLATE PW_GUARDED_HYPOTHESES::pw_guarded_hypotheses(IPro
                                                                             size_t max_guards,
                                                                             size_t max_models,
                                                                             size_t min_guarded,
-                                                                            size_t max_proposals)
+                                                                            size_t max_proposals,
+                                                                            size_t max_atoms,
+                                                                            size_t max_atom_depth)
     : propose_conditions_(propose_conditions)
+    , propose_atoms_(propose_atoms)
     , propose_values_(propose_values)
+    , propose_atom_values_(propose_atom_values)
     , evaluate_at_(evaluate_at)
     , find_cost_(find_cost)
     , make_literal_(make_literal)
@@ -112,6 +142,9 @@ PW_GUARDED_HYPOTHESES_TEMPLATE PW_GUARDED_HYPOTHESES::pw_guarded_hypotheses(IPro
     , max_models_(max_models)
     , min_guarded_(min_guarded)
     , max_proposals_(max_proposals)
+    , max_atoms_(max_atoms)
+    , max_atom_depth_(max_atom_depth)
+    , depth_(0)
     , proposed_() {}
 
 PW_GUARDED_HYPOTHESES_TEMPLATE void PW_GUARDED_HYPOTHESES::propose_hypotheses(const std::vector<pw_data_point>& points,
@@ -160,6 +193,7 @@ PW_GUARDED_HYPOTHESES_TEMPLATE void PW_GUARDED_HYPOTHESES::propose_fresh(const s
     // which points each model reproduces; a model that reproduces them all leaves nothing to guard, unless it is a
     // piecewise
     std::vector<std::vector<bool>> misses;
+    bool explained = false;
     const size_t kept_models = std::min(models.size(), max_models_);
     for (size_t index = 0; index < kept_models; ++index) {
         std::vector<bool> missed;
@@ -170,8 +204,10 @@ PW_GUARDED_HYPOTHESES_TEMPLATE void PW_GUARDED_HYPOTHESES::propose_fresh(const s
         // a piecewise that reproduces them all may still be larger than a guarded reading
         const expr::functor* head = std::get_if<expr::functor>(&models[index]->content);
         const bool piecewise = head != nullptr && head->id == symbols_.piecewise;
-        if (std::find(missed.begin(), missed.end(), true) == missed.end() && !piecewise)
+        const bool exact = std::find(missed.begin(), missed.end(), true) == missed.end();
+        if (exact && !piecewise)
             return;
+        explained = explained || exact;
         misses.push_back(missed);
     }
     std::vector<std::pair<size_t, const expr*>> common;
@@ -209,6 +245,10 @@ PW_GUARDED_HYPOTHESES_TEMPLATE void PW_GUARDED_HYPOTHESES::propose_fresh(const s
             continue;
         propose_guarded(points, models[index], misses[index], out);
     }
+    // conditions first: a model where an atom holds, the other points read again
+    const bool peelable = !explained && depth_ < max_atom_depth_ && points.size() >= 3 * min_guarded_;
+    if (peelable)
+        propose_atom_peeled(points, out);
 }
 
 // pw(when(c, v), fallback) for each condition read from the guarded points and each value fitted to them.
@@ -269,17 +309,80 @@ PW_GUARDED_HYPOTHESES_TEMPLATE void PW_GUARDED_HYPOTHESES::propose_peeled(const 
     propose_hypotheses(rest, defaults);
     for (const expr* condition : conditions)
         for (const expr* fallback : defaults) {
-            std::vector<const expr*> branches{make_functor_.make_functor(symbols_.region, {condition, value})};
-            const expr::functor* inner = std::get_if<expr::functor>(&fallback->content);
-            const bool nested = inner != nullptr && inner->id == symbols_.piecewise;
-            if (nested)
-                branches.insert(branches.end(), inner->args.begin(), inner->args.end());
-            if (!nested)
-                branches.push_back(fallback);
-            const expr* reading = make_functor_.make_functor(symbols_.piecewise, branches);
+            const expr* reading = splice(make_functor_.make_functor(symbols_.region, {condition, value}), fallback);
             if (reproduces(reading, points))
                 out.push_back(reading);
         }
+}
+
+// pw(when(atom, model), d) for each atom whose points one model reproduces, and each reading d of the other points
+PW_GUARDED_HYPOTHESES_TEMPLATE void PW_GUARDED_HYPOTHESES::propose_atom_peeled(const std::vector<pw_data_point>& points,
+                                                                              std::vector<const expr*>& out) {
+    std::vector<const expr*> atoms;
+    propose_atoms_.propose_atoms(points, atoms);
+    const expr* holds = make_literal_.make_literal(integer(1));
+    const expr* fails = make_literal_.make_literal(integer(0));
+    for (size_t index = 0; index < atoms.size() && index < max_atoms_; ++index) {
+        const expr* test = make_functor_.make_functor(
+            symbols_.piecewise, {make_functor_.make_functor(symbols_.region, {atoms[index], holds}), fails});
+        std::vector<pw_data_point> held;
+        std::vector<pw_data_point> rest;
+        bool decided = true;
+        for (const pw_data_point& point : points) {
+            const std::optional<const expr*> truth = evaluate_at_.evaluate_at(test, point.input);
+            decided = decided && truth.has_value();
+            if (!decided)
+                break;
+            (truth.value() == holds ? held : rest).push_back(point);
+        }
+        const bool readable = decided && held.size() >= min_guarded_ && rest.size() >= min_guarded_;
+        if (!readable)
+            continue;
+        std::vector<const expr*> values;
+        propose_atom_values_.propose_hypotheses(held, values);
+        const expr* model = nullptr;
+        for (const expr* value : values) {
+            const bool smaller = model == nullptr || find_cost_.cost(value) < find_cost_.cost(model);
+            if (smaller && reproduces(value, held))
+                model = value;
+        }
+        if (model == nullptr)
+            continue;
+        // a model of the atom's points that also explains most others is the default, with exceptions, not a branch
+        size_t explained = 0;
+        for (const pw_data_point& point : rest) {
+            const std::optional<const expr*> value = evaluate_at_.evaluate_at(model, point.input);
+            explained += value.has_value() && value.value() == point.output ? 1 : 0;
+        }
+        if (2 * explained > rest.size())
+            continue;
+        std::vector<const expr*> defaults;
+        ++depth_;
+        propose_hypotheses(rest, defaults);
+        --depth_;
+        const expr* region = make_functor_.make_functor(symbols_.region, {atoms[index], model});
+        const size_t before = out.size();
+        for (const expr* fallback : defaults) {
+            const expr* reading = splice(region, fallback);
+            if (reproduces(reading, points))
+                out.push_back(reading);
+        }
+        // the first atom that peels is enough: another order of the same branches reads the same
+        if (out.size() > before)
+            return;
+    }
+}
+
+// pw(region, fallback), the branches of a piecewise fallback spliced in
+PW_GUARDED_HYPOTHESES_TEMPLATE const expr* PW_GUARDED_HYPOTHESES::splice(const expr* region, const expr* fallback) {
+    std::vector<const expr*> branches{region};
+    const expr::functor* inner = std::get_if<expr::functor>(&fallback->content);
+    const bool nested = inner != nullptr && inner->id == symbols_.piecewise;
+    if (nested)
+        branches.insert(branches.end(), inner->args.begin(), inner->args.end());
+    if (!nested)
+        branches.push_back(fallback);
+    return make_functor_.make_functor(symbols_.piecewise, branches);
 }
 
 PW_GUARDED_HYPOTHESES_TEMPLATE bool PW_GUARDED_HYPOTHESES::reproduces(const expr* reading,

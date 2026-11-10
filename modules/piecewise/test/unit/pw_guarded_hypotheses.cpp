@@ -23,6 +23,9 @@ namespace {
 struct MockProposeConditions {
     MOCK_METHOD(void, propose_hypotheses, (const std::vector<pw_data_point>&, std::vector<const expr*>&));
 };
+struct MockProposeAtoms {
+    MOCK_METHOD(void, propose_atoms, (const std::vector<pw_data_point>&, std::vector<const expr*>&));
+};
 struct MockProposeValues {
     MOCK_METHOD(void, propose_hypotheses, (const std::vector<pw_data_point>&, std::vector<const expr*>&));
 };
@@ -50,14 +53,16 @@ struct PwGuardedHypothesesTest : ::testing::Test {
     }
     expr_pool pool{};
     ::testing::NiceMock<MockProposeConditions> conditions;
+    ::testing::NiceMock<MockProposeAtoms> atoms;
     ::testing::NiceMock<MockProposeValues> values;
     ::testing::NiceMock<MockEvaluateAt> evaluate_at;
     ::testing::NiceMock<MockFindCost> find_cost;
     ::testing::NiceMock<MockMakeLiteral> make_literal;
     pw_symbols symbols{.piecewise = 7, .branch = 8, .region = 9};
-    pw_guarded_hypotheses<MockProposeConditions, MockProposeValues, MockEvaluateAt, MockFindCost, MockMakeLiteral,
-                          expr_pool>
-        guarded{conditions, values, evaluate_at, find_cost, make_literal, pool, symbols, 1, 8, 1, 4};
+    using guarded_t = pw_guarded_hypotheses<MockProposeConditions, MockProposeAtoms, MockProposeValues,
+                                            MockProposeValues, MockEvaluateAt, MockFindCost, MockMakeLiteral,
+                                            expr_pool>;
+    guarded_t guarded{conditions, atoms, values, values, evaluate_at, find_cost, make_literal, pool, symbols, 1, 8, 1, 4, 24, 2};
     const expr* zero = pool.make_functor(100, {});
     const expr* one = pool.make_functor(101, {});
     const expr* five = pool.make_functor(105, {});
@@ -180,9 +185,7 @@ TEST_F(PwGuardedHypothesesTest, ANestedReadingOfTheOtherPointsIsSplicedIntoOnePi
 TEST_F(PwGuardedHypothesesTest, AFewRepeatedOutputsAmongManyAreNotPeeled) {
     // 0 at keys 1, 2; 5 at keys 3, 4; six other outputs: with outputs common from two points, the common outputs
     // cover less than half
-    pw_guarded_hypotheses<MockProposeConditions, MockProposeValues, MockEvaluateAt, MockFindCost, MockMakeLiteral,
-                          expr_pool>
-        sparse{conditions, values, evaluate_at, find_cost, make_literal, pool, symbols, 2, 8, 2, 4};
+    guarded_t sparse{conditions, atoms, values, values, evaluate_at, find_cost, make_literal, pool, symbols, 2, 8, 2, 4, 24, 2};
     std::vector<pw_data_point> points{point(1, zero), point(2, zero), point(3, five), point(4, five)};
     for (uint32_t key = 5; key <= 10; ++key)
         points.push_back(point(key, pool.make_functor(110 + key, {})));
@@ -194,4 +197,43 @@ TEST_F(PwGuardedHypothesesTest, AFewRepeatedOutputsAmongManyAreNotPeeled) {
             EXPECT_FALSE(data.size() == 10 && ones == 2);
         }));
     sparse.propose_hypotheses(points, out);
+}
+
+TEST_F(PwGuardedHypothesesTest, AModelWhereAnAtomHoldsIsPeeledAndTheRestReadAgain) {
+    // keys 1-3: the atom holds and model_a gives their outputs; keys 4-6: model_b gives theirs
+    const expr* atom = pool.make_functor(60, {});
+    const expr* model_a = pool.make_functor(61, {});
+    const expr* model_b = pool.make_functor(62, {});
+    std::vector<pw_data_point> points;
+    std::vector<pw_data_point> held;
+    std::vector<pw_data_point> rest;
+    for (uint32_t key = 1; key <= 6; ++key) {
+        points.push_back(point(key, pool.make_functor(200 + key, {})));
+        (key <= 3 ? held : rest).push_back(points.back());
+    }
+    const expr* test = pool.make_functor(symbols.piecewise, {pool.make_functor(symbols.region, {atom, one}), zero});
+    ON_CALL(evaluate_at, evaluate_at(test, _)).WillByDefault(Invoke([&](const expr*, const expr* input) {
+        return std::optional<const expr*>(std::get<expr::functor>(input->content).id <= 3 ? one : zero);
+    }));
+    for (const expr* model_value : {model_a, model_b})
+        ON_CALL(evaluate_at, evaluate_at(model_value, _)).WillByDefault(Invoke([&, model_value](const expr*, const expr* input) {
+            const bool first = std::get<expr::functor>(input->content).id <= 3;
+            return std::optional<const expr*>(first == (model_value == model_a) ? outputs.at(input) : zero);
+        }));
+    ON_CALL(atoms, propose_atoms(_, _)).WillByDefault(Invoke([&](const std::vector<pw_data_point>& data,
+                                                                 std::vector<const expr*>& found) {
+        if (data == points)
+            found.push_back(atom);
+    }));
+    ON_CALL(values, propose_hypotheses(_, _)).WillByDefault(Invoke([&](const std::vector<pw_data_point>& data,
+                                                                       std::vector<const expr*>& found) {
+        if (data == held)
+            found.push_back(model_a);
+        if (data == rest)
+            found.push_back(model_b);
+    }));
+    guarded.propose_hypotheses(points, out);
+    const expr* reading = pool.make_functor(symbols.piecewise, {pool.make_functor(symbols.region, {atom, model_a}),
+                                                                 model_b});
+    EXPECT_THAT(out, Contains(reading));
 }

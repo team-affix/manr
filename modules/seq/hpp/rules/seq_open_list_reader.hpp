@@ -16,7 +16,8 @@ constexpr size_t k_seq_default_min_open_terms = 3;
 // variable, is the infinite list of a sequence's terms that begins with them: `tabulate(pw(case(point(0), a0), ...,
 // case(point(k-1), a(k-1)), ?n))`, data over the index whose catch-all is the hole, so fitting the sequence binds it.
 // The two are one list under a binding (the tail is the sequence from index k on, for any sequence the catch-all
-// becomes), so this reads the whole expression and is applied at the root. At least `min_terms` terms, all literals.
+// becomes), so this reads the whole expression and is applied at the root. A term may hold holes (an unknown term
+// `?1`), which become labels holding holes that fitting binds; at least `min_terms` terms are literals.
 template<typename IFindLiteralValue, typename IMakeLiteral, typename IMakeFunctor>
 struct seq_open_list_reader {
     seq_open_list_reader(IFindLiteralValue& find_literal_value,
@@ -29,6 +30,8 @@ struct seq_open_list_reader {
                          size_t min_terms = k_seq_default_min_open_terms);
     void detect(const expr* e, std::vector<rewrite>& out);
 private:
+    static bool holds_hole(const expr* e);
+
     IFindLiteralValue& find_literal_value_;
     IMakeLiteral& make_literal_;
     IMakeFunctor& make_functor_;
@@ -61,18 +64,21 @@ SEQ_OPEN_LIST_READER_TEMPLATE SEQ_OPEN_LIST_READER::seq_open_list_reader(IFindLi
 
 SEQ_OPEN_LIST_READER_TEMPLATE void SEQ_OPEN_LIST_READER::detect(const expr* e, std::vector<rewrite>& out) {
     std::vector<const expr*> terms;
+    size_t known = 0;
     const expr* rest = e;
     while (true) {
         const expr::functor* f = std::get_if<expr::functor>(&rest->content);
         if (f == nullptr || f->id != cons_symbol_ || f->args.size() != 2)
             break;
-        if (!find_literal_value_.find_value(f->args[0]).has_value())
+        const bool literal = find_literal_value_.find_value(f->args[0]).has_value();
+        if (!literal && !holds_hole(f->args[0]))
             return;
+        known += literal ? 1 : 0;
         terms.push_back(f->args[0]);
         rest = f->args[1];
     }
     const bool open = std::holds_alternative<expr::var>(rest->content);
-    if (!open || terms.size() < min_terms_)
+    if (!open || known < min_terms_)
         return;
     out.push_back([this, terms, rest]() {
         std::vector<const expr*> branches;
@@ -84,6 +90,15 @@ SEQ_OPEN_LIST_READER_TEMPLATE void SEQ_OPEN_LIST_READER::detect(const expr* e, s
         const expr* data = make_functor_.make_functor(symbols_.piecewise, branches);
         return make_functor_.make_functor(tabulation_symbol_, {data});
     });
+}
+
+SEQ_OPEN_LIST_READER_TEMPLATE bool SEQ_OPEN_LIST_READER::holds_hole(const expr* e) {
+    if (std::holds_alternative<expr::var>(e->content))
+        return true;
+    for (const expr* arg : std::get<expr::functor>(e->content).args)
+        if (holds_hole(arg))
+            return true;
+    return false;
 }
 
 #undef SEQ_OPEN_LIST_READER

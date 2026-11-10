@@ -11,6 +11,7 @@
 #include "hypotheses/num_prime_hypotheses.hpp"
 #include "hypotheses/seq_recurrence_hypotheses.hpp"
 #include "infrastructure/abs_applying_evaluator.hpp"
+#include "infrastructure/arith_linear_solver.hpp"
 #include "infrastructure/abs_binders.hpp"
 #include "infrastructure/abs_function_maker.hpp"
 #include "infrastructure/expr_pool.hpp"
@@ -24,6 +25,7 @@
 #include "infrastructure/subterm_proposer.hpp"
 #include "rules/abs_binder_merger.hpp"
 #include "rules/seq_open_list_reader.hpp"
+#include "rules/seq_linear_closer.hpp"
 #include "rules/seq_power_closer.hpp"
 #include "rules/seq_unfolder.hpp"
 #include "value_objects/abs_symbols.hpp"
@@ -36,7 +38,8 @@
 
 // The rules for fitting integer sequences (data over one index variable), on a polynomial kernel: everything
 // polynomial fitting does (`fit_`), plus the recurrences of order 1 to 3 read off consecutive terms, whose steps go to
-// polynomial fitting over the index `#0` and the previous terms `#1` to `#3` (`first_steps_` to `third_steps_`), and
+// polynomial fitting over the index `#0` and the previous terms `#1` to `#3` (`first_steps_` to `third_steps_`, or
+// without the index when the data is one step short, `first_free_steps_` to `third_free_steps_`), and
 // the closing rule that turns a geometric recurrence into a power. The evaluator runs recurrences and powers and
 // leaves the rest to the polynomial evaluator, and chains of binders merge into one `lams`. A piecewise is a
 // function of the index: what replaces its catch-all is closed over it, `lam(b)` with the index `#0` in b, and a
@@ -78,6 +81,7 @@ struct seq_fit_rules_manifest {
 
     // ---- hypotheses: add one's type here, then to `hypotheses_t` ----
     using recurrences_base_t = seq_recurrence_hypotheses<kernel_t::literals_t, fit_t::converter_t,
+                                                         fit_t::interpolations_t, fit_t::converter_t,
                                                          fit_t::interpolations_t, kernel_t::literals_t, expr_pool,
                                                          fit_t::evaluator_t>;
     struct recurrences_t : recurrences_base_t {
@@ -106,6 +110,11 @@ struct seq_fit_rules_manifest {
         using seq_power_closer<binders_t, kernel_t::expander_t, kernel_t::literals_t, kernel_t::literals_t,
                                expr_pool>::seq_power_closer;
     };
+    using linear_closer_base_t = seq_linear_closer<binders_t, kernel_t::expander_t, kernel_t::literals_t,
+                                                   kernel_t::literals_t, expr_pool, arith_linear_solver, expr_size>;
+    struct linear_closer_t : linear_closer_base_t {
+        using linear_closer_base_t::linear_closer_base_t;
+    };
     struct merger_t : abs_binder_merger<binders_t, kernel_t::literals_t, expr_pool> {
         using abs_binder_merger<binders_t, kernel_t::literals_t, expr_pool>::abs_binder_merger;
     };
@@ -121,6 +130,7 @@ struct seq_fit_rules_manifest {
         piecewise_t::binder_t,
         piecewise_t::absorber_t,
         closer_t,
+        linear_closer_t,
         unfolder_t,
         merger_t,
         poly_rules_manifest::local_rules_t>;
@@ -154,6 +164,9 @@ struct seq_fit_rules_manifest {
     fit_t first_steps_;
     fit_t second_steps_;
     fit_t third_steps_;
+    fit_t first_free_steps_;
+    fit_t second_free_steps_;
+    fit_t third_free_steps_;
     num_prime_table prime_table_;
     binders_t binders_;
     function_maker_t function_maker_;
@@ -171,6 +184,8 @@ struct seq_fit_rules_manifest {
     // rules
     piecewise_t piecewise_;
     closer_t closer_;
+    arith_linear_solver linear_solver_;
+    linear_closer_t linear_closer_;
     unfolder_t unfolder_;
     merger_t merger_;
     open_lists_t open_lists_;

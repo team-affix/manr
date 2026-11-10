@@ -63,8 +63,8 @@ list_fit_rules_manifest::list_fit_rules_manifest(
     , combinations_(atoms_, conditions_, condition_logic_.hypotheses_, kernel.sizes_, kernel.literals_,
                     kernel.literals_, kernel.exprs_, logic_symbols_, condition_logic_.variables_, point_symbol_)
     , conditions_union_(primes_, combinations_)
-    , guarded_(conditions_union_, element_fit_.hypotheses_, element_values_, kernel.sizes_, kernel.literals_,
-               kernel.exprs_, pw_symbols_)
+    , guarded_(conditions_union_, atoms_, element_fit_.hypotheses_, element_fit_.interpolations_, element_values_,
+               kernel.sizes_, kernel.literals_, kernel.exprs_, pw_symbols_)
     , integer_maps_(values_, kernel.literals_, element_fit_.converter_, guarded_, kernel.exprs_,
                     list_symbols_)
     , integer_folds_(kernel.literals_, step_fit_.converter_, step_fit_.hypotheses_, kernel.exprs_, list_symbols_)

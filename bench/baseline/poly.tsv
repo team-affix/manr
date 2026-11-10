@@ -1,249 +1,293 @@
 # problem	solver	cost	target	seconds	sound
-identity	full best-1st	1	1	3.2922e-05	1
-identity	full mcts	1	1	8.2946e-05	1
-identity	base best-1st	1	1	6.597e-06	1
-identity	base mcts	1	1	5.9114e-05	1
-like terms	full best-1st	3	3	8.5451e-05	1
-like terms	full mcts	3	3	0.000293134	1
-like terms	base best-1st	3	3	3.053e-05	1
-like terms	base mcts	3	3	0.000439759	1
-power fold	full best-1st	3	3	3.4253e-05	1
-power fold	full mcts	3	3	0.000255372	1
-power fold	base best-1st	3	3	1.2002e-05	1
-power fold	base mcts	3	3	0.000371383	1
-hidden cancellation	full best-1st	3	3	0.0174387	1
-hidden cancellation	full mcts	3	3	0.00725862	1
-hidden cancellation	base best-1st	11	3	0.00393297	1
-hidden cancellation	base mcts	11	3	0.00459774	1
-distributivity	full best-1st	5	5	0.00207906	1
-distributivity	full mcts	5	5	0.00159183	1
-distributivity	base best-1st	5	5	2.1663e-05	1
-distributivity	base mcts	5	5	0.000210437	1
-square of sum	full best-1st	5	5	0.0677574	1
-square of sum	full mcts	5	5	0.041374	1
-square of sum	base best-1st	11	5	0.00247826	1
-square of sum	base mcts	11	5	0.00174457	1
-cube of sum	full best-1st	5	5	0.165035	1
-cube of sum	full mcts	5	5	0.359323	1
-cube of sum	base best-1st	23	5	0.00633608	1
-cube of sum	base mcts	21	5	0.0114431	1
-difference of squares	full best-1st	3	3	0.0205495	1
-difference of squares	full mcts	3	3	0.0262057	1
-difference of squares	base best-1st	3	3	0.00255404	1
-difference of squares	base mcts	11	3	0.00299848	1
-cubic roots	full best-1st	9	11	0.0686546	1
-cubic roots	full mcts	9	11	0.09357	1
-cubic roots	base best-1st	11	11	0.00785233	1
-cubic roots	base mcts	13	11	0.00426012	1
-two squares	full best-1st	11	11	0.0751882	1
-two squares	full mcts	11	11	0.155569	1
-two squares	base best-1st	13	11	0.00459405	1
-two squares	base mcts	15	11	0.00642331	1
-content	full best-1st	11	13	0.0467182	1
-content	full mcts	11	13	0.063318	1
-content	base best-1st	11	13	0.00239412	1
-content	base mcts	13	13	0.00228019	1
-two-variable factor	full best-1st	9	9	0.102956	1
-two-variable factor	full mcts	9	9	0.12028	1
-two-variable factor	base best-1st	11	9	0.00165651	1
-two-variable factor	base mcts	11	9	0.000882231	1
-quartic difference	full best-1st	11	13	0.0814373	1
-quartic difference	full mcts	11	13	0.167917	1
-quartic difference	base best-1st	11	13	0.00669591	1
-quartic difference	base mcts	11	13	0.00545	1
-expanded cubic times linear	full best-1st	21	11	0.220744	1
-expanded cubic times linear	full mcts	11	11	1.02961	1
-expanded cubic times linear	base best-1st	35	11	0.00286261	1
-expanded cubic times linear	base mcts	35	11	0.0100679	1
-trinomial square	full best-1st	7	7	0.172186	1
-trinomial square	full mcts	7	7	0.528017	1
-trinomial square	base best-1st	25	7	0.0167078	1
-trinomial square	base mcts	25	7	0.0148247	1
-cancelling quartic	full best-1st	1	1	0.0918209	1
-cancelling quartic	full mcts	1	1	0.177958	1
-cancelling quartic	base best-1st	29	1	0.00766178	1
-cancelling quartic	base mcts	27	1	0.0156488	1
-cube of trinomial	full best-1st	9	9	0.0778487	1
-cube of trinomial	full mcts	9	9	0.201161	1
-cube of trinomial	base best-1st	9	9	0.00474351	1
-cube of trinomial	base mcts	9	9	0.00518102	1
-horner	full best-1st	19	19	0.134946	1
-horner	full mcts	19	19	0.36035	1
-horner	base best-1st	27	19	0.00486046	1
-horner	base mcts	25	19	0.0149265	1
-square of product	full best-1st	9	9	0.171037	1
-square of product	full mcts	9	9	1.28748	1
-square of product	base best-1st	47	9	0.00397567	1
-square of product	base mcts	47	9	0.0138524	1
-hidden symmetric	full best-1st	13	13	0.258693	1
-hidden symmetric	full mcts	13	13	0.94439	1
-hidden symmetric	base best-1st	17	13	0.00210957	1
-hidden symmetric	base mcts	17	13	0.00482422	1
-nested	full best-1st	5	5	0.00482384	1
-nested	full mcts	5	5	0.021058	1
-nested	base best-1st	5	5	0.00470398	1
-nested	base mcts	13	5	0.0140878	1
-completed square	full best-1st	7	7	0.106341	1
-completed square	full mcts	7	7	0.0273011	1
-completed square	base best-1st	7	7	0.000140313	1
-completed square	base mcts	7	7	0.000465969	1
-showcase: difference of cubes of neighbours	full best-1st	7	7	0.0139305	1
-showcase: difference of cubes of neighbours	full mcts	7	7	0.00934318	1
-showcase: difference of cubes of neighbours	base best-1st	11	7	0.00527749	1
-showcase: difference of cubes of neighbours	base mcts	11	7	0.00660325	1
-showcase: polarization	full best-1st	5	5	0.0713318	1
-showcase: polarization	full mcts	5	5	0.0979313	1
-showcase: polarization	base best-1st	11	5	0.00630798	1
-showcase: polarization	base mcts	11	5	0.00628291	1
-showcase: a full cancellation	full best-1st	1	1	0.00532784	1
-showcase: a full cancellation	full mcts	1	1	0.0416025	1
-showcase: a full cancellation	base best-1st	17	1	0.0056867	1
-showcase: a full cancellation	base mcts	17	1	0.0105116	1
-showcase: a constant in disguise	full best-1st	1	1	0.0647729	1
-showcase: a constant in disguise	full mcts	1	1	0.0806539	1
-showcase: a constant in disguise	base best-1st	1	1	0.00923386	1
-showcase: a constant in disguise	base mcts	13	1	0.01518	1
-showcase: binomial cube	full best-1st	5	5	0.0436141	1
-showcase: binomial cube	full mcts	5	5	0.0608551	1
-showcase: binomial cube	base best-1st	13	5	0.00534785	1
-showcase: binomial cube	base mcts	11	5	0.00431417	1
-showcase: common factor	full best-1st	7	7	0.0252637	1
-showcase: common factor	full mcts	7	7	0.0200735	1
-showcase: common factor	base best-1st	7	7	0.000812006	1
-showcase: common factor	base mcts	7	7	0.000851367	1
-showcase: telescoping product	full best-1st	3	3	0.016799	1
-showcase: telescoping product	full mcts	3	3	0.0175674	1
-showcase: telescoping product	base best-1st	3	3	0.00344107	1
-showcase: telescoping product	base mcts	11	3	0.00444161	1
-showcase: square of a cube	full best-1st	7	7	0.0326236	1
-showcase: square of a cube	full mcts	7	7	0.0196214	1
-showcase: square of a cube	base best-1st	11	7	0.00408165	1
-showcase: square of a cube	base mcts	11	7	0.00245368	1
-showcase: two squares identity	full best-1st	19	15	0.382684	1
-showcase: two squares identity	full mcts	15	15	0.676892	1
-showcase: two squares identity	base best-1st	19	15	0.00326769	1
-showcase: two squares identity	base mcts	19	15	0.0035661	1
-showcase: tenth power	full best-1st	5	5	0.0962893	1
-showcase: tenth power	full mcts	5	5	1.76497	1
-showcase: tenth power	base best-1st	57	5	0.00906973	1
-showcase: tenth power	base mcts	55	5	0.0441131	1
-showcase: square of a trinomial	full best-1st	7	7	0.174435	1
-showcase: square of a trinomial	full mcts	7	7	0.530335	1
-showcase: square of a trinomial	base best-1st	25	7	0.0082333	1
-showcase: square of a trinomial	base mcts	25	7	0.011843	1
-showcase: product of conjugates	full best-1st	9	9	0.0298113	1
-showcase: product of conjugates	full mcts	9	9	0.10336	1
-showcase: product of conjugates	base best-1st	15	9	0.00525048	1
-showcase: product of conjugates	base mcts	15	9	0.00751528	1
-#17 (?0 + 1)^2 - ?0^2	full best-1st	1	1	0.00345632	1
-#17 (?0 + 1)^2 - ?0^2	full mcts	1	1	0.000726835	1
-#17 (?0 + 1)^2 - ?0^2	base best-1st	5	1	0.00170187	1
-#17 (?0 + 1)^2 - ?0^2	base mcts	9	1	0.00133816	1
-#25 a hole bound to an input	full best-1st	1	1	0.0290008	1
-#25 a hole bound to an input	full mcts	1	1	0.00088181	1
-#25 a hole bound to an input	base best-1st	9	1	6.6529e-05	1
-#25 a hole bound to an input	base mcts	9	1	0.000562599	1
-#26 x * ?0 + x * y	full best-1st	1	1	8.1418e-05	1
-#26 x * ?0 + x * y	full mcts	1	1	0.000136585	1
-#26 x * ?0 + x * y	base best-1st	5	1	1.5283e-05	1
-#26 x * ?0 + x * y	base mcts	5	1	0.000161157	1
-a hole twice	full best-1st	1	1	1.1059e-05	1
-a hole twice	full mcts	1	1	5.6676e-05	1
-a hole twice	base best-1st	3	1	2.048e-06	1
-a hole twice	base mcts	3	1	0.000126755	1
-two holes in a product	full best-1st	5	5	0.000354625	1
-two holes in a product	full mcts	5	5	0.000480723	1
-two holes in a product	base best-1st	9	5	4.0122e-05	1
-two holes in a product	base mcts	9	5	0.000201956	1
-a hole cancelling a product	full best-1st	1	1	0.0172765	1
-a hole cancelling a product	full mcts	1	1	0.00169576	1
-a hole cancelling a product	base best-1st	9	1	0.00127438	1
-a hole cancelling a product	base mcts	11	1	0.00063885	1
-a hole cubed against a cube	full best-1st	1	1	0.170237	1
-a hole cubed against a cube	full mcts	1	1	0.0714404	1
-a hole cubed against a cube	base best-1st	13	1	0.005771	1
-a hole cubed against a cube	base mcts	13	1	0.00830526	1
-a scaled hole, nearest quotient	full best-1st	1	1	0.00281436	1
-a scaled hole, nearest quotient	full mcts	1	1	0.00119523	1
-a scaled hole, nearest quotient	base best-1st	11	1	0.000495181	1
-a scaled hole, nearest quotient	base mcts	11	1	0.000672864	1
-random 1	full best-1st	15	15	0.0751279	1
-random 1	full mcts	15	15	0.495959	1
-random 1	base best-1st	27	15	0.00677408	1
-random 1	base mcts	25	15	0.018802	1
-random 2	full best-1st	17	21	0.12578	1
-random 2	full mcts	17	21	0.903755	1
-random 2	base best-1st	33	21	0.00570532	1
-random 2	base mcts	35	21	0.0173255	1
-random 3	full best-1st	23	25	0.288141	1
-random 3	full mcts	23	25	2.94438	1
-random 3	base best-1st	75	25	0.00728918	1
-random 3	base mcts	77	25	0.0369222	1
-random 4	full best-1st	17	19	0.474735	1
-random 4	full mcts	23	19	4.99715	1
-random 4	base best-1st	115	19	0.0107512	1
-random 4	base mcts	115	19	0.0623654	1
-random 5	full best-1st	15	15	0.0965916	1
-random 5	full mcts	15	15	0.317876	1
-random 5	base best-1st	27	15	0.0193213	1
-random 5	base mcts	25	15	0.010914	1
-random 6	full best-1st	13	13	0.149646	1
-random 6	full mcts	13	13	0.242207	1
-random 6	base best-1st	23	13	0.00558275	1
-random 6	base mcts	21	13	0.00802374	1
-random 7	full best-1st	7	13	0.0852128	1
-random 7	full mcts	7	13	0.170764	1
-random 7	base best-1st	15	13	0.00639808	1
-random 7	base mcts	15	13	0.00602804	1
-random 8	full best-1st	31	33	0.411002	1
-random 8	full mcts	31	33	5.43216	1
-random 8	base best-1st	117	33	0.0105945	1
-random 8	base mcts	117	33	0.0625075	1
-random 9	full best-1st	5	5	0.00143361	1
-random 9	full mcts	5	5	0.000606812	1
-random 9	base best-1st	5	5	0.000506715	1
-random 9	base mcts	5	5	0.000565597	1
-random 10	full best-1st	15	15	0.104147	1
-random 10	full mcts	15	15	0.341478	1
-random 10	base best-1st	27	15	0.00902281	1
-random 10	base mcts	25	15	0.00911808	1
-random 11	full best-1st	9	9	0.262785	1
-random 11	full mcts	9	9	2.26968	1
-random 11	base best-1st	65	9	0.00987106	1
-random 11	base mcts	67	9	0.0408661	1
-random 12	full best-1st	17	17	0.0960231	1
-random 12	full mcts	17	17	0.538886	1
-random 12	base best-1st	35	17	0.00330536	1
-random 12	base mcts	35	17	0.00885959	1
-wide 1	full best-1st	53	55	0.896674	1
-wide 1	full mcts	55	55	120.471	1
-wide 1	base best-1st	703	55	0.0603798	1
-wide 1	base mcts	699	55	1.58774	1
-wide 2	full best-1st	15	17	0.742118	1
-wide 2	full mcts	15	17	18.0243	1
-wide 2	base best-1st	265	17	0.0212117	1
-wide 2	base mcts	265	17	0.219358	1
-wide 3	full best-1st	11	11	0.122091	1
-wide 3	full mcts	11	11	0.177926	1
-wide 3	base best-1st	19	11	0.00524764	1
-wide 3	base mcts	19	11	0.00769979	1
-wide 4	full best-1st	45	55	0.770754	1
-wide 4	full mcts	55	55	94.2404	1
-wide 4	base best-1st	597	55	0.0421935	1
-wide 4	base mcts	597	55	1.10374	1
-wide 5	full best-1st	57	59	1.17934	1
-wide 5	full mcts	133	59	187.487	1
-wide 5	base best-1st	931	59	0.0702144	1
-wide 5	base mcts	933	59	2.47058	1
-wide 6	full best-1st	21	23	1.00879	1
-wide 6	full mcts	23	23	76.444	1
-wide 6	base best-1st	581	23	0.0393899	1
-wide 6	base mcts	583	23	1.12866	1
-wide 7	full best-1st	91	71	1.24959	1
-wide 7	full mcts	197	71	222.074	1
-wide 7	base best-1st	1079	71	0.0900689	1
-wide 7	base mcts	1079	71	3.02436	1
-wide 8	full best-1st	43	43	0.673178	1
-wide 8	full mcts	43	43	79.3408	1
-wide 8	base best-1st	537	43	0.043114	1
-wide 8	base mcts	535	43	1.07421	1
+identity	full best-1st	1	1	2.7203e-05	1
+identity	full mcts	1	1	8.8117e-05	1
+identity	base best-1st	1	1	4.043e-06	1
+identity	base mcts	1	1	5.8317e-05	1
+like terms	full best-1st	3	3	7.8009e-05	1
+like terms	full mcts	3	3	0.000295192	1
+like terms	base best-1st	3	3	2.3794e-05	1
+like terms	base mcts	3	3	0.000315656	1
+power fold	full best-1st	3	3	3.5587e-05	1
+power fold	full mcts	3	3	0.000244983	1
+power fold	base best-1st	3	3	1.038e-05	1
+power fold	base mcts	3	3	0.000265379	1
+hidden cancellation	full best-1st	3	3	0.0184772	1
+hidden cancellation	full mcts	3	3	0.00772661	1
+hidden cancellation	base best-1st	11	3	0.00428592	1
+hidden cancellation	base mcts	11	3	0.00517256	1
+distributivity	full best-1st	5	5	0.00170342	1
+distributivity	full mcts	5	5	0.00157883	1
+distributivity	base best-1st	5	5	2.1353e-05	1
+distributivity	base mcts	5	5	0.000212818	1
+square of sum	full best-1st	5	5	0.0773853	1
+square of sum	full mcts	5	5	0.0496268	1
+square of sum	base best-1st	11	5	0.00295725	1
+square of sum	base mcts	11	5	0.00216132	1
+cube of sum	full best-1st	5	5	0.145241	1
+cube of sum	full mcts	5	5	0.366938	1
+cube of sum	base best-1st	23	5	0.0055073	1
+cube of sum	base mcts	21	5	0.00884415	1
+difference of squares	full best-1st	3	3	0.0195441	1
+difference of squares	full mcts	3	3	0.0251406	1
+difference of squares	base best-1st	3	3	0.0025883	1
+difference of squares	base mcts	11	3	0.00295792	1
+cubic roots	full best-1st	9	11	0.0782152	1
+cubic roots	full mcts	9	11	0.11157	1
+cubic roots	base best-1st	11	11	0.00506116	1
+cubic roots	base mcts	13	11	0.00444024	1
+two squares	full best-1st	11	11	0.0863813	1
+two squares	full mcts	11	11	0.236868	1
+two squares	base best-1st	13	11	0.00776574	1
+two squares	base mcts	15	11	0.00760814	1
+content	full best-1st	11	13	0.0808527	1
+content	full mcts	11	13	0.109924	1
+content	base best-1st	11	13	0.00413988	1
+content	base mcts	13	13	0.00367375	1
+two-variable factor	full best-1st	9	9	0.0964154	1
+two-variable factor	full mcts	9	9	0.115861	1
+two-variable factor	base best-1st	11	9	0.00139496	1
+two-variable factor	base mcts	11	9	0.000765849	1
+quartic difference	full best-1st	11	13	0.0962734	1
+quartic difference	full mcts	11	13	0.200088	1
+quartic difference	base best-1st	11	13	0.00579947	1
+quartic difference	base mcts	11	13	0.00632113	1
+expanded cubic times linear	full best-1st	21	11	0.178195	1
+expanded cubic times linear	full mcts	11	11	0.945461	1
+expanded cubic times linear	base best-1st	35	11	0.00548461	1
+expanded cubic times linear	base mcts	35	11	0.0166326	1
+trinomial square	full best-1st	7	7	0.171927	1
+trinomial square	full mcts	7	7	0.524195	1
+trinomial square	base best-1st	25	7	0.0119787	1
+trinomial square	base mcts	25	7	0.0133116	1
+cancelling quartic	full best-1st	1	1	0.0897971	1
+cancelling quartic	full mcts	1	1	0.177006	1
+cancelling quartic	base best-1st	29	1	0.00782179	1
+cancelling quartic	base mcts	27	1	0.0159083	1
+cube of trinomial	full best-1st	9	9	0.0707642	1
+cube of trinomial	full mcts	9	9	0.191131	1
+cube of trinomial	base best-1st	9	9	0.00466664	1
+cube of trinomial	base mcts	9	9	0.00514142	1
+horner	full best-1st	19	19	0.140417	1
+horner	full mcts	19	19	0.363592	1
+horner	base best-1st	27	19	0.00419424	1
+horner	base mcts	25	19	0.0128463	1
+square of product	full best-1st	9	9	0.165344	1
+square of product	full mcts	9	9	1.23217	1
+square of product	base best-1st	47	9	0.00723041	1
+square of product	base mcts	47	9	0.0253991	1
+hidden symmetric	full best-1st	13	13	0.251507	1
+hidden symmetric	full mcts	13	13	0.929047	1
+hidden symmetric	base best-1st	17	13	0.00199883	1
+hidden symmetric	base mcts	17	13	0.0050214	1
+nested	full best-1st	5	5	0.00491567	1
+nested	full mcts	5	5	0.022743	1
+nested	base best-1st	5	5	0.00526039	1
+nested	base mcts	13	5	0.0146577	1
+completed square	full best-1st	7	7	0.0341782	1
+completed square	full mcts	7	7	0.00871756	1
+completed square	base best-1st	7	7	0.000150311	1
+completed square	base mcts	7	7	0.000586517	1
+showcase: difference of cubes of neighbours	full best-1st	7	7	0.0145786	1
+showcase: difference of cubes of neighbours	full mcts	7	7	0.010118	1
+showcase: difference of cubes of neighbours	base best-1st	11	7	0.00593791	1
+showcase: difference of cubes of neighbours	base mcts	11	7	0.00816792	1
+showcase: polarization	full best-1st	5	5	0.0247359	1
+showcase: polarization	full mcts	5	5	0.0324345	1
+showcase: polarization	base best-1st	11	5	0.00412465	1
+showcase: polarization	base mcts	11	5	0.00473824	1
+showcase: a full cancellation	full best-1st	1	1	0.00566356	1
+showcase: a full cancellation	full mcts	1	1	0.0358661	1
+showcase: a full cancellation	base best-1st	17	1	0.00526975	1
+showcase: a full cancellation	base mcts	17	1	0.00906361	1
+showcase: a constant in disguise	full best-1st	1	1	0.0216048	1
+showcase: a constant in disguise	full mcts	1	1	0.0253765	1
+showcase: a constant in disguise	base best-1st	1	1	0.00353045	1
+showcase: a constant in disguise	base mcts	13	1	0.00593289	1
+showcase: binomial cube	full best-1st	5	5	0.0460656	1
+showcase: binomial cube	full mcts	5	5	0.0633101	1
+showcase: binomial cube	base best-1st	13	5	0.00547539	1
+showcase: binomial cube	base mcts	11	5	0.00447164	1
+showcase: common factor	full best-1st	7	7	0.0304848	1
+showcase: common factor	full mcts	7	7	0.0229746	1
+showcase: common factor	base best-1st	7	7	0.000877302	1
+showcase: common factor	base mcts	7	7	0.000958922	1
+showcase: telescoping product	full best-1st	3	3	0.0152006	1
+showcase: telescoping product	full mcts	3	3	0.0184866	1
+showcase: telescoping product	base best-1st	3	3	0.00384537	1
+showcase: telescoping product	base mcts	11	3	0.00485386	1
+showcase: square of a cube	full best-1st	7	7	0.0332204	1
+showcase: square of a cube	full mcts	7	7	0.0200779	1
+showcase: square of a cube	base best-1st	11	7	0.00356555	1
+showcase: square of a cube	base mcts	11	7	0.00217511	1
+showcase: two squares identity	full best-1st	19	15	0.277565	1
+showcase: two squares identity	full mcts	15	15	0.712297	1
+showcase: two squares identity	base best-1st	19	15	0.0029927	1
+showcase: two squares identity	base mcts	19	15	0.00341194	1
+showcase: tenth power	full best-1st	5	5	0.0997927	1
+showcase: tenth power	full mcts	5	5	1.68859	1
+showcase: tenth power	base best-1st	57	5	0.00929566	1
+showcase: tenth power	base mcts	55	5	0.0416649	1
+showcase: square of a trinomial	full best-1st	7	7	0.16489	1
+showcase: square of a trinomial	full mcts	7	7	0.508142	1
+showcase: square of a trinomial	base best-1st	25	7	0.0122246	1
+showcase: square of a trinomial	base mcts	25	7	0.0136274	1
+showcase: product of conjugates	full best-1st	9	9	0.0304487	1
+showcase: product of conjugates	full mcts	9	9	0.115152	1
+showcase: product of conjugates	base best-1st	15	9	0.0185307	1
+showcase: product of conjugates	base mcts	15	9	0.0109269	1
+#17 (?0 + 1)^2 - ?0^2	full best-1st	1	1	0.00596242	1
+#17 (?0 + 1)^2 - ?0^2	full mcts	1	1	0.0010086	1
+#17 (?0 + 1)^2 - ?0^2	base best-1st	5	1	0.00255494	1
+#17 (?0 + 1)^2 - ?0^2	base mcts	9	1	0.00216705	1
+#25 a hole bound to an input	full best-1st	1	1	0.0324929	1
+#25 a hole bound to an input	full mcts	1	1	0.00100864	1
+#25 a hole bound to an input	base best-1st	9	1	7.2863e-05	1
+#25 a hole bound to an input	base mcts	9	1	0.000644359	1
+#26 x * ?0 + x * y	full best-1st	1	1	0.00011224	1
+#26 x * ?0 + x * y	full mcts	1	1	0.000224315	1
+#26 x * ?0 + x * y	base best-1st	5	1	2.0629e-05	1
+#26 x * ?0 + x * y	base mcts	5	1	0.000523216	1
+a hole twice	full best-1st	1	1	1.7154e-05	1
+a hole twice	full mcts	1	1	0.000102562	1
+a hole twice	base best-1st	3	1	3.579e-06	1
+a hole twice	base mcts	3	1	0.000257956	1
+two holes in a product	full best-1st	5	5	0.000495352	1
+two holes in a product	full mcts	5	5	0.000743836	1
+two holes in a product	base best-1st	9	5	5.4234e-05	1
+two holes in a product	base mcts	9	5	0.000331264	1
+a hole cancelling a product	full best-1st	1	1	0.0248023	1
+a hole cancelling a product	full mcts	1	1	0.00246557	1
+a hole cancelling a product	base best-1st	9	1	0.00183345	1
+a hole cancelling a product	base mcts	11	1	0.000962671	1
+a hole cubed against a cube	full best-1st	1	1	0.140059	1
+a hole cubed against a cube	full mcts	1	1	0.0694062	1
+a hole cubed against a cube	base best-1st	13	1	0.00381076	1
+a hole cubed against a cube	base mcts	13	1	0.00524628	1
+a scaled hole, nearest quotient	full best-1st	1	1	0.00508816	1
+a scaled hole, nearest quotient	full mcts	1	1	0.00213658	1
+a scaled hole, nearest quotient	base best-1st	11	1	0.000848046	1
+a scaled hole, nearest quotient	base mcts	11	1	0.000981987	1
+#32 (?0 - x)^2 + y	full best-1st	1	1	0.0129181	1
+#32 (?0 - x)^2 + y	full mcts	1	1	0.000422	1
+#32 (?0 - x)^2 + y	base best-1st	7	1	0.00426015	1
+#32 (?0 - x)^2 + y	base mcts	7	1	0.00140773	1
+a hole bound to a product	full best-1st	1	1	0.0132499	1
+a hole bound to a product	full mcts	1	1	0.00772082	1
+a hole bound to a product	base best-1st	21	1	0.00450669	1
+a hole bound to a product	base mcts	19	1	0.00820769	1
+a scaled square completed	full best-1st	1	1	0.0105353	1
+a scaled square completed	full mcts	1	1	0.0101359	1
+a scaled square completed	base best-1st	17	1	0.00458307	1
+a scaled square completed	base mcts	17	1	0.00685223	1
+#33 two holes as coefficients	full best-1st	1	1	0.0344767	1
+#33 two holes as coefficients	full mcts	1	1	0.0124481	1
+#33 two holes as coefficients	base best-1st	15	1	0.00366697	1
+#33 two holes as coefficients	base mcts	15	1	0.00484197	1
+two holes leaving a constant	full best-1st	1	1	0.0425609	1
+two holes leaving a constant	full mcts	1	1	0.0080608	1
+two holes leaving a constant	base best-1st	13	1	0.00367222	1
+two holes leaving a constant	base mcts	13	1	0.00262695	1
+three holes as coefficients	full best-1st	1	1	0.0520278	1
+three holes as coefficients	full mcts	1	1	0.032286	1
+three holes as coefficients	base best-1st	23	1	0.0041623	1
+three holes as coefficients	base mcts	25	1	0.00917026	1
+a product of two holes, not linear	full best-1st	5	5	0.00246425	1
+a product of two holes, not linear	full mcts	5	5	0.00148836	1
+a product of two holes, not linear	base best-1st	9	5	0.00026069	1
+a product of two holes, not linear	base mcts	9	5	0.000559523	1
+#38 (x^2 - 1) / (x - 1)	full best-1st	3	3	0.000168701	1
+#38 (x^2 - 1) / (x - 1)	full mcts	3	3	0.000351627	1
+#38 (x^2 - 1) / (x - 1)	base best-1st	9	3	9.809e-06	1
+#38 (x^2 - 1) / (x - 1)	base mcts	9	3	0.00027656	1
+a quotient by a square's root	full best-1st	3	3	0.102471	1
+a quotient by a square's root	full mcts	3	3	0.0487325	1
+a quotient by a square's root	base best-1st	15	3	0.00407502	1
+a quotient by a square's root	base mcts	15	3	0.00340368	1
+a common factor of degree one	full best-1st	7	7	0.0497187	1
+a common factor of degree one	full mcts	7	7	0.0123607	1
+a common factor of degree one	base best-1st	13	7	0.00061859	1
+a common factor of degree one	base mcts	13	7	0.000945231	1
+a quotient with nothing in common	full best-1st	9	9	0.000388885	1
+a quotient with nothing in common	full mcts	9	9	0.000917682	1
+a quotient with nothing in common	base best-1st	9	9	2.7989e-05	1
+a quotient with nothing in common	base mcts	9	9	0.000253334	1
+random 1	full best-1st	15	15	0.0963493	1
+random 1	full mcts	15	15	0.52549	1
+random 1	base best-1st	27	15	0.00478648	1
+random 1	base mcts	25	15	0.0118841	1
+random 2	full best-1st	17	21	0.17669	1
+random 2	full mcts	17	21	0.882018	1
+random 2	base best-1st	33	21	0.00302972	1
+random 2	base mcts	35	21	0.00909316	1
+random 3	full best-1st	23	25	0.18916	1
+random 3	full mcts	23	25	2.60223	1
+random 3	base best-1st	75	25	0.00674392	1
+random 3	base mcts	77	25	0.0345081	1
+random 4	full best-1st	17	19	0.41998	1
+random 4	full mcts	23	19	6.15145	1
+random 4	base best-1st	115	19	0.0149732	1
+random 4	base mcts	115	19	0.084825	1
+random 5	full best-1st	15	15	0.126514	1
+random 5	full mcts	15	15	0.411623	1
+random 5	base best-1st	27	15	0.00913139	1
+random 5	base mcts	25	15	0.0129115	1
+random 6	full best-1st	13	13	0.12271	1
+random 6	full mcts	13	13	0.273562	1
+random 6	base best-1st	23	13	0.0165744	1
+random 6	base mcts	21	13	0.0131915	1
+random 7	full best-1st	7	13	0.0659845	1
+random 7	full mcts	7	13	0.130495	1
+random 7	base best-1st	15	13	0.00497502	1
+random 7	base mcts	15	13	0.00484998	1
+random 8	full best-1st	31	33	0.295645	1
+random 8	full mcts	31	33	6.34163	1
+random 8	base best-1st	117	33	0.0249668	1
+random 8	base mcts	117	33	0.120815	1
+random 9	full best-1st	5	5	0.00762036	1
+random 9	full mcts	5	5	0.000622672	1
+random 9	base best-1st	5	5	0.000497879	1
+random 9	base mcts	5	5	0.00357346	1
+random 10	full best-1st	15	15	0.133575	1
+random 10	full mcts	15	15	0.407597	1
+random 10	base best-1st	27	15	0.00989253	1
+random 10	base mcts	25	15	0.00612291	1
+random 11	full best-1st	9	9	0.343483	1
+random 11	full mcts	9	9	2.37023	1
+random 11	base best-1st	65	9	0.00948008	1
+random 11	base mcts	67	9	0.0386509	1
+random 12	full best-1st	17	17	0.0912952	1
+random 12	full mcts	17	17	0.540545	1
+random 12	base best-1st	35	17	0.00335204	1
+random 12	base mcts	35	17	0.00835097	1
+wide 1	full best-1st	53	55	1.11309	1
+wide 1	full mcts	55	55	125.26	1
+wide 1	base best-1st	703	55	0.0518479	1
+wide 1	base mcts	699	55	1.41964	1
+wide 2	full best-1st	15	17	0.778976	1
+wide 2	full mcts	15	17	19.2978	1
+wide 2	base best-1st	265	17	0.0261741	1
+wide 2	base mcts	265	17	0.256488	1
+wide 3	full best-1st	11	11	0.0924672	1
+wide 3	full mcts	11	11	0.135912	1
+wide 3	base best-1st	19	11	0.00374712	1
+wide 3	base mcts	19	11	0.00599793	1
+wide 4	full best-1st	45	55	0.655604	1
+wide 4	full mcts	55	55	97.3574	1
+wide 4	base best-1st	597	55	0.0454705	1
+wide 4	base mcts	597	55	1.15885	1
+wide 5	full best-1st	57	59	1.31623	1
+wide 5	full mcts	133	59	198.1	1
+wide 5	base best-1st	931	59	0.0693272	1
+wide 5	base mcts	933	59	2.39568	1
+wide 6	full best-1st	21	23	1.21965	1
+wide 6	full mcts	23	23	101.914	1
+wide 6	base best-1st	581	23	0.0457248	1
+wide 6	base mcts	583	23	1.28927	1
+wide 7	full best-1st	91	71	0.768512	1
+wide 7	full mcts	197	71	242.515	1
+wide 7	base best-1st	1079	71	0.1046	1
+wide 7	base mcts	1079	71	3.05287	1
+wide 8	full best-1st	43	43	0.60219	1
+wide 8	full mcts	43	43	84.7559	1
+wide 8	base best-1st	537	43	0.0557139	1
+wide 8	base mcts	535	43	1.2751	1

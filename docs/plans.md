@@ -197,12 +197,13 @@ carries into its elements, and the matcher matches a value holding holes against
 17 gives `?1 = 4`). Every other `?n` is carried through untouched, which is sound but never generalizes. What remains
 (`rule-design.md`, section 5):
 
-- **Keys the evaluators cannot carry**: a hole in a filtered element (a condition at a hole has no value), a hole
-  standing for a whole list or its length, and labels with holes matched against residuals with holes.
+- **Keys the evaluators cannot carry**: a hole standing for a whole list or its length. (A hole the model stops at,
+  as a filter does at `lt(0, ?1)`, is tried at 0 and at 1 by the branch filter, #36; labels with holes matched
+  against residuals with holes compare as polynomials.)
 - Holes in labels the logic table reader refutes (a truth table with an unknown row is a don't care there).
 - **Binding rules on expressions** in more domains: polynomials have `poly_hole_binder` (#17, #25, #26), logic the
-  truth-table refit (#19); lists, sequences and conditions have none, and polynomial holes of degree above 1 with
-  middle terms, or several holes solved jointly, are not read.
+  truth-table refit (#19); lists, sequences and conditions have none. Polynomial holes are read in one hole
+  (including middle terms by the completing shift, #32) and jointly when linear (#33), not in one term together.
 - **One hole, one binding.** A rewrite that binds `?n` substitutes it everywhere in the whole expression, so it acts
   at the root even when it was found in a subterm (a binding rewrite, beside `subterm_proposer`'s local ones).
 - **A text form for `?n`** in the parsers, so reduce requests with holes can be written as text.

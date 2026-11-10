@@ -17,7 +17,8 @@ constexpr int k_num_default_max_modulus = 6;
 // The atomic predicates over one integer input `#0` that condition detectors combine (a list element, a polynomial
 // input): thresholds `lt(v, #0)` and `lt(#0, v)` at every distinct value v of the data (when there are at most
 // `max_thresholds` of them), residues `eq(mod(#0, m), r)` for every modulus m from 2 to `max_modulus`, and primality
-// `is_prime(#0)`. The data points are `point(v)`; points of any other shape are skipped.
+// `is_prime(#0)`. The data points are `point(v)`; nothing for data with points of any other shape (several inputs),
+// whose conditions these atoms over one input do not describe.
 template<typename IFindLiteralValue, typename IMakeLiteral, typename IMakeFunctor>
 struct num_condition_atoms {
     num_condition_atoms(IFindLiteralValue& find_literal_value,
@@ -74,7 +75,7 @@ NUM_CONDITION_ATOMS_TEMPLATE void NUM_CONDITION_ATOMS::propose_atoms(const std::
     for (const pw_data_point& point : points) {
         const expr::functor* key = std::get_if<expr::functor>(&point.input->content);
         if (key == nullptr || key->args.size() != 1)
-            continue;
+            return;
         const std::optional<integer> value = find_literal_value_.find_value(key->args[0]);
         if (!value.has_value())
             continue;

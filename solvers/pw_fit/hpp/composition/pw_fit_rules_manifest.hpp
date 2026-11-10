@@ -16,9 +16,10 @@
 // The piecewise rules every fitting solver shares, over one domain's hypotheses and evaluator. `binder_` binds a data
 // piecewise's catch-all to a model the hypotheses propose, closed over the piecewise's own inputs (`closing_`), and
 // drops the branches it reproduces; `absorber_` drops the branches a model already in place reproduces. A branch is
-// reproduced when the model's value at its input matches its label under one binding of the label's holes, solved
-// over the domain's `add`, `sub`, `mul` and `pow`. `builder_` turns data points into the piecewise a search starts
-// from, and `matcher_` is how a test or a benchmark checks that a result reproduces a sample.
+// reproduced when the model's value at its input matches its label under one binding of the label's holes, solved over
+// the domain's `add`, `sub`, `mul` and `pow`, and both rules carry that binding into the branches they keep. `builder_`
+// turns data points into the piecewise a search starts from, and `matcher_` is how a test or a benchmark checks that a
+// result reproduces a sample.
 template<typename IProposeHypotheses, typename IEvaluateAt, typename IMakeFunction, typename ILiterals>
 struct pw_fit_rules_manifest {
     struct closing_t : abs_closing_hypotheses<IProposeHypotheses, IMakeFunction> {
@@ -30,20 +31,20 @@ struct pw_fit_rules_manifest {
     struct builder_t : pw_builder<expr_pool, expr_pool, assembler_t> {
         using pw_builder<expr_pool, expr_pool, assembler_t>::pw_builder;
     };
-    struct solver_t : arith_hole_solver<ILiterals, ILiterals> {
-        using arith_hole_solver<ILiterals, ILiterals>::arith_hole_solver;
+    struct solver_t : arith_hole_solver<ILiterals, ILiterals, expr_pool> {
+        using arith_hole_solver<ILiterals, ILiterals, expr_pool>::arith_hole_solver;
     };
-    struct matcher_t : pw_hole_matcher<solver_t> {
-        using pw_hole_matcher<solver_t>::pw_hole_matcher;
+    struct matcher_t : pw_hole_matcher<solver_t, expr_pool> {
+        using pw_hole_matcher<solver_t, expr_pool>::pw_hole_matcher;
     };
-    struct filter_t : pw_branch_filter<IEvaluateAt, matcher_t> {
-        using pw_branch_filter<IEvaluateAt, matcher_t>::pw_branch_filter;
+    struct filter_t : pw_branch_filter<IEvaluateAt, matcher_t, matcher_t> {
+        using pw_branch_filter<IEvaluateAt, matcher_t, matcher_t>::pw_branch_filter;
     };
-    struct binder_t : pw_extension_binder<closing_t, filter_t, assembler_t> {
-        using pw_extension_binder<closing_t, filter_t, assembler_t>::pw_extension_binder;
+    struct binder_t : pw_extension_binder<closing_t, filter_t, assembler_t, matcher_t> {
+        using pw_extension_binder<closing_t, filter_t, assembler_t, matcher_t>::pw_extension_binder;
     };
-    struct absorber_t : pw_branch_absorber<filter_t, assembler_t> {
-        using pw_branch_absorber<filter_t, assembler_t>::pw_branch_absorber;
+    struct absorber_t : pw_branch_absorber<filter_t, assembler_t, matcher_t> {
+        using pw_branch_absorber<filter_t, assembler_t, matcher_t>::pw_branch_absorber;
     };
 
     pw_fit_rules_manifest(IProposeHypotheses& propose_hypotheses,
@@ -86,11 +87,11 @@ PW_FIT_RULES_MANIFEST_TEMPLATE PW_FIT_RULES_MANIFEST::pw_fit_rules_manifest(IPro
     : closing_(propose_hypotheses, make_function, point_symbol)
     , assembler_(exprs, symbols)
     , builder_(exprs, exprs, assembler_, symbols)
-    , solver_(literals, literals, add_symbol, sub_symbol, mul_symbol, pow_symbol)
-    , matcher_(solver_)
-    , filter_(evaluate_at, matcher_, symbols)
-    , binder_(closing_, filter_, assembler_, symbols)
-    , absorber_(filter_, assembler_, symbols) {}
+    , solver_(literals, literals, exprs, add_symbol, sub_symbol, mul_symbol, pow_symbol)
+    , matcher_(solver_, exprs)
+    , filter_(evaluate_at, matcher_, matcher_, symbols, {literals.make_literal(0), literals.make_literal(1)})
+    , binder_(closing_, filter_, assembler_, matcher_, symbols)
+    , absorber_(filter_, assembler_, matcher_, symbols) {}
 
 #undef PW_FIT_RULES_MANIFEST
 #undef PW_FIT_RULES_MANIFEST_TEMPLATE

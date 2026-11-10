@@ -9,8 +9,9 @@
 
 // The value of an expression at an input, through any piecewise in it: the first branch that applies gives the
 // value (`case(key, value)` when `key` is the input, `when(condition, value)` when the domain says the condition
-// holds there), else the otherwise. Anything that is not a piecewise is evaluated by the domain. No value when the
-// domain cannot evaluate it, or cannot decide a condition it reaches.
+// holds there), else the otherwise. Anything that is not a piecewise is evaluated by the domain. A case's label the
+// domain cannot evaluate (one holding holes) is its own value. No value when the domain cannot evaluate a model, or
+// cannot decide a condition it reaches.
 template<typename IEvaluateAt, typename IHoldsAt>
 struct pw_evaluator {
     pw_evaluator(IEvaluateAt& evaluate_at, IHoldsAt& holds_at, pw_symbols symbols);
@@ -39,7 +40,9 @@ PW_EVALUATOR_TEMPLATE std::optional<const expr*> PW_EVALUATOR::evaluate_at(const
         if (branch.id == symbols_.branch) {
             if (branch.args[0] != input)
                 continue;
-            return evaluate_at(branch.args[1], input);
+            // a case's label is its output: the domain evaluates it (a label may be a model), or it stands as is
+            const std::optional<const expr*> label = evaluate_at(branch.args[1], input);
+            return label.has_value() ? label : std::optional<const expr*>(branch.args[1]);
         }
         if (branch.id != symbols_.region)
             return std::nullopt;

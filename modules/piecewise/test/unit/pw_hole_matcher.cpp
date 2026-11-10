@@ -18,8 +18,8 @@ struct MockSolveHoles {
 
 struct PwHoleMatcherTest : ::testing::Test {
     ::testing::NiceMock<MockSolveHoles> solve_holes;
-    pw_hole_matcher<MockSolveHoles> matcher{solve_holes};
     expr_pool pool{};
+    pw_hole_matcher<MockSolveHoles, expr_pool> matcher{solve_holes, pool};
     std::map<uint32_t, const expr*> bindings;
     const expr* one = pool.make_functor(1, {});
     const expr* two = pool.make_functor(2, {});
@@ -71,10 +71,10 @@ TEST_F(PwHoleMatcherTest, AnOtherwiseUnmatchedPatternIsSolvedByTheDomain) {
     EXPECT_EQ(bindings, (std::map<uint32_t, const expr*>{{2, two}}));
 }
 
-TEST_F(PwHoleMatcherTest, ASolutionConflictingWithABindingDoesNotMatch) {
+TEST_F(PwHoleMatcherTest, ABoundHoleIsSubstitutedBeforeTheDomainComparesThePattern) {
     bindings.emplace(2, one);
     const expr* pattern = pool.make_functor(6, {two, hole2});
-    EXPECT_CALL(solve_holes, solve_holes(pattern, one, _)).WillOnce(Return(MockSolveHoles::bindings_t{{2, two}}));
+    EXPECT_CALL(solve_holes, solve_holes(pool.make_functor(6, {two, one}), one, _)).WillOnce(Return(std::nullopt));
     EXPECT_FALSE(matcher.match(pattern, one, bindings));
     EXPECT_EQ(bindings, (std::map<uint32_t, const expr*>{{2, one}}));
 }
@@ -97,4 +97,29 @@ TEST_F(PwHoleMatcherTest, AValueHoldingAHoleIsMatchedAgainstAnOutputWithout) {
 TEST_F(PwHoleMatcherTest, AnUnsolvedPatternDoesNotMatch) {
     EXPECT_CALL(solve_holes, solve_holes(_, _, _)).WillOnce(Return(std::nullopt));
     EXPECT_FALSE(matcher.match(pool.make_functor(6, {hole1, hole2}), one, bindings));
+}
+
+TEST_F(PwHoleMatcherTest, BoundHolesAreSubstitutedAndTheSettledPatternIsComparedByTheDomain) {
+    // `?1` bound to `2 - ?2`, `?2` to 1: the pattern `?1` is settled to `2 - 1`, which the domain says is 1
+    const expr* difference = pool.make_functor(9, {two, one});
+    bindings.emplace(1, difference);
+    EXPECT_CALL(solve_holes, solve_holes(difference, one, _)).WillOnce(Return(std::map<uint32_t, const expr*>{}));
+    EXPECT_TRUE(matcher.match(hole1, one, bindings));
+}
+
+TEST_F(PwHoleMatcherTest, ABindingInTermsOfAnotherHoleIsClosedOnceThatHoleIsBound) {
+    // `?1 = 2 - ?2` first, then `?2 = 1`: the first binding becomes `2 - 1`
+    const expr* sum = pool.make_functor(8, {hole1, hole2});
+    const expr* difference = pool.make_functor(9, {two, hole2});
+    EXPECT_CALL(solve_holes, solve_holes(sum, two, _))
+        .WillOnce(Return(std::map<uint32_t, const expr*>{{1, difference}}));
+    EXPECT_TRUE(matcher.match(sum, two, bindings));
+    EXPECT_TRUE(matcher.match(hole2, one, bindings));
+    EXPECT_EQ(bindings, (std::map<uint32_t, const expr*>{{1, pool.make_functor(9, {two, one})}, {2, one}}));
+}
+
+TEST_F(PwHoleMatcherTest, SubstitutingRebuildsOnlyWhatHoldsABoundHole) {
+    const expr* pattern = pool.make_functor(5, {one, hole1, hole2});
+    EXPECT_EQ(matcher.substitute_holes(pattern, {{1, two}}), pool.make_functor(5, {one, two, hole2}));
+    EXPECT_EQ(matcher.substitute_holes(one, {{1, two}}), one);
 }

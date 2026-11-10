@@ -111,7 +111,7 @@ struct poly_fit_rules_manifest {
     struct conditions_union_t : pw_hypotheses_union<primes_t, combinations_t> {
         using pw_hypotheses_union<primes_t, combinations_t>::pw_hypotheses_union;
     };
-    using guarded_base_t = pw_guarded_hypotheses<conditions_union_t, fit_t::hypotheses_t, body_t, expr_size,
+    using guarded_base_t = pw_guarded_hypotheses<conditions_union_t, atoms_t, fit_t::hypotheses_t, fit_t::interpolations_t, body_t, expr_size,
                                                  kernel_t::literals_t, expr_pool>;
     struct guarded_t : guarded_base_t {
         using guarded_base_t::guarded_base_t;

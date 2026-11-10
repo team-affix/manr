@@ -9,8 +9,10 @@
 // Problems are solved in parallel, one per thread; --serial solves them one at a time, for true timings. Notes print
 // each input shortened (abbreviate_piecewise); --full-inputs prints every case, and the whole result.
 #include <chrono>
+#include <cstdint>
 #include <cstdio>
 #include <functional>
+#include <map>
 #include <optional>
 #include <random>
 #include <set>
@@ -38,6 +40,8 @@ struct list_problem {
     std::vector<std::pair<size_t, int>> wrong_labels;  // sample index, offset added to its first output
     size_t target;
     std::string target_text;
+    // extra samples holding holes, as text: `[4, ?1, -5, 7]` and its output `[4, 7]` (`[2]` for a scalar output)
+    std::vector<std::pair<std::string, std::string>> holed;
 };
 
 struct outcome {
@@ -117,6 +121,49 @@ std::vector<list_sample> sample(const list_problem& p) {
     return samples;
 }
 
+// A list in text, `[4, ?1, -5, 7]`: literals and holes `?k`.
+const expr* parse_list(list_fit_manifest& m, const std::string& text) {
+    std::vector<const expr*> elements;
+    std::istringstream in(text.substr(1, text.size() - 2));
+    std::string item;
+    while (std::getline(in, item, ',')) {
+        const size_t first = item.find_first_not_of(' ');
+        if (first == std::string::npos)
+            continue;
+        item = item.substr(first);
+        elements.push_back(item[0] == '?' ? m.kernel_.exprs_.make_var(static_cast<uint32_t>(std::stoi(item.substr(1))))
+                                          : m.kernel_.literals_.make_literal(std::stoi(item)));
+    }
+    return m.rule_set_.values_.make_list(elements);
+}
+
+// The problem's samples as data points, plus its samples holding holes.
+std::vector<pw_data_point> find_points(list_fit_manifest& m, const list_problem& p,
+                                       const std::vector<list_sample>& samples) {
+    std::vector<pw_data_point> points = m.rule_set_.converter_.convert(samples);
+    for (const auto& [input, output] : p.holed) {
+        const expr* listed = parse_list(m, output);
+        const expr* value = p.output_is_list ? listed : std::get<expr::functor>(listed->content).args[0];
+        points.push_back(pw_data_point{.input = parse_list(m, input), .output = value});
+    }
+    return points;
+}
+
+// Sound when the result reproduces every sample; at an input holding holes, once they are filled with 0 or with 1.
+template<typename Manifest>
+bool reproduces_holed(Manifest& m, const expr* best, const pw_data_point& point) {
+    for (const int filler : {0, 1}) {
+        std::map<uint32_t, const expr*> filled;
+        for (uint32_t hole = 0; hole < 10; ++hole)
+            filled.emplace(hole, m.kernel_.literals_.make_literal(filler));
+        const expr* input = m.rule_set_.piecewise_.matcher_.substitute_holes(point.input, filled);
+        const std::optional<const expr*> value = m.rule_set_.pw_evaluator_.evaluate_at(best, input);
+        if (value.has_value() && value.value() == point.output)
+            return true;
+    }
+    return false;
+}
+
 template<typename Manifest>
 outcome finish(Manifest& m, const std::vector<list_sample>& samples, std::chrono::steady_clock::time_point start) {
     const double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
@@ -140,6 +187,26 @@ outcome run_best_first(const std::vector<list_sample>& samples) {
     outcome reached = finish(m, samples, start);
     reached.input = input.str();
     return reached;
+}
+
+// A problem with samples holding holes starts from its own piecewise, with a search of its own.
+outcome run_holed(const list_problem& p, const std::vector<list_sample>& samples) {
+    const auto start = std::chrono::steady_clock::now();
+    list_fit_manifest m{samples, k_poly_default_limits, k_poly_fit_default_limits, k_frontier};
+    const std::vector<pw_data_point> points = find_points(m, p, samples);
+    const expr* initial = m.rule_set_.piecewise_.builder_.build(points, 0);
+    list_fit_manifest::search_t search{m.rule_set_.rules_, m.kernel_.sizes_, initial, k_frontier};
+    while (search.rewrites() < k_rewrites && search.next()) {}
+    const double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
+    bool sound = true;
+    for (const pw_data_point& point : points)
+        sound = sound && reproduces_holed(m, search.best(), point);
+    std::ostringstream input;
+    std::ostringstream os;
+    m.kernel_.printer_.print(input, initial);
+    m.kernel_.printer_.print(os, search.best());
+    return outcome{.input = input.str(), .cost = search.best_cost(), .best = os.str(), .seconds = seconds,
+                   .sound = sound};
 }
 
 outcome run_mcts(const std::vector<list_sample>& samples) {
@@ -193,9 +260,10 @@ struct solved {
 
 solved solve(const list_problem& p, bool fast) {
     const std::vector<list_sample> samples = sample(p);
-    const bool skip_mcts = fast && samples.size() > k_large;
+    const bool skip_mcts = (fast && samples.size() > k_large) || !p.holed.empty();
     const outcome skipped{.input = "", .cost = 0, .best = "(skipped)", .seconds = 0, .sound = true};
-    return solved{.points = samples.size(), .skip_mcts = skip_mcts, .best_first = run_best_first(samples),
+    const outcome best_first = p.holed.empty() ? run_best_first(samples) : run_holed(p, samples);
+    return solved{.points = samples.size(), .skip_mcts = skip_mcts, .best_first = best_first,
                   .mcts = skip_mcts ? skipped : run_mcts(samples)};
 }
 
@@ -224,112 +292,112 @@ bool is_prime_value(const integer& value) {
 int main(int argc, char** argv) {
     const bench_options options = parse_bench_options(argc, argv);
     const std::vector<list_problem> problems{
-        {"sum", all_lists(-2, 2, 3), false, sum, {}, 9, "lam(fold(lam(lam(#0 + #1)), 0, #0))"},
+        {"sum", all_lists(-2, 2, 3), false, sum, {}, 9, "lam(fold(lam(lam(#0 + #1)), 0, #0))", {}},
         {"length", all_lists(-2, 2, 3), false,
          [](const list_t& l) { return fold_right(l, 0, [](integer, integer acc) { return acc + 1; }); }, {}, 9,
-         "lam(fold(lam(lam(#1 + 1)), 0, #0))"},
+         "lam(fold(lam(lam(#1 + 1)), 0, #0))", {}},
         {"product", all_lists(-2, 2, 3), false,
          [](const list_t& l) { return fold_right(l, 1, [](integer h, integer acc) { return h * acc; }); }, {}, 9,
-         "lam(fold(lam(lam(#0 * #1)), 1, #0))"},
+         "lam(fold(lam(lam(#0 * #1)), 1, #0))", {}},
         {"sum of squares", all_lists(-2, 2, 3), false,
          [](const list_t& l) { return fold_right(l, 0, [](integer h, integer acc) { return h * h + acc; }); }, {}, 11,
-         "lam(fold(lam(lam(#0^2 + #1)), 0, #0))"},
+         "lam(fold(lam(lam(#0^2 + #1)), 0, #0))", {}},
         {"alternating sum", all_lists(-2, 2, 3), false,
          [](const list_t& l) { return fold_right(l, 0, [](integer h, integer acc) { return h - acc; }); }, {}, 9,
-         "lam(fold(lam(lam(#0 - #1)), 0, #0))"},
+         "lam(fold(lam(lam(#0 - #1)), 0, #0))", {}},
         {"digits", all_lists(0, 3, 3), false,
          [](const list_t& l) { return fold_right(l, 0, [](integer h, integer acc) { return 10 * acc + h; }); }, {}, 11,
-         "lam(fold(lam(lam(10 * #1 + #0)), 0, #0))"},
-        {"sum with wrong label", all_lists(-2, 2, 3), false, sum, {{7, 10}}, 17, "pw(case(cons(-1, cons(-2, nil)), 7), lam(fold(lam(lam(#0 + #1)), 0, #0)))"},
-        {"sum 781", all_lists(-2, 2, 4), false, sum, {}, 9, "lam(fold(lam(lam(#0 + #1)), 0, #0))"},
+         "lam(fold(lam(lam(10 * #1 + #0)), 0, #0))", {}},
+        {"sum with wrong label", all_lists(-2, 2, 3), false, sum, {{7, 10}}, 17, "pw(case(cons(-1, cons(-2, nil)), 7), lam(fold(lam(lam(#0 + #1)), 0, #0)))", {}},
+        {"sum 781", all_lists(-2, 2, 4), false, sum, {}, 9, "lam(fold(lam(lam(#0 + #1)), 0, #0))", {}},
         {"map square", all_lists(-2, 2, 3), true, [](const list_t& l) { return map_each(l, [](integer e) { return e * e; }); },
-         {}, 7, "lam(map(lam(#0^2), #0))"},
+         {}, 7, "lam(map(lam(#0^2), #0))", {}},
         {"map affine", all_lists(-2, 2, 3), true,
-         [](const list_t& l) { return map_each(l, [](integer e) { return 2 * e + 1; }); }, {}, 9, "lam(map(lam(2 * #0 + 1), #0))"},
+         [](const list_t& l) { return map_each(l, [](integer e) { return 2 * e + 1; }); }, {}, 9, "lam(map(lam(2 * #0 + 1), #0))", {}},
         {"map absolute value", all_lists(-3, 3, 2), true,
          [](const list_t& l) { return map_each(l, [](integer e) { return e < 0 ? integer(-e) : e; }); }, {}, 13,
-         "lam(map(lam(pw(when(lt(#0, 1), -1 * #0), #0)), #0))"},
+         "lam(map(lam(pw(when(lt(#0, 1), -1 * #0), #0)), #0))", {}},
         {"map with wrong label", all_lists(-2, 2, 3), true,
          [](const list_t& l) { return map_each(l, [](integer e) { return e * e; }); }, {{3, 5}}, 15,
-         "pw(case(cons(0, nil), cons(5, nil)), lam(map(lam(#0^2), #0)))"},
+         "pw(case(cons(0, nil), cons(5, nil)), lam(map(lam(#0^2), #0)))", {}},
         {"filter positives", all_lists(-2, 2, 3), true, [](const list_t& l) { return keep(l, [](integer e) { return e > 0; }); },
-         {}, 7, "lam(filter(lam(lt(0, #0)), #0))"},
+         {}, 7, "lam(filter(lam(lt(0, #0)), #0))", {}},
         {"filter below one", all_lists(-2, 2, 3), true, [](const list_t& l) { return keep(l, [](integer e) { return e < 1; }); },
-         {}, 7, "lam(filter(lam(lt(#0, 1)), #0))"},
+         {}, 7, "lam(filter(lam(lt(#0, 1)), #0))", {}},
         // reduce request #14, and similar filters by primality: the kept and removed values go to the condition domain
         {"#14 primes of a list", random_lists(30, 2, 8, 0, 40, 61), true, keep_primes, {}, 7,
-         "lam(filter(lam(is_prime(#0)), #0))"},
+         "lam(filter(lam(is_prime(#0)), #0))", {}},
         {"primes of longer lists", random_lists(20, 10, 20, -20, 100, 7), true, keep_primes, {}, 6,
-         "lam(filter(lam(is_prime(#0)), #0))"},
+         "lam(filter(lam(is_prime(#0)), #0))", {}},
         {"primes of a list, wrong label", random_lists(30, 2, 8, 0, 40, 61), true, keep_primes, {{4, 1}}, 24,
-         "one case + lam(filter(lam(is_prime(#0)), #0))"},
+         "one case + lam(filter(lam(is_prime(#0)), #0))", {}},
         // long lists: 20 to 40 elements, values up to 50 in size; folds get every list's tails, maps and filters none
-        {"long sum", with_tails(random_lists(12, 20, 40, -50, 50, 1)), false, sum, {}, 9, "lam(fold(lam(lam(#0 + #1)), 0, #0))"},
+        {"long sum", with_tails(random_lists(12, 20, 40, -50, 50, 1)), false, sum, {}, 9, "lam(fold(lam(lam(#0 + #1)), 0, #0))", {}},
         {"long length", with_tails(random_lists(12, 20, 40, -50, 50, 6)), false,
          [](const list_t& l) { return fold_right(l, 0, [](integer, integer acc) { return acc + 1; }); }, {}, 9,
-         "lam(fold(lam(lam(#1 + 1)), 0, #0))"},
+         "lam(fold(lam(lam(#1 + 1)), 0, #0))", {}},
         {"long sum of squares", with_tails(random_lists(12, 20, 40, -50, 50, 5)), false,
          [](const list_t& l) { return fold_right(l, 0, [](integer h, integer acc) { return h * h + acc; }); }, {}, 11,
-         "lam(fold(lam(lam(#0^2 + #1)), 0, #0))"},
+         "lam(fold(lam(lam(#0^2 + #1)), 0, #0))", {}},
         {"long product", with_tails(random_lists(12, 20, 40, -9, 9, 2)), false,
          [](const list_t& l) { return fold_right(l, 1, [](integer h, integer acc) { return h * acc; }); }, {}, 9,
-         "lam(fold(lam(lam(#0 * #1)), 1, #0))"},
+         "lam(fold(lam(lam(#0 * #1)), 1, #0))", {}},
         {"long sum with wrong label", with_tails(random_lists(12, 20, 40, -50, 50, 1)), false, sum, {{3, 100}}, 15,
-         "pw(case(cons(v, nil), v + 100), lam(fold(lam(lam(#0 + #1)), 0, #0)))"},
+         "pw(case(cons(v, nil), v + 100), lam(fold(lam(lam(#0 + #1)), 0, #0)))", {}},
         {"long map", random_lists(30, 20, 40, -50, 50, 3), true,
          [](const list_t& l) { return map_each(l, [](integer e) { return 2 * e * e - 3; }); }, {}, 11,
-         "lam(map(lam(2 * #0^2 - 3), #0))"},
+         "lam(map(lam(2 * #0^2 - 3), #0))", {}},
         {"long map absolute value", random_lists(30, 20, 40, -50, 50, 7), true,
          [](const list_t& l) { return map_each(l, [](integer e) { return e < 0 ? integer(-e) : e; }); }, {}, 13,
-         "lam(map(lam(pw(when(lt(#0, 1), -1 * #0), #0)), #0))"},
+         "lam(map(lam(pw(when(lt(#0, 1), -1 * #0), #0)), #0))", {}},
         {"long filter", random_lists(30, 20, 40, -50, 50, 4), true,
-         [](const list_t& l) { return keep(l, [](integer e) { return e < 17; }); }, {}, 7, "lam(filter(lam(lt(#0, 17)), #0))"},
+         [](const list_t& l) { return keep(l, [](integer e) { return e < 17; }); }, {}, 7, "lam(filter(lam(lt(#0, 17)), #0))", {}},
         {"maximum", all_lists(0, 3, 3), false,
          [](const list_t& l) { return fold_right(l, 0, [](integer h, integer acc) { return h < acc ? acc : h; }); },
-         {}, 13, "lam(fold(lam(lam(pw(when(lt(#1, #0), #0), #1))), 0, #0))"},
-        {"sum without tails", exact_lists(-2, 2, 3), false, sum, {}, 9, "lam(fold(lam(lam(#0 + #1)), 0, #0))"},
+         {}, 13, "lam(fold(lam(lam(pw(when(lt(#1, #0), #0), #1))), 0, #0))", {}},
+        {"sum without tails", exact_lists(-2, 2, 3), false, sum, {}, 9, "lam(fold(lam(lam(#0 + #1)), 0, #0))", {}},
         {"long sum without tails", random_lists(40, 20, 40, -50, 50, 8), false, sum, {}, 9,
-         "lam(fold(lam(lam(#0 + #1)), 0, #0))"},
+         "lam(fold(lam(lam(#0 + #1)), 0, #0))", {}},
         {"long minimum without tails", random_lists(30, 20, 40, -50, 50, 14), false,
          [](const list_t& l) { return fold_right(l, 0, [](integer h, integer acc) { return h < acc ? h : acc; }); },
-         {}, 13, "lam(fold(lam(lam(pw(when(lt(#0, #1), #0), #1))), 0, #0))"},
+         {}, 13, "lam(fold(lam(lam(pw(when(lt(#0, #1), #0), #1))), 0, #0))", {}},
         {"long maximum with wrong label", random_lists(30, 20, 40, -50, 50, 15), false,
          [](const list_t& l) { return fold_right(l, 0, [](integer h, integer acc) { return h < acc ? acc : h; }); },
-         {{4, 100}}, 63, "pw(case(cons(v, ...), w), lam(fold(lam(lam(pw(when(lt(#1, #0), #0), #1))), 0, #0)))"},
+         {{4, 100}}, 63, "pw(case(cons(v, ...), w), lam(fold(lam(lam(pw(when(lt(#1, #0), #0), #1))), 0, #0)))", {}},
         {"product without tails", random_lists(30, 5, 10, -5, 5, 16), false,
          [](const list_t& l) { return fold_right(l, 1, [](integer h, integer acc) { return h * acc; }); }, {}, 9,
-         "lam(fold(lam(lam(#0 * #1)), 1, #0))"},
+         "lam(fold(lam(lam(#0 * #1)), 1, #0))", {}},
         {"long product with wrong label", with_tails(random_lists(12, 20, 40, -9, 9, 2)), false,
          [](const list_t& l) { return fold_right(l, 1, [](integer h, integer acc) { return h * acc; }); }, {{5, 1}}, 15,
-         "pw(case(cons(0, nil), 1), lam(fold(lam(lam(#0 * #1)), 1, #0)))"},
+         "pw(case(cons(0, nil), 1), lam(fold(lam(lam(#0 * #1)), 1, #0)))", {}},
         {"long count without tails", random_lists(30, 20, 40, -50, 50, 17), false,
          [](const list_t& l) {
              return fold_right(l, 0, [](integer h, integer acc) { return integer(10) < h ? acc + 1 : acc; });
          },
-         {}, 15, "lam(fold(lam(lam(pw(when(lt(10, #0), #1 + 1), #1))), 0, #0))"},
+         {}, 15, "lam(fold(lam(lam(pw(when(lt(10, #0), #1 + 1), #1))), 0, #0))", {}},
         {"squares of positives", random_lists(30, 2, 6, -9, 9, 28), true,
          [](const list_t& l) { return map_each(keep(l, [](integer e) { return e > 0; }), [](integer e) { return e * e; }); },
-         {}, 12, "lam(map(lam(#0^2), filter(lam(lt(0, #0)), #0)))"},
+         {}, 12, "lam(map(lam(#0^2), filter(lam(lt(0, #0)), #0)))", {}},
         // reduce request #4, and similar sums of an inner function (counts on any condition) for the sum fold reading
         {"#4 count of evens", random_lists(30, 2, 8, -9, 9, 34), false,
          [](const list_t& l) { return fold_right(l, 0, [](integer h, integer acc) { return h % 2 == 0 ? acc + 1 : acc; }); },
-         {}, 18, "lam(fold(lam(lam(pw(when(eq(mod(#0, 2), 0), #1 + 1), #1))), 0, #0))"},
+         {}, 18, "lam(fold(lam(lam(pw(when(eq(mod(#0, 2), 0), #1 + 1), #1))), 0, #0))", {}},
         {"count of multiples of 3", random_lists(30, 2, 8, -9, 9, 47), false,
          [](const list_t& l) { return fold_right(l, 0, [](integer h, integer acc) { return h % 3 == 0 ? acc + 1 : acc; }); },
-         {}, 17, "lam(fold(lam(lam(pw(when(eq(mod(#0, 3), 0), 1 + #1), #1))), 0, #0))"},
+         {}, 17, "lam(fold(lam(lam(pw(when(eq(mod(#0, 3), 0), 1 + #1), #1))), 0, #0))", {}},
         {"sum of the evens", random_lists(30, 2, 8, -9, 9, 49), false,
          [](const list_t& l) { return fold_right(l, 0, [](integer h, integer acc) { return h % 2 == 0 ? acc + h : acc; }); },
-         {}, 17, "lam(fold(lam(lam(pw(when(eq(mod(#0, 2), 0), #0 + #1), #1))), 0, #0))"},
+         {}, 17, "lam(fold(lam(lam(pw(when(eq(mod(#0, 2), 0), #0 + #1), #1))), 0, #0))", {}},
         {"sum of absolute values (open)", random_lists(30, 2, 8, -9, 9, 50), false,
          [](const list_t& l) { return fold_right(l, 0, [](integer h, integer acc) { return integer(acc + abs(h)); }); },
-         {}, 17, "lam(fold(lam(lam(pw(when(lt(#0, 1), #1 - #0), #0 + #1))), 0, #0))"},
+         {}, 17, "lam(fold(lam(lam(pw(when(lt(#0, 1), #1 - #0), #0 + #1))), 0, #0))", {}},
         {"count of evens, long (open)", random_lists(30, 20, 40, -50, 50, 48), false,
          [](const list_t& l) { return fold_right(l, 0, [](integer h, integer acc) { return h % 2 == 0 ? acc + 1 : acc; }); },
-         {}, 18, "lam(fold(lam(lam(pw(when(eq(mod(#0, 2), 0), #1 + 1), #1))), 0, #0))"},
+         {}, 18, "lam(fold(lam(lam(pw(when(eq(mod(#0, 2), 0), #1 + 1), #1))), 0, #0))", {}},
         // reduce request #5, and similar folds that build lists, for the listed fold detector
         {"#5 reverse", random_lists(30, 0, 6, -9, 9, 35), true,
          [](const list_t& l) { return list_t(l.rbegin(), l.rend()); },
-         {}, 3, "lam(reverse(#0))"},
+         {}, 3, "lam(reverse(#0))", {}},
         {"duplicate each element", random_lists(30, 0, 6, -9, 9, 51), true,
          [](const list_t& l) {
              list_t result;
@@ -339,7 +407,7 @@ int main(int argc, char** argv) {
              }
              return result;
          },
-         {}, 11, "lam(fold(lam(lam(cons(#0, cons(#0, #1)))), nil, #0))"},
+         {}, 11, "lam(fold(lam(lam(cons(#0, cons(#0, #1)))), nil, #0))", {}},
         {"reverse with each element twice", random_lists(30, 0, 6, -9, 9, 52), true,
          [](const list_t& l) {
              list_t result;
@@ -349,89 +417,89 @@ int main(int argc, char** argv) {
              }
              return result;
          },
-         {}, 13, "lam(fold(lam(lam(append(#1, cons(#0, cons(#0, nil))))), nil, #0))"},
+         {}, 13, "lam(fold(lam(lam(append(#1, cons(#0, cons(#0, nil))))), nil, #0))", {}},
         {"reverse, wrong label", random_lists(30, 0, 6, -9, 9, 53), true,
          [](const list_t& l) { return list_t(l.rbegin(), l.rend()); },
-         {{3, 1}}, 19, "pw(case(cons(1, cons(-4, cons(9, nil))), cons(10, cons(-4, cons(1, nil)))), lam(reverse(#0)))"},
+         {{3, 1}}, 19, "pw(case(cons(1, cons(-4, cons(9, nil))), cons(10, cons(-4, cons(1, nil)))), lam(reverse(#0)))", {}},
         // reduce request #1, and similar long compositions for the signature reading of a map over a filter
         {"#1 long map over filter", random_lists(30, 20, 40, -50, 50, 31), true,
          [](const list_t& l) { return map_each(keep(l, [](integer e) { return e < 17; }), [](integer e) { return 2 * e + 1; }); },
-         {}, 14, "lam(map(lam(2 * #0 + 1), filter(lam(lt(#0, 17)), #0)))"},
+         {}, 14, "lam(map(lam(2 * #0 + 1), filter(lam(lt(#0, 17)), #0)))", {}},
         {"long squares of positives", random_lists(30, 20, 40, -50, 50, 45), true,
          [](const list_t& l) { return map_each(keep(l, [](integer e) { return e > 0; }), [](integer e) { return e * e; }); },
-         {}, 12, "lam(map(lam(#0^2), filter(lam(lt(0, #0)), #0)))"},
+         {}, 12, "lam(map(lam(#0^2), filter(lam(lt(0, #0)), #0)))", {}},
         {"long map over filter above", random_lists(30, 20, 40, -50, 50, 46), true,
          [](const list_t& l) { return map_each(keep(l, [](integer e) { return e > -10; }), [](integer e) { return 3 * e - 2; }); },
-         {}, 14, "lam(map(lam(3 * #0 - 2), filter(lam(lt(-10, #0)), #0)))"},
+         {}, 14, "lam(map(lam(3 * #0 - 2), filter(lam(lt(-10, #0)), #0)))", {}},
         // reduce requests #2 and #3, and similar problems for the generic selection and factor folds
         {"#2 largest square", random_lists(30, 2, 6, -9, 9, 32), false,
          [](const list_t& l) { return fold_right(l, 0, [](integer h, integer acc) { return acc < h * h ? h * h : acc; }); },
-         {}, 17, "lam(fold(lam(lam(pw(when(lt(#1, #0^2), #0^2), #1))), 0, #0))"},
+         {}, 17, "lam(fold(lam(lam(pw(when(lt(#1, #0^2), #0^2), #1))), 0, #0))", {}},
         {"#3 product of squares", random_lists(30, 2, 6, -4, 4, 33), false,
          [](const list_t& l) { return fold_right(l, 1, [](integer h, integer acc) { return integer(h * h * acc); }); }, {}, 11,
-         "lam(fold(lam(lam(#0^2 * #1)), 1, #0))"},
+         "lam(fold(lam(lam(#0^2 * #1)), 1, #0))", {}},
         {"largest absolute value (open)", random_lists(30, 2, 6, -9, 9, 42), false,
          [](const list_t& l) {
              return fold_right(l, 0, [](integer h, integer acc) { return acc < abs(h) ? integer(abs(h)) : acc; });
          },
-         {}, 29, "lam(fold(lam(lam(pw(when(lt(#1, |#0|), |#0|), #1))), 0, #0), |#0| as pw(when(lt(#0, 1), -1 * #0), #0))"},
+         {}, 29, "lam(fold(lam(lam(pw(when(lt(#1, |#0|), |#0|), #1))), 0, #0), |#0| as pw(when(lt(#0, 1), -1 * #0), #0))", {}},
         {"smallest of 2h + 1", random_lists(30, 2, 6, -9, 9, 37), false,
          [](const list_t& l) {
              return fold_right(l, 100, [](integer h, integer acc) { return 2 * h + 1 < acc ? integer(2 * h + 1) : acc; });
          },
-         {}, 21, "lam(fold(lam(lam(pw(when(lt(2 * #0 + 1, #1), 2 * #0 + 1), #1))), 7, #0))"},
+         {}, 21, "lam(fold(lam(lam(pw(when(lt(2 * #0 + 1, #1), 2 * #0 + 1), #1))), 7, #0))", {}},
         {"product of h^2 + 1", random_lists(30, 1, 5, -3, 3, 43), false,
          [](const list_t& l) { return fold_right(l, 3, [](integer h, integer acc) { return integer((h * h + 1) * acc); }); }, {},
-         13, "lam(fold(lam(lam((#0^2 + 1) * #1)), 3, #0))"},
+         13, "lam(fold(lam(lam((#0^2 + 1) * #1)), 3, #0))", {}},
         {"long largest square (open)", random_lists(30, 20, 40, -50, 50, 44), false,
          [](const list_t& l) { return fold_right(l, 0, [](integer h, integer acc) { return acc < h * h ? h * h : acc; }); },
-         {}, 17, "lam(fold(lam(lam(pw(when(lt(#1, #0^2), #0^2), #1))), 0, #0))"},
+         {}, 17, "lam(fold(lam(lam(pw(when(lt(#1, #0^2), #0^2), #1))), 0, #0))", {}},
         // open: no solver reaches the target yet; kept so the gate reports when one does
         {"squares of positives (open)", all_lists(-2, 2, 3), true,
          [](const list_t& l) { return map_each(keep(l, [](integer e) { return e > 0; }), [](integer e) { return e * e; }); },
-         {}, 12, "lam(map(lam(#0^2), filter(lam(lt(0, #0)), #0)))"},
+         {}, 12, "lam(map(lam(#0^2), filter(lam(lt(0, #0)), #0)))", {}},
         // showcase (docs/showcase.md): realistic list programs, and variants measuring how far each generalizes
         {"showcase: invoice total, fee 2 per item", with_tails(random_lists(10, 3, 8, 1, 50, 71)), false, invoice_total,
-         {}, 11, "lam(fold(lam(lam(#0 + 2 + #1)), 0, #0))"},
+         {}, 11, "lam(fold(lam(lam(#0 + 2 + #1)), 0, #0))", {}},
         {"showcase: invoice total, no tails", random_lists(30, 3, 8, 1, 50, 72), false, invoice_total, {}, 11,
-         "lam(fold(lam(lam(#0 + 2 + #1)), 0, #0))"},
+         "lam(fold(lam(lam(#0 + 2 + #1)), 0, #0))", {}},
         {"showcase: prices in cents", random_lists(30, 1, 8, 1, 99, 73), true,
          [](const list_t& l) { return map_each(l, [](integer e) { return 100 * e; }); }, {}, 7,
-         "lam(map(lam(100 * #0), #0))"},
+         "lam(map(lam(100 * #0), #0))", {}},
         {"prime order IDs", random_lists(25, 10, 30, 0, 200, 74), true, keep_primes, {}, 6,
-         "lam(filter(lam(is_prime(#0)), #0))"},
+         "lam(filter(lam(is_prime(#0)), #0))", {}},
         {"prime order IDs, a typo", random_lists(25, 10, 30, 0, 200, 74), true, keep_primes, {{3, 1}}, 78,
-         "one case + the filter"},
+         "one case + the filter", {}},
         {"highest score", random_lists(30, 3, 10, 0, 100, 75), false,
          [](const list_t& l) { return fold_right(l, 0, [](integer h, integer acc) { return h < acc ? acc : h; }); },
-         {}, 13, "lam(fold(lam(lam(pw(when(lt(#1, #0), #0), #1))), 0, #0))"},
+         {}, 13, "lam(fold(lam(lam(pw(when(lt(#1, #0), #0), #1))), 0, #0))", {}},
         {"passing grades counted", random_lists(30, 3, 10, 0, 100, 76), false,
          [](const list_t& l) { return fold_right(l, 0, [](integer h, integer acc) { return integer(49) < h ? acc + 1 : acc; }); },
-         {}, 15, "lam(fold(lam(lam(pw(when(lt(49, #0), #1 + 1), #1))), 0, #0))"},
+         {}, 15, "lam(fold(lam(lam(pw(when(lt(49, #0), #1 + 1), #1))), 0, #0))", {}},
         {"playlist reversed", random_lists(30, 0, 12, 1, 500, 77), true,
-         [](const list_t& l) { return list_t(l.rbegin(), l.rend()); }, {}, 3, "lam(reverse(#0))"},
+         [](const list_t& l) { return list_t(l.rbegin(), l.rend()); }, {}, 3, "lam(reverse(#0))", {}},
         {"squared positive readings", random_lists(30, 3, 10, -20, 20, 78), true,
          [](const list_t& l) { return map_each(keep(l, [](integer e) { return e > 0; }), [](integer e) { return e * e; }); },
-         {}, 12, "lam(map(lam(#0^2), filter(lam(lt(0, #0)), #0)))"},
+         {}, 12, "lam(map(lam(#0^2), filter(lam(lt(0, #0)), #0)))", {}},
         {"showcase: invoice total with 5 shipping", random_lists(30, 3, 8, 1, 50, 79), false,
          [](const list_t& l) { return fold_right(l, 5, [](integer h, integer acc) { return h + 2 + acc; }); }, {}, 11,
-         "lam(fold(lam(lam(#0 + 2 + #1)), 5, #0))"},
+         "lam(fold(lam(lam(#0 + 2 + #1)), 5, #0))", {}},
         {"showcase: discounted positive prices", random_lists(30, 3, 10, -20, 60, 81), true,
          [](const list_t& l) { return map_each(keep(l, [](integer e) { return e > 0; }), [](integer e) { return 3 * e - 1; }); },
-         {}, 14, "lam(map(lam(3 * #0 - 1), filter(lam(lt(0, #0)), #0)))"},
+         {}, 14, "lam(map(lam(3 * #0 - 1), filter(lam(lt(0, #0)), #0)))", {}},
         {"showcase: cubic map after a threshold filter", random_lists(30, 3, 10, 0, 30, 82), true,
          [](const list_t& l) { return map_each(keep(l, [](integer e) { return e > 10; }), [](integer e) { return e * e * e - e; }); },
-         {}, 14, "lam(map(lam(#0^3 - #0), filter(lam(lt(10, #0)), #0)))"},
+         {}, 14, "lam(map(lam(#0^3 - #0), filter(lam(lt(10, #0)), #0)))", {}},
         {"showcase: maximum of 2x + 1", random_lists(30, 3, 10, -20, 20, 84), false,
          [](const list_t& l) { return fold_right(l, -100, [](integer h, integer acc) { return 2 * h + 1 < acc ? acc : 2 * h + 1; }); },
-         {}, 21, "lam(fold(lam(lam(pw(when(lt(#1, 2*#0 + 1), 2*#0 + 1), #1))), 0, #0))"},
+         {}, 21, "lam(fold(lam(lam(pw(when(lt(#1, 2*#0 + 1), 2*#0 + 1), #1))), 0, #0))", {}},
         // filters by Boolean combinations of element predicates (thresholds, residues, primality)
         {"filter odd primes", random_lists(30, 3, 10, 0, 60, 90), true,
          [](const list_t& l) { return keep(keep_primes(l), [](integer e) { return e % 2 != 0; }); }, {}, 10,
-         "lam(filter(lam(and(is_prime(#0), eq(mod(#0, 2), 1))), #0))"},
+         "lam(filter(lam(and(is_prime(#0), eq(mod(#0, 2), 1))), #0))", {}},
         {"filter evens above 10", random_lists(30, 3, 10, 0, 30, 91), true,
          [](const list_t& l) { return keep(l, [](integer e) { return e % 2 == 0 && e > 10; }); }, {}, 13,
-         "lam(filter(lam(and(eq(mod(#0, 2), 0), lt(10, #0))), #0))"},
+         "lam(filter(lam(and(eq(mod(#0, 2), 0), lt(10, #0))), #0))", {}},
         {"filter primes or below 5", random_lists(30, 3, 10, 0, 40, 92), true,
          [](const list_t& l) {
              list_t kept;
@@ -440,55 +508,65 @@ int main(int argc, char** argv) {
                      kept.push_back(value);
              return kept;
          },
-         {}, 10, "lam(filter(lam(or(is_prime(#0), lt(#0, 5))), #0))"},
+         {}, 10, "lam(filter(lam(or(is_prime(#0), lt(#0, 5))), #0))", {}},
         {"filter nonzero", random_lists(30, 3, 10, -9, 9, 93), true,
          [](const list_t& l) { return keep(l, [](integer e) { return e != 0; }); }, {}, 11,
-         "lam(filter(lam(or(lt(#0, 0), lt(0, #0))), #0))"},
+         "lam(filter(lam(or(lt(#0, 0), lt(0, #0))), #0))", {}},
         {"filter not multiples of 3", random_lists(30, 3, 10, -20, 20, 94), true,
          [](const list_t& l) { return keep(l, [](integer e) { return e % 3 != 0; }); }, {}, 10,
-         "lam(filter(lam(not(eq(mod(#0, 3), 0))), #0))"},
+         "lam(filter(lam(not(eq(mod(#0, 3), 0))), #0))", {}},
         // filters by Boolean functions of three or more predicates: separating atoms, then logic fitting over them
         {"filter large primes or small values", random_lists(30, 4, 12, 0, 60, 95), true,
          [](const list_t& l) { return keep(l, [](integer e) { return (is_prime_value(e) && e > 20) || e < 5; }); }, {},
-         15, "lam(filter(lam(or(and(is_prime(#0), lt(20, #0)), lt(#0, 5))), #0))"},
+         15, "lam(filter(lam(or(and(is_prime(#0), lt(20, #0)), lt(#0, 5))), #0))", {}},
         {"filter evens, or primes above 10", random_lists(30, 4, 12, 0, 60, 96), true,
          [](const list_t& l) { return keep(l, [](integer e) { return e % 2 == 0 || (is_prime_value(e) && e > 10); }); },
-         {}, 16, "lam(filter(lam(or(eq(mod(#0, 2), 0), and(is_prime(#0), lt(10, #0)))), #0))"},
+         {}, 16, "lam(filter(lam(or(eq(mod(#0, 2), 0), and(is_prime(#0), lt(10, #0)))), #0))", {}},
         {"filter by majority of three predicates", random_lists(30, 4, 12, 0, 60, 97), true,
          [](const list_t& l) {
              return keep(l, [](integer e) { return (e % 2 == 0) + (e > 30) + is_prime_value(e) >= 2; });
          },
-         {}, 15, "lam(filter(lam(maj(eq(mod(#0, 2), 0), lt(30, #0), is_prime(#0))), #0))"},
+         {}, 15, "lam(filter(lam(maj(eq(mod(#0, 2), 0), lt(30, #0), is_prime(#0))), #0))", {}},
         {"filter by xor of three predicates", random_lists(30, 4, 12, 0, 60, 98), true,
          [](const list_t& l) { return keep(l, [](integer e) { return ((e % 3 == 0) != (e > 25)) != is_prime_value(e); }); },
-         {}, 16, "lam(filter(lam(xor(xor(eq(mod(#0, 3), 0), lt(25, #0)), is_prime(#0))), #0))"},
+         {}, 16, "lam(filter(lam(xor(xor(eq(mod(#0, 3), 0), lt(25, #0)), is_prime(#0))), #0))", {}},
         // general conditions inside other readings: map after a filter, sums and counts over a condition
         {"squares of the primes", random_lists(30, 3, 10, 0, 40, 85), true,
          [](const list_t& l) { return map_each(keep_primes(l), [](integer e) { return e * e; }); }, {}, 11,
-         "lam(map(lam(#0^2), filter(lam(is_prime(#0)), #0)))"},
+         "lam(map(lam(#0^2), filter(lam(is_prime(#0)), #0)))", {}},
         {"sum of the primes", random_lists(40, 3, 10, 0, 20, 80), false, [](const list_t& l) { return sum(keep_primes(l)); },
-         {}, 14, "lam(fold(lam(lam(pw(when(is_prime(#0), #0 + #1), #1))), 0, #0))"},
+         {}, 14, "lam(fold(lam(lam(pw(when(is_prime(#0), #0 + #1), #1))), 0, #0))", {}},
         {"count of the primes", random_lists(40, 3, 10, 0, 20, 99), false,
          [](const list_t& l) { return fold_right(keep_primes(l), 0, [](integer, integer acc) { return acc + 1; }); }, {},
-         14, "lam(fold(lam(lam(pw(when(is_prime(#0), #1 + 1), #1))), 0, #0))"},
+         14, "lam(fold(lam(lam(pw(when(is_prime(#0), #1 + 1), #1))), 0, #0))", {}},
         {"sum of the squares above a threshold", random_lists(40, 3, 10, 0, 20, 83), false,
          [](const list_t& l) { return fold_right(l, 0, [](integer h, integer acc) { return integer(10) < h ? h * h + acc : acc; }); },
-         {}, 17, "lam(fold(lam(lam(pw(when(lt(10, #0), #0^2 + #1), #1))), 0, #0))"},
+         {}, 17, "lam(fold(lam(lam(pw(when(lt(10, #0), #0^2 + #1), #1))), 0, #0))", {}},
         {"sum of the odd primes", random_lists(40, 3, 10, 0, 20, 100), false,
          [](const list_t& l) { return sum(keep(keep_primes(l), [](integer e) { return e % 2 != 0; })); }, {}, 18,
-         "lam(fold(lam(lam(pw(when(and(is_prime(#0), lt(2, #0)), #0 + #1), #1))), 0, #0))"},
+         "lam(fold(lam(lam(pw(when(and(is_prime(#0), lt(2, #0)), #0 + #1), #1))), 0, #0))", {}},
         // maps whose element function is a guarded value pw(when(c, v), d), c any condition
         {"map primes to their squares, others to 0", random_lists(30, 3, 10, 0, 30, 101), true,
          [](const list_t& l) { return map_each(l, [](integer e) { return is_prime_value(e) ? integer(e * e) : integer(0); }); },
-         {}, 12, "lam(map(lam(pw(when(is_prime(#0), #0^2), 0)), #0))"},
+         {}, 12, "lam(map(lam(pw(when(is_prime(#0), #0^2), 0)), #0))", {}},
         {"map evens to 1, others to -1", random_lists(30, 3, 10, -20, 20, 102), true,
          [](const list_t& l) { return map_each(l, [](integer e) { return e % 2 == 0 ? integer(1) : integer(-1); }); }, {},
-         13, "lam(map(lam(pw(when(eq(mod(#0, 2), 0), 1), -1)), #0))"},
+         13, "lam(map(lam(pw(when(eq(mod(#0, 2), 0), 1), -1)), #0))", {}},
         {"map odd primes to 1, others kept", random_lists(30, 3, 10, 0, 30, 103), true,
          [](const list_t& l) {
              return map_each(l, [](integer e) { return is_prime_value(e) && e % 2 != 0 ? integer(1) : e; });
          },
-         {}, 14, "lam(map(lam(pw(when(and(is_prime(#0), lt(2, #0)), 1), #0)), #0))"},
+         {}, 14, "lam(map(lam(pw(when(and(is_prime(#0), lt(2, #0)), 1), #0)), #0))", {}},
+        // reduce request #36: an input list holding a hole the program stops at, bound so the program reproduces it
+        {"#36 keep the positives, an input holding ?1", all_lists(-2, 2, 3), true,
+         [](const list_t& l) { return keep(l, [](integer e) { return e > 0; }); }, {}, 7,
+         "lam(filter(lam(lt(0, #0)), #0)), ?1 = 0", {{"[4, ?1, -5, 7]", "[4, 7]"}}},
+        {"keep the evens, an input holding ?1", all_lists(-3, 3, 3), true,
+         [](const list_t& l) { return keep(l, [](integer e) { return e % 2 == 0; }); }, {}, 9,
+         "lam(filter(lam(eq(mod(#0, 2), 0)), #0)), ?1 = 1", {{"[2, ?1, 4]", "[2, 4]"}}},
+        {"count of positives, an input holding ?1", all_lists(-2, 2, 3), false,
+         [](const list_t& l) { return list_t{integer(keep(l, [](integer e) { return e > 0; }).size())}; }, {}, 15,
+         "lam(fold(lam(lam(pw(when(lt(#0, 1), #1), #1 + 1))), 0, #0)), ?1 = 0", {{"[3, ?1, 1]", "[2]"}}},
     };
 
     std::printf("budgets: best-first %zu rewrites; mcts %zu simulations x depth %zu\n", k_rewrites, k_simulations,

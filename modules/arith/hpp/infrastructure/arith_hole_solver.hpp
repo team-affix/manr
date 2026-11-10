@@ -15,19 +15,23 @@ constexpr size_t k_arith_default_max_hole_degree = 8;
 constexpr size_t k_arith_default_max_root_trials = 100000;
 
 // Solves `pattern = value` over the integers for the pattern's unbound extension terms (`?k`), returning their
-// bindings. One hole is solved for, the last; any others are free, and are tried at 0, then at 1 (the identities of
-// `add` and `mul`), so `?1 + ?2` against 10 gives `?1 = 0, ?2 = 10`. A pattern without unbound holes gives no new
-// bindings when it equals the value. The hole is solved for when the pattern is a polynomial in it: built from the
-// hole, literals, holes already bound to literals, `add`, `sub`, `mul` and `pow` by a literal exponent, of degree at
+// bindings. With several unbound holes, one that occurs once, under sums and differences only, is solved for in terms
+// of the others, which stay free (`?1 + ?2` against 10 gives `?2 = 10 - ?1`): a later equation can pin them. Failing
+// that, one hole is solved for, the last, and the others are tried at 0, then at 1 (the identities of `add` and
+// `mul`). A pattern without unbound holes gives no new bindings when it equals the value. The hole is solved for when
+// the pattern is a polynomial in it: built from the hole, literals, bound holes (whose values are such polynomials,
+// `7 - ?2` with `?2` the hole), `add`, `sub`, `mul` and `pow` by a literal exponent, of degree at
 // most `max_degree`. The equation is then `q(?hole) = 0` with integer coefficients: a linear one is solved by
 // division; a higher one by its integer roots, which divide q's lowest nonzero coefficient (0 when q has no constant
 // term), trying at most `max_root_trials` divisors. The root of least magnitude is chosen, the positive one first.
-// When every coefficient vanishes the hole is free and is bound to 0. Nothing for a value that is not a literal, any
-// other leaf or functor, or no integer solution.
-template<typename IFindLiteralValue, typename IMakeLiteral>
+// When every coefficient vanishes the hole is free and is bound to 0. A value holding holes is moved to the pattern's
+// side (`pattern - value = 0`), so two forms of one polynomial in the holes match. Nothing for any other value that
+// is not a literal, any other leaf or functor, or no integer solution.
+template<typename IFindLiteralValue, typename IMakeLiteral, typename IMakeFunctor>
 struct arith_hole_solver {
     arith_hole_solver(IFindLiteralValue& find_literal_value,
                       IMakeLiteral& make_literal,
+                      IMakeFunctor& make_functor,
                       uint32_t add_symbol,
                       uint32_t sub_symbol,
                       uint32_t mul_symbol,
@@ -39,6 +43,7 @@ struct arith_hole_solver {
 private:
     std::optional<const expr*> solve_hole(const expr* pattern, uint32_t hole, const expr* value,
                                           const std::map<uint32_t, const expr*>& bindings);
+    std::optional<const expr*> isolate(const expr* e, uint32_t hole, const expr* target);
     void collect_holes(const expr* e, std::set<uint32_t>& holes);
     using coefficients_t = std::vector<integer>;
     static constexpr int k_max_exponent = 64;
@@ -50,6 +55,7 @@ private:
 
     IFindLiteralValue& find_literal_value_;
     IMakeLiteral& make_literal_;
+    IMakeFunctor& make_functor_;
     uint32_t add_symbol_;
     uint32_t sub_symbol_;
     uint32_t mul_symbol_;
@@ -58,11 +64,12 @@ private:
     size_t max_root_trials_;
 };
 
-#define ARITH_HOLE_SOLVER_TEMPLATE template<typename IFindLiteralValue, typename IMakeLiteral>
-#define ARITH_HOLE_SOLVER          arith_hole_solver<IFindLiteralValue, IMakeLiteral>
+#define ARITH_HOLE_SOLVER_TEMPLATE template<typename IFindLiteralValue, typename IMakeLiteral, typename IMakeFunctor>
+#define ARITH_HOLE_SOLVER          arith_hole_solver<IFindLiteralValue, IMakeLiteral, IMakeFunctor>
 
 ARITH_HOLE_SOLVER_TEMPLATE ARITH_HOLE_SOLVER::arith_hole_solver(IFindLiteralValue& find_literal_value,
                                                                  IMakeLiteral& make_literal,
+                                                                 IMakeFunctor& make_functor,
                                                                  uint32_t add_symbol,
                                                                  uint32_t sub_symbol,
                                                                  uint32_t mul_symbol,
@@ -71,6 +78,7 @@ ARITH_HOLE_SOLVER_TEMPLATE ARITH_HOLE_SOLVER::arith_hole_solver(IFindLiteralValu
                                                                  size_t max_root_trials)
     : find_literal_value_(find_literal_value)
     , make_literal_(make_literal)
+    , make_functor_(make_functor)
     , add_symbol_(add_symbol)
     , sub_symbol_(sub_symbol)
     , mul_symbol_(mul_symbol)
@@ -80,6 +88,15 @@ ARITH_HOLE_SOLVER_TEMPLATE ARITH_HOLE_SOLVER::arith_hole_solver(IFindLiteralValu
 
 ARITH_HOLE_SOLVER_TEMPLATE std::optional<std::map<uint32_t, const expr*>> ARITH_HOLE_SOLVER::solve_holes(
     const expr* pattern, const expr* value, const std::map<uint32_t, const expr*>& bindings) {
+    const bool literal = find_literal_value_.find_value(value).has_value();
+    if (!literal) {
+        std::set<uint32_t> value_holes;
+        collect_holes(value, value_holes);
+        if (value_holes.empty())
+            return std::nullopt;
+        const expr* difference = make_functor_.make_functor(sub_symbol_, {pattern, value});
+        return solve_holes(difference, make_literal_.make_literal(integer(0)), bindings);
+    }
     std::set<uint32_t> holes;
     collect_holes(pattern, holes);
     std::vector<uint32_t> unbound;
@@ -93,6 +110,11 @@ ARITH_HOLE_SOLVER_TEMPLATE std::optional<std::map<uint32_t, const expr*>> ARITH_
         if (!free.has_value())
             return std::nullopt;
         return std::map<uint32_t, const expr*>{};
+    }
+    for (auto hole = unbound.rbegin(); unbound.size() > 1 && hole != unbound.rend(); ++hole) {
+        const std::optional<const expr*> isolated = isolate(pattern, *hole, value);
+        if (isolated.has_value())
+            return std::map<uint32_t, const expr*>{{*hole, isolated.value()}};
     }
     const uint32_t solved = unbound.back();
     for (const int filler : {0, 1}) {
@@ -136,10 +158,7 @@ ARITH_HOLE_SOLVER::find_coefficients(const expr* e, uint32_t hole, const std::ma
         const auto bound = bindings.find(variable->index);
         if (bound == bindings.end())
             return std::nullopt;
-        const std::optional<integer> known = find_literal_value_.find_value(bound->second);
-        if (!known.has_value())
-            return std::nullopt;
-        return coefficients_t{known.value()};
+        return find_coefficients(bound->second, hole, bindings);
     }
     const std::optional<integer> literal = find_literal_value_.find_value(e);
     if (literal.has_value())
@@ -174,6 +193,33 @@ ARITH_HOLE_SOLVER::find_coefficients(const expr* e, uint32_t hole, const std::ma
     for (size_t degree = 0; degree < right.value().size(); ++degree)
         sum[degree] += f.id == add_symbol_ ? right.value()[degree] : integer(-right.value()[degree]);
     return sum;
+}
+
+// `e = target` rewritten as `hole = ...`, when the hole occurs once in e, under sums and differences only
+ARITH_HOLE_SOLVER_TEMPLATE std::optional<const expr*> ARITH_HOLE_SOLVER::isolate(
+    const expr* e, uint32_t hole, const expr* target) {
+    const expr::var* variable = std::get_if<expr::var>(&e->content);
+    if (variable != nullptr)
+        return variable->index == hole ? std::optional<const expr*>(target) : std::nullopt;
+    const expr::functor& f = std::get<expr::functor>(e->content);
+    const bool additive = f.args.size() == 2 && (f.id == add_symbol_ || f.id == sub_symbol_);
+    if (!additive)
+        return std::nullopt;
+    std::set<uint32_t> left_holes;
+    std::set<uint32_t> right_holes;
+    collect_holes(f.args[0], left_holes);
+    collect_holes(f.args[1], right_holes);
+    const bool in_left = left_holes.contains(hole);
+    const bool in_right = right_holes.contains(hole);
+    if (in_left == in_right)
+        return std::nullopt;
+    if (in_left) {
+        const uint32_t inverse = f.id == add_symbol_ ? sub_symbol_ : add_symbol_;
+        return isolate(f.args[0], hole, make_functor_.make_functor(inverse, {target, f.args[1]}));
+    }
+    if (f.id == add_symbol_)
+        return isolate(f.args[1], hole, make_functor_.make_functor(sub_symbol_, {target, f.args[0]}));
+    return isolate(f.args[1], hole, make_functor_.make_functor(sub_symbol_, {f.args[0], target}));
 }
 
 ARITH_HOLE_SOLVER_TEMPLATE std::optional<typename ARITH_HOLE_SOLVER::coefficients_t> ARITH_HOLE_SOLVER::multiply(

@@ -66,6 +66,8 @@ list/        (list_)   lists and list programs (map, filter, fold): vocabulary, 
 seq/         (seq_)    integer sequences: recurrences (`rec`), powers (`exp`), infinite lists (`tabulate`, `unfold`),
                        evaluator, the recurrence detector, the closing rule, open-ended lists read as sequences
 number/      (num_)    number theory over another domain: `prime(n)`, `is_prime(n)`, a sieve, evaluator, detector
+rational/    (rat_)    quotients of polynomials `n / d`: the quotient canceller (exact division, common factors in
+                       one variable); wired into the full polynomial rule set
 logic/       (logic_)  Boolean functions: and, or, xor, not, xnor, nand, nor, imp, maj, mux; evaluator, the laws,
                        a condition evaluator for any domain's predicates; parity, cover, primitive, decomposition
                        detectors, Boolean conditions over atoms, the truth-table refit (holes as don't cares)
@@ -118,6 +120,7 @@ piecewise rules every fitting solver shares, `pw_fit_rules_manifest`).
   as polynomials, and a closing rule turns affine recurrences into powers.
 - Number theory (`docs/number.md`) is vocabulary on top of the other domains: primitives for the primes, evaluated over
   a domain's evaluator, and a detector that also serves list filters as a condition domain.
+- Rational functions are started (`docs/rational.md`): `/` is the quotient `div`, cancelled by the polynomial rules.
 - Logic is the fourth domain. Read `docs/logic.md`: primitives and compositions read from truth tables (unseen rows
   as don't cares), parities by an exact solve mod 2, factored covers, Boolean laws as structural rules at any width,
   and a width-bounded refit of subformulas from their truth tables.

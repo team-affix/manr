@@ -18,11 +18,15 @@ struct SeqOpenListsIntegrationTest : ::testing::Test {
     poly_kernel_manifest& kernel = manifest.kernel_;
     std::vector<rewrite> out{};
 
-    const expr* open_list(const std::vector<int>& terms) {
+    const expr* open_list(const std::vector<int>& terms) { return open_list_with_hole(terms, -1); }
+    // the terms, the one at `unknown` (if any) replaced by the hole `?1`
+    const expr* open_list_with_hole(const std::vector<int>& terms, int unknown) {
         const uint32_t cons = kernel.symbols_.intern_symbol("cons");
         const expr* list = kernel.exprs_.make_var(0);
-        for (auto term = terms.rbegin(); term != terms.rend(); ++term)
-            list = kernel.exprs_.make_functor(cons, {kernel.literals_.make_literal(*term), list});
+        for (int index = static_cast<int>(terms.size()) - 1; index >= 0; --index) {
+            const expr* term = index == unknown ? kernel.exprs_.make_var(1) : kernel.literals_.make_literal(terms[index]);
+            list = kernel.exprs_.make_functor(cons, {term, list});
+        }
         return list;
     }
     std::string print(const expr* e) {
@@ -45,12 +49,14 @@ TEST_F(SeqOpenListsIntegrationTest, AnOpenListIsReadAsTheInfiniteListOfItsTermsD
     EXPECT_EQ(print(out[0]()), "tabulate(pw(case(point(0), 0), case(point(1), 1), case(point(2), 4), ?0))");
 }
 
-TEST_F(SeqOpenListsIntegrationTest, AClosedListOrOneWithAnUnknownTermIsNotRead) {
+TEST_F(SeqOpenListsIntegrationTest, AClosedListOrOneWithATermThatIsNotANumberIsNotRead) {
     const uint32_t cons = kernel.symbols_.intern_symbol("cons");
     const expr* closed = kernel.exprs_.make_functor(
         cons, {kernel.literals_.make_literal(1), kernel.exprs_.make_functor(kernel.symbols_.intern_symbol("nil"), {})});
     rules.open_lists_.detect(closed, out);
-    const expr* unknown = kernel.exprs_.make_functor(cons, {kernel.exprs_.make_var(1), open_list({1, 2, 3})});
+    const expr* unknown = kernel.exprs_.make_functor(
+        cons, {kernel.exprs_.make_functor(kernel.symbols_.intern_symbol("f"), {kernel.literals_.make_literal(1)}),
+               open_list({1, 2, 3})});
     rules.open_lists_.detect(unknown, out);
     EXPECT_THAT(out, IsEmpty());
 }
@@ -69,4 +75,10 @@ TEST_F(SeqOpenListsIntegrationTest, AnOpenListOfAStepUsingTheIndexUnfolds) {
     // factorials: a(i) = i * a(i - 1)
     const std::string factorials = reduced(open_list({1, 1, 2, 6, 24, 120, 720, 5040, 40320, 362880}));
     EXPECT_EQ(factorials.rfind("unfold(", 0), 0u) << factorials;
+}
+
+TEST_F(SeqOpenListsIntegrationTest, AnOpenListWithAnUnknownTermBindsItToTheSequence) {
+    // reduce request #37: the fifth Fibonacci number is ?1
+    EXPECT_EQ(reduced(open_list_with_hole({0, 1, 1, 2, 0, 5, 8, 13, 21}, 4)), "unfold(lams(3, #1 + #2), 0, 1)");
+    EXPECT_EQ(reduced(open_list_with_hole({1, 0, 4, 8, 16, 32, 64}, 1)), "tabulate(lam(exp(2, #0)))");
 }

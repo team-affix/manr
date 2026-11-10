@@ -1,4 +1,7 @@
 #include "infrastructure/poly_arithmetic.hpp"
+#include <utility>
+#include <vector>
+#include "value_objects/rational.hpp"
 #include "debug_assert.hpp"
 
 namespace {
@@ -131,4 +134,66 @@ std::optional<poly_polynomial> poly_arithmetic::combine(
     if (result.terms.size() > max_terms_)
         return std::nullopt;
     return result;
+}
+
+std::optional<poly_polynomial> poly_arithmetic::find_gcd(const poly_polynomial& lhs, const poly_polynomial& rhs) const {
+    if (lhs.terms.empty() || rhs.terms.empty())
+        return std::nullopt;
+    // dense coefficients over the rationals, lowest degree first, in the one variable both use
+    std::optional<uint32_t> variable;
+    std::vector<std::vector<rational>> dense(2);
+    const poly_polynomial* sides[2] = {&lhs, &rhs};
+    for (size_t side = 0; side < 2; ++side) {
+        for (const auto& [monomial, coefficient] : sides[side]->terms) {
+            if (monomial.powers.size() > 1)
+                return std::nullopt;
+            uint32_t degree = 0;
+            if (monomial.powers.size() == 1) {
+                const bool other = variable.has_value() && variable.value() != monomial.powers[0].variable;
+                if (other)
+                    return std::nullopt;
+                variable = monomial.powers[0].variable;
+                degree = monomial.powers[0].exponent;
+            }
+            if (dense[side].size() <= degree)
+                dense[side].resize(degree + 1, rational(0));
+            dense[side][degree] = rational(coefficient);
+        }
+    }
+    // Euclid: a, b <- b, a mod b until b is 0
+    std::vector<rational> a = dense[0];
+    std::vector<rational> b = dense[1];
+    while (!b.empty()) {
+        while (a.size() >= b.size() && !a.empty()) {
+            const rational scale = a.back() / b.back();
+            const size_t shift = a.size() - b.size();
+            for (size_t degree = 0; degree < b.size(); ++degree)
+                a[shift + degree] -= scale * b[degree];
+            while (!a.empty() && a.back() == 0)
+                a.pop_back();
+        }
+        std::swap(a, b);
+    }
+    // the primitive integer multiple, leading coefficient positive
+    integer common_denominator = 1;
+    for (const rational& coefficient : a)
+        common_denominator = boost::multiprecision::lcm(common_denominator,
+                                                        boost::multiprecision::denominator(coefficient));
+    integer common_factor = 0;
+    for (const rational& coefficient : a)
+        common_factor = boost::multiprecision::gcd(
+            common_factor, boost::multiprecision::numerator(coefficient * rational(common_denominator)));
+    if (a.back() < 0)
+        common_factor = -common_factor;
+    poly_polynomial divisor;
+    for (size_t degree = 0; degree < a.size(); ++degree) {
+        const rational scaled = a[degree] * rational(common_denominator) / rational(common_factor);
+        if (scaled == 0)
+            continue;
+        poly_monomial monomial;
+        if (degree > 0)
+            monomial.powers.push_back(poly_power{.variable = variable.value(), .exponent = static_cast<uint32_t>(degree)});
+        divisor.terms.emplace(monomial, boost::multiprecision::numerator(scaled));
+    }
+    return divisor;
 }

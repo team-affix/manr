@@ -12,9 +12,11 @@
 #include <chrono>
 #include <cstdio>
 #include <map>
+#include <optional>
 #include <random>
 #include <sstream>
 #include <string>
+#include <utility>
 #include <variant>
 #include <vector>
 #include "bench_gate.hpp"
@@ -51,10 +53,35 @@ std::string print(poly_kernel_manifest& kernel, const expr* e) {
     return os.str();
 }
 
+// The expression as a fraction of polynomials: a quotient `div(n, d)` is (n, d), a polynomial p is (p, 1).
+std::optional<std::pair<const expr*, const expr*>> find_fraction(poly_kernel_manifest& kernel, const expr* e) {
+    const expr::functor* f = std::get_if<expr::functor>(&e->content);
+    const bool divided = f != nullptr && f->args.size() == 2 && f->id == kernel.symbols_.intern_symbol("div");
+    if (divided)
+        return std::make_pair(f->args[0], f->args[1]);
+    if (!kernel.expander_.find_polynomial(e).has_value())
+        return std::nullopt;
+    return std::make_pair(e, kernel.literals_.make_literal(1));
+}
+
+// Equal as fractions of polynomials, n1 / d1 = n2 / d2 when n1 * d2 = n2 * d1 (so wherever d1 and d2 are not 0).
+bool means_the_same(poly_kernel_manifest& kernel, const expr* best, const expr* initial) {
+    const auto left = find_fraction(kernel, best);
+    const auto right = find_fraction(kernel, initial);
+    if (!left.has_value() || !right.has_value())
+        return false;
+    const uint32_t mul = kernel.poly_symbols_.mul;
+    const auto cross = kernel.expander_.find_polynomial(
+        kernel.exprs_.make_functor(mul, {left.value().first, right.value().second}));
+    return cross.has_value()
+           && cross == kernel.expander_.find_polynomial(
+                           kernel.exprs_.make_functor(mul, {right.value().first, left.value().second}));
+}
+
 template<typename Manifest>
 outcome finish(Manifest& m, const expr* best, std::chrono::steady_clock::time_point start) {
     const double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
-    const bool sound = m.kernel_.expander_.find_polynomial(best) == m.kernel_.expander_.find_polynomial(m.initial_);
+    const bool sound = best == m.initial_ || means_the_same(m.kernel_, best, m.initial_);
     return outcome{.cost = m.search_.best_cost(), .best = print(m.kernel_, best), .seconds = seconds, .sound = sound};
 }
 
@@ -228,6 +255,21 @@ int main(int argc, char** argv) {
         {"a hole cancelling a product", "(x - 1) * ?0 - x^2 + 1", "0 | ?0 = x + 1"},
         {"a hole cubed against a cube", "2 * ?0^3 - 2 * (x + y)^3 + 4", "4 | ?0 = x + y"},
         {"a scaled hole, nearest quotient", "3 * ?0 + 6 * x^2 + 7", "1 | ?0 = -2 * x^2 - 2"},
+        // reduce request #32: a hole bound to the shift that completes a square
+        {"#32 (?0 - x)^2 + y", "(?0 - x)^2 + y", "y | ?0 = x"},
+        {"a hole bound to a product", "?0^2 - 2 * ?0 * x * y + x^2 * y^2 + 1", "1 | ?0 = x * y"},
+        {"a scaled square completed", "2 * ?0^2 - 4 * x * ?0 + 2 * x^2 + z", "z | ?0 = x"},
+        // reduce request #33: holes bound jointly by the linear system of the coefficients
+        {"#33 two holes as coefficients", "?0 * x^2 + ?1 * x + ?0 - (x + 1)^2", "0 | ?0 = 1, ?1 = 2"},
+        {"two holes leaving a constant", "?0 * x + ?1 * y - x + 2 * y + 5", "5 | ?0 = 1, ?1 = -2"},
+        {"three holes as coefficients", "?0 * x^2 + ?1 * x * y + ?2 * y^2 - (x - 2 * y)^2",
+         "0 | ?0 = 1, ?1 = -4, ?2 = 4"},
+        {"a product of two holes, not linear", "?0 * ?1 * x - x + 3", "-1 * x + 3 | ?0 = 0, ?1 = 0"},
+        // reduce request #38: quotients of polynomials, their common factor cancelled
+        {"#38 (x^2 - 1) / (x - 1)", "(x^2 - 1) / (x - 1)", "x + 1"},
+        {"a quotient by a square's root", "(x^2 + 2 * x * y + y^2) / (x + y)", "x + y"},
+        {"a common factor of degree one", "(x^2 - 1) / (x^2 + 2 * x + 1)", "(x - 1) / (x + 1)"},
+        {"a quotient with nothing in common", "(x^2 + 1) / (x + 1)", "(x^2 + 1) / (x + 1)"},
     };
     poly_kernel_manifest generator{k_poly_default_limits};
     std::mt19937 rng{42};

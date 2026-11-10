@@ -50,8 +50,8 @@ poly_fit_rules_manifest::poly_fit_rules_manifest(
     , combinations_(atoms_, conditions_, condition_logic_.hypotheses_, kernel.sizes_, kernel.literals_,
                     kernel.literals_, kernel.exprs_, logic_symbols_, condition_logic_.variables_, point_symbol_)
     , conditions_union_(primes_, combinations_)
-    , guarded_(conditions_union_, fit_.hypotheses_, body_, kernel.sizes_, kernel.literals_, kernel.exprs_,
-               pw_symbols_)
+    , guarded_(conditions_union_, atoms_, fit_.hypotheses_, fit_.interpolations_, body_, kernel.sizes_,
+               kernel.literals_, kernel.exprs_, pw_symbols_)
     , hypotheses_(guarded_, iterations_, primes_)
     , piecewise_(hypotheses_, pw_evaluator_, function_maker_, kernel.literals_, kernel.exprs_, pw_symbols_,
                  point_symbol_, kernel.poly_symbols_.add, kernel.poly_symbols_.sub, kernel.poly_symbols_.mul,

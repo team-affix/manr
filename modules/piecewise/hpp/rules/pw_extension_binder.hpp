@@ -4,6 +4,7 @@
 #include <variant>
 #include <vector>
 #include "value_objects/expr.hpp"
+#include "value_objects/pw_coverage.hpp"
 #include "value_objects/pw_data_point.hpp"
 #include "value_objects/pw_symbols.hpp"
 #include "value_objects/rewrite.hpp"
@@ -14,30 +15,40 @@
 // that hypothesis and drop every branch it reproduces, in one step. The rewrite only assembles the result.
 //
 // The extension term is resolved where it stands, so this assumes it occurs nowhere else (the builder makes
-// exactly one occurrence). Only a piecewise whose branches are all data points (`case`) is bound.
-template<typename IProposeHypotheses, typename IFindUncovered, typename IAssemble>
+// exactly one occurrence). Only a piecewise whose branches are all data points (`case`) is bound. The branches it
+// drops are reproduced under one binding of the holes their labels hold, and the result carries that binding: the
+// kept branches holding the same holes get their bound values (a hole is one value everywhere).
+template<typename IProposeHypotheses, typename IFindUncovered, typename IAssemble, typename ISubstituteHoles>
 struct pw_extension_binder {
     pw_extension_binder(IProposeHypotheses& propose_hypotheses,
                         IFindUncovered& find_uncovered,
                         IAssemble& assemble,
+                        ISubstituteHoles& substitute_holes,
                         pw_symbols symbols);
     void detect(const expr* e, std::vector<rewrite>& out);
 private:
     IProposeHypotheses& propose_hypotheses_;
     IFindUncovered& find_uncovered_;
     IAssemble& assemble_;
+    ISubstituteHoles& substitute_holes_;
     pw_symbols symbols_;
     std::vector<const expr*> hypotheses_;
 };
 
-#define PW_EXTENSION_BINDER_TEMPLATE template<typename IProposeHypotheses, typename IFindUncovered, typename IAssemble>
-#define PW_EXTENSION_BINDER          pw_extension_binder<IProposeHypotheses, IFindUncovered, IAssemble>
+#define PW_EXTENSION_BINDER_TEMPLATE \
+    template<typename IProposeHypotheses, typename IFindUncovered, typename IAssemble, typename ISubstituteHoles>
+#define PW_EXTENSION_BINDER pw_extension_binder<IProposeHypotheses, IFindUncovered, IAssemble, ISubstituteHoles>
 
 PW_EXTENSION_BINDER_TEMPLATE PW_EXTENSION_BINDER::pw_extension_binder(
-    IProposeHypotheses& propose_hypotheses, IFindUncovered& find_uncovered, IAssemble& assemble, pw_symbols symbols)
+    IProposeHypotheses& propose_hypotheses,
+    IFindUncovered& find_uncovered,
+    IAssemble& assemble,
+    ISubstituteHoles& substitute_holes,
+    pw_symbols symbols)
     : propose_hypotheses_(propose_hypotheses)
     , find_uncovered_(find_uncovered)
     , assemble_(assemble)
+    , substitute_holes_(substitute_holes)
     , symbols_(symbols)
     , hypotheses_() {}
 
@@ -60,10 +71,13 @@ PW_EXTENSION_BINDER_TEMPLATE void PW_EXTENSION_BINDER::detect(const expr* e, std
     hypotheses_.clear();
     propose_hypotheses_.propose_hypotheses(points, hypotheses_);
     for (const expr* hypothesis : hypotheses_) {
-        const std::vector<const expr*> uncovered = find_uncovered_.find_uncovered(branches, hypothesis);
-        if (uncovered.size() == branches.size())
+        const pw_coverage coverage = find_uncovered_.find_uncovered(branches, hypothesis);
+        if (coverage.uncovered.size() == branches.size())
             continue;
-        out.push_back([this, uncovered, hypothesis]() { return assemble_.assemble(uncovered, hypothesis); });
+        out.push_back([this, coverage, hypothesis]() {
+            return substitute_holes_.substitute_holes(assemble_.assemble(coverage.uncovered, hypothesis),
+                                                      coverage.bindings);
+        });
     }
 }
 
