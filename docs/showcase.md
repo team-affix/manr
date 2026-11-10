@@ -73,7 +73,9 @@ output, with no story: readers can see the domain and the use for themselves.
   GitHub's size limit (65,536 characters), continue in comments, never by shortening.
 - One section per kind, expressions first, then data by domain. Each is a table with three columns, one row per
   problem: **demonstrates** (a fragment naming what the row shows, e.g. "recognizes the primes from a late start",
-  "binds unknown labels"), **input** and **output**.
-- **Not reduced**: a table of what was tried, the full input, the output reached, and the smaller form that exists.
+  "binds unknown labels"), **input**, **output**, and **time**: wall-clock for the solver that produced the output,
+  from a `--serial` run.
+- **Not reduced**: a table of what was tried, the full input, the output reached, the smaller form that exists, and
+  the time spent before the search stopped.
 
 Give the user the Discussion's link and a few lines of summary.
