@@ -14,9 +14,12 @@
 #include "infrastructure/abs_reducer.hpp"
 #include "infrastructure/arith_hole_solver.hpp"
 #include "infrastructure/expr_pool.hpp"
+#include "infrastructure/num_evaluator.hpp"
+#include "infrastructure/num_prime_hypotheses.hpp"
+#include "infrastructure/num_prime_table.hpp"
 #include "infrastructure/poly_fit_hypotheses_manifest.hpp"
-#include "infrastructure/poly_iteration_hypotheses.hpp"
 #include "infrastructure/poly_interpolator.hpp"
+#include "infrastructure/poly_iteration_hypotheses.hpp"
 #include "infrastructure/poly_kernel_manifest.hpp"
 #include "infrastructure/poly_rules_manifest.hpp"
 #include "infrastructure/proposer_union.hpp"
@@ -31,6 +34,7 @@
 #include "infrastructure/subterm_proposer.hpp"
 #include "value_objects/abs_symbols.hpp"
 #include "value_objects/expr.hpp"
+#include "value_objects/num_symbols.hpp"
 #include "value_objects/poly_fit_limits.hpp"
 #include "value_objects/poly_sample.hpp"
 #include "value_objects/pw_symbols.hpp"
@@ -60,8 +64,13 @@ struct poly_fit_rules_manifest {
     struct function_maker_t : abs_function_maker<kernel_t::literals_t, expr_pool> {
         using abs_function_maker<kernel_t::literals_t, expr_pool>::abs_function_maker;
     };
-    struct applying_t : abs_applying_evaluator<binders_t, fit_t::pw_evaluator_t> {
-        using abs_applying_evaluator<binders_t, fit_t::pw_evaluator_t>::abs_applying_evaluator;
+    struct numbers_t : num_evaluator<fit_t::pw_evaluator_t, fit_t::conditions_t, kernel_t::literals_t, kernel_t::literals_t, num_prime_table,
+                                     num_prime_table> {
+        using num_evaluator<fit_t::pw_evaluator_t, fit_t::conditions_t, kernel_t::literals_t, kernel_t::literals_t, num_prime_table,
+                            num_prime_table>::num_evaluator;
+    };
+    struct applying_t : abs_applying_evaluator<binders_t, numbers_t> {
+        using abs_applying_evaluator<binders_t, numbers_t>::abs_applying_evaluator;
     };
     struct evaluator_t : abs_evaluator<reducer_t, applying_t> {
         using abs_evaluator<reducer_t, applying_t>::abs_evaluator;
@@ -74,8 +83,11 @@ struct poly_fit_rules_manifest {
         using poly_iteration_hypotheses<fit_t::converter_t, poly_interpolator, poly_interpolator, kernel_t::renderer_t,
                                         indices_t, expr_pool>::poly_iteration_hypotheses;
     };
-    struct hypotheses_t : pw_hypotheses_union<fit_t::hypotheses_t, iterations_t> {
-        using pw_hypotheses_union<fit_t::hypotheses_t, iterations_t>::pw_hypotheses_union;
+    struct primes_t : num_prime_hypotheses<kernel_t::literals_t, num_prime_table, num_prime_table, expr_pool> {
+        using num_prime_hypotheses<kernel_t::literals_t, num_prime_table, num_prime_table, expr_pool>::num_prime_hypotheses;
+    };
+    struct hypotheses_t : pw_hypotheses_union<fit_t::hypotheses_t, iterations_t, primes_t> {
+        using pw_hypotheses_union<fit_t::hypotheses_t, iterations_t, primes_t>::pw_hypotheses_union;
     };
     struct closing_t : abs_closing_hypotheses<hypotheses_t, function_maker_t> {
         using abs_closing_hypotheses<hypotheses_t, function_maker_t>::abs_closing_hypotheses;
@@ -119,14 +131,18 @@ struct poly_fit_rules_manifest {
     uint32_t less_symbol_;
     fit_t fit_;
     abs_symbols abs_symbols_;
+    num_symbols num_symbols_;
     indices_t indices_;
     binders_t binders_;
     reducer_t reducer_;
     function_maker_t function_maker_;
+    num_prime_table prime_table_;
+    numbers_t numbers_;
     applying_t applying_;
     evaluator_t evaluator_;
     pw_evaluator_t pw_evaluator_;
     iterations_t iterations_;
+    primes_t primes_;
     hypotheses_t hypotheses_;
     closing_t closing_;
     assembler_t assembler_;

@@ -456,3 +456,12 @@ TEST_F(ListDetectorsIntegrationTest, TheFactorFoldDetectorProposesNothingForSums
         out);
     EXPECT_TRUE(out.empty());
 }
+
+TEST_F(ListDetectorsIntegrationTest, TheFilterDetectorHandsKeptAndRemovedValuesToTheConditionDomain) {
+    rules.filterings_.propose_hypotheses(
+        points({{.input = {4, 5, 6, 7}, .output = {5, 7}, .output_is_list = true},
+                {.input = {9, 2, 11}, .output = {2, 11}, .output_is_list = true},
+                {.input = {3, 8, 13, 10}, .output = {3, 13}, .output_is_list = true}}),
+        out);
+    EXPECT_THAT(printed(), Contains("filter(lam(is_prime(#0)), #0)"));
+}

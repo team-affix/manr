@@ -1,25 +1,25 @@
 # problem	solver	cost	target	seconds	sound
-#9 parity of 4 bits	best-1st	9	9	0.000148859	1
-#9 parity of 4 bits	mcts	9	9	0.00013197	1
-#10 majority of 3 bits	best-1st	11	11	6.905e-05	1
-#10 majority of 3 bits	mcts	11	11	8.9827e-05	1
-parity of 3 bits	best-1st	7	7	7.5068e-05	1
-parity of 3 bits	mcts	7	7	9.8077e-05	1
-parity of 6 bits	best-1st	13	13	0.000672818	1
-parity of 6 bits	mcts	13	13	0.000508286	1
-equivalence	best-1st	6	6	4.318e-05	1
-equivalence	mcts	6	6	6.1046e-05	1
-implication	best-1st	6	6	5.3522e-05	1
-implication	mcts	6	6	8.1627e-05	1
-and of 3 bits	best-1st	7	7	4.3045e-05	1
-and of 3 bits	mcts	7	7	4.7623e-05	1
-multiplexer	best-1st	10	10	4.8916e-05	1
-multiplexer	mcts	10	10	7.4001e-05	1
-majority, two rows unseen	best-1st	8	11	4.9427e-05	1
-majority, two rows unseen	mcts	8	11	7.8877e-05	1
-parity of 4, wrong label	best-1st	17	17	0.000127232	1
-parity of 4, wrong label	mcts	17	17	0.000159781	1
-exactly one of 3	best-1st	14	14	5.8701e-05	1
-exactly one of 3	mcts	14	14	5.7201e-05	1
-majority of 5 bits	best-1st	39	39	0.000278249	1
-majority of 5 bits	mcts	39	39	0.000201602	1
+#9 parity of 4 bits	best-1st	9	9	0.000129902	1
+#9 parity of 4 bits	mcts	9	9	0.00013565	1
+#10 majority of 3 bits	best-1st	11	11	7.8181e-05	1
+#10 majority of 3 bits	mcts	11	11	9.4158e-05	1
+parity of 3 bits	best-1st	7	7	6.3902e-05	1
+parity of 3 bits	mcts	7	7	8.3754e-05	1
+parity of 6 bits	best-1st	13	13	0.000409905	1
+parity of 6 bits	mcts	13	13	0.000397115	1
+equivalence	best-1st	6	6	4.039e-05	1
+equivalence	mcts	6	6	4.1038e-05	1
+implication	best-1st	6	6	3.9589e-05	1
+implication	mcts	6	6	5.0131e-05	1
+and of 3 bits	best-1st	7	7	6.4386e-05	1
+and of 3 bits	mcts	7	7	4.7965e-05	1
+multiplexer	best-1st	10	10	4.8049e-05	1
+multiplexer	mcts	10	10	4.8474e-05	1
+majority, two rows unseen	best-1st	8	11	4.6382e-05	1
+majority, two rows unseen	mcts	8	11	8.2686e-05	1
+parity of 4, wrong label	best-1st	17	17	0.000145097	1
+parity of 4, wrong label	mcts	17	17	0.00013994	1
+exactly one of 3	best-1st	14	14	4.3372e-05	1
+exactly one of 3	mcts	14	14	5.7661e-05	1
+majority of 5 bits	best-1st	39	39	0.000188103	1
+majority of 5 bits	mcts	39	39	0.000174871	1

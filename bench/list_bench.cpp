@@ -19,6 +19,7 @@
 #include <vector>
 #include "infrastructure/list_fit_manifest.hpp"
 #include "infrastructure/list_fit_mcts_manifest.hpp"
+#include "infrastructure/num_prime_table.hpp"
 #include "value_objects/list_sample.hpp"
 #include "value_objects/poly_default_limits.hpp"
 #include "value_objects/poly_fit_default_limits.hpp"
@@ -192,6 +193,16 @@ solved solve(const list_problem& p, bool fast) {
                   .mcts = skip_mcts ? skipped : run_mcts(samples)};
 }
 
+// The primes of a list, in order.
+list_t keep_primes(const list_t& list) {
+    num_prime_table table{k_num_default_max_value};
+    list_t kept;
+    for (const integer& value : list)
+        if (table.find_primality(value).value())
+            kept.push_back(value);
+    return kept;
+}
+
 }
 
 int main(int argc, char** argv) {
@@ -229,6 +240,13 @@ int main(int argc, char** argv) {
          {}, 7, "lam(filter(lam(lt(0, #0)), #0))"},
         {"filter below one", all_lists(-2, 2, 3), true, [](const list_t& l) { return keep(l, [](integer e) { return e < 1; }); },
          {}, 7, "lam(filter(lam(lt(#0, 1)), #0))"},
+        // reduce request #14, and similar filters by primality: the kept and removed values go to the condition domain
+        {"#14 primes of a list", random_lists(30, 2, 8, 0, 40, 61), true, keep_primes, {}, 7,
+         "lam(filter(lam(is_prime(#0)), #0))"},
+        {"primes of longer lists", random_lists(20, 10, 20, -20, 100, 7), true, keep_primes, {}, 6,
+         "lam(filter(lam(is_prime(#0)), #0))"},
+        {"primes of a list, wrong label", random_lists(30, 2, 8, 0, 40, 61), true, keep_primes, {{4, 1}}, 24,
+         "one case + lam(filter(lam(is_prime(#0)), #0))"},
         // long lists: 20 to 40 elements, values up to 50 in size; folds get every list's tails, maps and filters none
         {"long sum", with_tails(random_lists(12, 20, 40, -50, 50, 1)), false, sum, {}, 9, "lam(fold(lam(lam(#0 + #1)), 0, #0))"},
         {"long length", with_tails(random_lists(12, 20, 40, -50, 50, 6)), false,

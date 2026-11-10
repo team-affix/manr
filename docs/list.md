@@ -74,7 +74,9 @@ not reproduce as branches.
   - `list_integer_map_hypotheses`, `list_integer_fold_hypotheses`.
   - `list_filter_hypotheses`: a point is a filtering when its output is its input with every occurrence of some
     values removed. When every kept value is above every removed one, proposes `filter(lam(lt(d, #0)), xs)`; when below,
-    `filter(lam(lt(#0, d)), xs)`.
+    `filter(lam(lt(#0, d)), xs)`. The kept and removed values also go to a condition domain as 1s and 0s, and each
+    condition it proposes becomes `filter(lam(c), xs)`: today the primes detector, so the primes of a list read as
+    `filter(lam(is_prime(#0)), xs)` (#14, `number.md`).
 - **Affine folds, from whole lists.** `list_affine_fold_hypotheses` needs no tails and no empty list. It assumes the
   step is affine in the accumulator, `p(h) + c * acc`. Then a list's output is `sum_i c^(i-1) p(x_i) + c^n b`, so
   the value of every tail drops out: once `c` is fixed, the output is linear in `p`'s coefficients and the base `b`,

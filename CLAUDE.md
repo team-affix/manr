@@ -55,6 +55,9 @@ modules/<name>/{hpp,cpp,test}/...             one directory per rule module; pre
                                               closing rule from affine recurrences to powers
   seq_fit/    (seq_)                          composition: the recurrence detector (steps from consecutive terms,
                                               handed to polynomial fitting), rule set, solver manifests, runtime
+  number/     (num_)                          number-theory primitives over another domain: `prime(n)`, `is_prime(n)`,
+                                              a sieve-backed prime table, their evaluator, and a detector comparing
+                                              data with the primes (wired into poly, seq and list fitting)
   logic/      (logic_)                        boolean functions: and, or, xor, not over 0 and 1, evaluator
   logic_fit/  (logic_)                        composition: parity (exact solve mod 2) and factored sum-of-products
                                               detectors over truth tables, rule set, solver manifests, runtime
@@ -109,6 +112,8 @@ A module depends on core and on other modules' headers; core never depends on a 
   to polynomial fitting.
 - Sequences are the third domain. Read `docs/seq.md`: a recurrence's steps are read off consecutive terms and fitted
   as polynomials, and a closing rule turns affine recurrences into powers.
+- Number theory (`docs/number.md`) is vocabulary on top of the other domains: primitives for the primes, evaluated over
+  a domain's evaluator, and a detector that also serves list filters as a condition domain.
 - Logic is the fourth domain. Read `docs/logic.md`: parities by an exact solve mod 2, everything else by a factored
   Quine-McCluskey cover, with unseen inputs as don't cares.
 - **Detecting a hard shape is decomposed** (`docs/decomposing-detection.md`): split it into subproblems, each made

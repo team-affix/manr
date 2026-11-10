@@ -11,18 +11,27 @@
 #include "value_objects/list_symbols.hpp"
 #include "value_objects/pw_data_point.hpp"
 
-// A detector that reads list-to-list data as `filter(c, #0)` with a threshold condition. A point is a filtering when
-// its output is its input with every occurrence of some values removed; its kept values are the output's. When every
-// kept value of the data lies above every removed one, it proposes `filter(lt(d, e), #0)` with d the largest removed
-// value; when below, `filter(lt(e, d), #0)` with d the smallest removed value. Points of any other shape are ignored.
-template<typename IFindElements, typename IFindLiteralValue, typename IMakeLiteral, typename IMakeFunctor>
+// A detector that reads list-to-list data as `filter(c, #0)`. A point is a filtering when its output is its input with
+// every occurrence of some values removed; its kept values are the output's. When every kept value of the data lies
+// above every removed one, it proposes `filter(lt(d, e), #0)` with d the largest removed value; when below,
+// `filter(lt(e, d), #0)` with d the smallest removed value. Split outer-inner (`docs/decomposing-detection.md`), the
+// kept and removed values are also condition data, `point(v) -> 1` and `point(v) -> 0`, handed to the condition
+// domain: each condition it proposes becomes `filter(lam(c), #0)` (e.g. `is_prime(#0)`, reduce request #14). Points of
+// any other shape are ignored.
+template<typename IFindElements,
+         typename IFindLiteralValue,
+         typename IMakeLiteral,
+         typename IMakeFunctor,
+         typename IProposeConditions>
 struct list_filter_hypotheses {
     list_filter_hypotheses(IFindElements& find_elements,
                            IFindLiteralValue& find_literal_value,
                            IMakeLiteral& make_literal,
                            IMakeFunctor& make_functor,
+                           IProposeConditions& propose_conditions,
                            list_symbols symbols,
-                           uint32_t less_symbol);
+                           uint32_t less_symbol,
+                           uint32_t point_symbol);
     void propose_hypotheses(const std::vector<pw_data_point>& points, std::vector<const expr*>& out);
 private:
     std::optional<std::vector<integer>> find_values(const expr* list) const;
@@ -31,27 +40,37 @@ private:
     IFindLiteralValue& find_literal_value_;
     IMakeLiteral& make_literal_;
     IMakeFunctor& make_functor_;
+    IProposeConditions& propose_conditions_;
     list_symbols symbols_;
     uint32_t less_symbol_;
+    uint32_t point_symbol_;
+    std::vector<const expr*> conditions_;
 };
 
-#define LIST_FILTER_HYPOTHESES_TEMPLATE \
-    template<typename IFindElements, typename IFindLiteralValue, typename IMakeLiteral, typename IMakeFunctor>
-#define LIST_FILTER_HYPOTHESES list_filter_hypotheses<IFindElements, IFindLiteralValue, IMakeLiteral, IMakeFunctor>
+#define LIST_FILTER_HYPOTHESES_TEMPLATE                                                                    \
+    template<typename IFindElements, typename IFindLiteralValue, typename IMakeLiteral, typename IMakeFunctor, \
+             typename IProposeConditions>
+#define LIST_FILTER_HYPOTHESES \
+    list_filter_hypotheses<IFindElements, IFindLiteralValue, IMakeLiteral, IMakeFunctor, IProposeConditions>
 
 LIST_FILTER_HYPOTHESES_TEMPLATE LIST_FILTER_HYPOTHESES::list_filter_hypotheses(
     IFindElements& find_elements,
     IFindLiteralValue& find_literal_value,
     IMakeLiteral& make_literal,
     IMakeFunctor& make_functor,
+    IProposeConditions& propose_conditions,
     list_symbols symbols,
-    uint32_t less_symbol)
+    uint32_t less_symbol,
+    uint32_t point_symbol)
     : find_elements_(find_elements)
     , find_literal_value_(find_literal_value)
     , make_literal_(make_literal)
     , make_functor_(make_functor)
+    , propose_conditions_(propose_conditions)
     , symbols_(symbols)
-    , less_symbol_(less_symbol) {}
+    , less_symbol_(less_symbol)
+    , point_symbol_(point_symbol)
+    , conditions_() {}
 
 LIST_FILTER_HYPOTHESES_TEMPLATE void LIST_FILTER_HYPOTHESES::propose_hypotheses(
     const std::vector<pw_data_point>& points, std::vector<const expr*>& out) {
@@ -78,6 +97,24 @@ LIST_FILTER_HYPOTHESES_TEMPLATE void LIST_FILTER_HYPOTHESES::propose_hypotheses(
         return;
     const expr* element = make_functor_.make_functor(symbols_.element, {});
     const expr* list = make_functor_.make_functor(symbols_.input, {});
+    std::vector<pw_data_point> labelled;
+    labelled.reserve(kept.size() + removed.size());
+    const expr* holds = make_literal_.make_literal(integer(1));
+    const expr* fails = make_literal_.make_literal(integer(0));
+    for (const integer& value : kept) {
+        const expr* key = make_functor_.make_functor(point_symbol_, {make_literal_.make_literal(value)});
+        labelled.push_back(pw_data_point{.input = key, .output = holds});
+    }
+    for (const integer& value : removed) {
+        const expr* key = make_functor_.make_functor(point_symbol_, {make_literal_.make_literal(value)});
+        labelled.push_back(pw_data_point{.input = key, .output = fails});
+    }
+    conditions_.clear();
+    propose_conditions_.propose_hypotheses(labelled, conditions_);
+    for (const expr* condition : conditions_) {
+        const expr* function = make_functor_.make_functor(symbols_.lambda, {condition});
+        out.push_back(make_functor_.make_functor(symbols_.filter, {function, list}));
+    }
     const bool above = *removed.rbegin() < *kept.begin();
     if (above) {
         const expr* condition =

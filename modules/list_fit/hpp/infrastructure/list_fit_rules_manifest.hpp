@@ -31,6 +31,9 @@
 #include "infrastructure/list_sum_fold_hypotheses.hpp"
 #include "infrastructure/list_sum_fold_solver.hpp"
 #include "infrastructure/list_values.hpp"
+#include "infrastructure/num_evaluator.hpp"
+#include "infrastructure/num_prime_hypotheses.hpp"
+#include "infrastructure/num_prime_table.hpp"
 #include "infrastructure/poly_fit_hypotheses_manifest.hpp"
 #include "infrastructure/poly_kernel_manifest.hpp"
 #include "infrastructure/poly_rules_manifest.hpp"
@@ -49,6 +52,7 @@
 #include "value_objects/expr.hpp"
 #include "value_objects/list_sample.hpp"
 #include "value_objects/list_symbols.hpp"
+#include "value_objects/num_symbols.hpp"
 #include "value_objects/poly_fit_limits.hpp"
 #include "value_objects/pw_symbols.hpp"
 
@@ -79,8 +83,13 @@ struct list_fit_rules_manifest {
     struct function_maker_t : abs_function_maker<kernel_t::literals_t, expr_pool> {
         using abs_function_maker<kernel_t::literals_t, expr_pool>::abs_function_maker;
     };
-    using evaluator_base_t = list_evaluator<values_t, values_t, expr_pool, kernel_t::literals_t, fit_t::pw_evaluator_t,
-                                            fit_t::conditions_t, fit_t::pw_evaluator_t, binders_t, binders_t>;
+    struct numbers_t : num_evaluator<fit_t::pw_evaluator_t, fit_t::conditions_t, kernel_t::literals_t, kernel_t::literals_t, num_prime_table,
+                                     num_prime_table> {
+        using num_evaluator<fit_t::pw_evaluator_t, fit_t::conditions_t, kernel_t::literals_t, kernel_t::literals_t, num_prime_table,
+                            num_prime_table>::num_evaluator;
+    };
+    using evaluator_base_t = list_evaluator<values_t, values_t, expr_pool, kernel_t::literals_t, numbers_t, numbers_t,
+                                            fit_t::pw_evaluator_t, binders_t, binders_t>;
     struct evaluator_t : evaluator_base_t {
         using evaluator_base_t::evaluator_base_t;
     };
@@ -149,10 +158,13 @@ struct list_fit_rules_manifest {
         using list_count_fold_hypotheses<values_t, kernel_t::literals_t, kernel_t::renderer_t, kernel_t::literals_t,
                                          expr_pool>::list_count_fold_hypotheses;
     };
+    struct primes_t : num_prime_hypotheses<kernel_t::literals_t, num_prime_table, num_prime_table, expr_pool> {
+        using num_prime_hypotheses<kernel_t::literals_t, num_prime_table, num_prime_table, expr_pool>::num_prime_hypotheses;
+    };
     struct filterings_t
-        : list_filter_hypotheses<values_t, kernel_t::literals_t, kernel_t::literals_t, expr_pool> {
-        using list_filter_hypotheses<values_t, kernel_t::literals_t, kernel_t::literals_t,
-                                     expr_pool>::list_filter_hypotheses;
+        : list_filter_hypotheses<values_t, kernel_t::literals_t, kernel_t::literals_t, expr_pool, primes_t> {
+        using list_filter_hypotheses<values_t, kernel_t::literals_t, kernel_t::literals_t, expr_pool,
+                                     primes_t>::list_filter_hypotheses;
     };
     struct map_filters_t : list_map_filter_hypotheses<values_t, kernel_t::literals_t, fit_t::converter_t,
                                                       fit_t::hypotheses_t, kernel_t::literals_t, expr_pool> {
@@ -216,6 +228,7 @@ struct list_fit_rules_manifest {
     pw_symbols pw_symbols_;
     abs_symbols abs_symbols_;
     list_symbols list_symbols_;
+    num_symbols num_symbols_;
     uint32_t point_symbol_;
     uint32_t less_symbol_;
     fit_t element_fit_;
@@ -223,6 +236,8 @@ struct list_fit_rules_manifest {
     values_t values_;
     binders_t binders_;
     function_maker_t function_maker_;
+    num_prime_table prime_table_;
+    numbers_t numbers_;
     evaluator_t evaluator_;
     applying_t applying_;
     pw_evaluator_t pw_evaluator_;
@@ -235,6 +250,7 @@ struct list_fit_rules_manifest {
     constants_t constants_;
     integer_maps_t integer_maps_;
     integer_folds_t integer_folds_;
+    primes_t primes_;
     filterings_t filterings_;
     maps_t maps_;
     folds_t folds_;

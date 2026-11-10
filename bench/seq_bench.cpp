@@ -17,6 +17,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include "infrastructure/num_prime_table.hpp"
 #include "infrastructure/poly_interpolator.hpp"
 #include "infrastructure/poly_kernel_manifest.hpp"
 #include "infrastructure/seq_fit_manifest.hpp"
@@ -28,7 +29,8 @@
 namespace {
 
 // a(j) = bases[j] for j < bases.size(), else `step` in i = j and p1, p2, p3 = a(j-1), a(j-2), a(j-3) (0 before the
-// start); sampled at every index in [low, high]
+// start), or a(j) = prime(j) or is_prime(j) when the step is "prime(i)" or "is_prime(i)"; sampled at every index in
+// [low, high]
 struct seq_problem {
     std::string name;
     std::string step;
@@ -60,9 +62,20 @@ std::vector<poly_sample> sample(const seq_problem& p) {
     const std::vector<uint32_t> ids{kernel.symbols_.intern_symbol("i"), kernel.symbols_.intern_symbol("p1"),
                                     kernel.symbols_.intern_symbol("p2"), kernel.symbols_.intern_symbol("p3")};
     const poly_interpolator evaluator{ids, k_poly_fit_default_max_unknowns};
-    const poly_polynomial step = kernel.expander_.find_polynomial(kernel.parser_.parse(p.step)).value();
+    // a number-theory primitive as the step names the sequence itself, read off the prime table
+    num_prime_table table{k_num_default_max_value};
+    const bool primes = p.step == "prime(i)";
+    const bool primality = p.step == "is_prime(i)";
+    const poly_polynomial step = primes || primality
+                                     ? poly_polynomial{}
+                                     : kernel.expander_.find_polynomial(kernel.parser_.parse(p.step)).value();
     std::vector<integer> terms;
     for (int index = 0; index <= p.high; ++index) {
+        if (primes || primality) {
+            terms.push_back(primes ? table.find_nth_prime(index).value()
+                                   : integer(table.find_primality(index).value() ? 1 : 0));
+            continue;
+        }
         if (static_cast<size_t>(index) < p.bases.size()) {
             terms.push_back(p.bases[index]);
             continue;
@@ -197,6 +210,12 @@ int main(int argc, char** argv) {
          "lam(rec(lams(4, #1 + #2 + #3), 0, 0, 1, #0))"},
         {"factorial from index 4", "i*p1", {1}, 4, 18, {}, {}, 9, "lam(rec(lam(lam(#0*#1)), 1, #0))"},
         {"powers of 3 from index 8", "3*p1", {1}, 8, 25, {}, {}, 4, "lam(exp(3, #0))"},
+        // reduce requests #12 and #13, and similar: the primes and primality as primitives
+        {"#12 the n-th prime", "prime(i)", {}, 0, 30, {}, {}, 3, "lam(prime(#0))"},
+        {"#13 is n prime", "is_prime(i)", {}, 0, 60, {}, {}, 3, "lam(is_prime(#0))"},
+        {"the n-th prime from index 20", "prime(i)", {}, 20, 60, {}, {}, 3, "lam(prime(#0))"},
+        {"is n prime, two wrong labels", "is_prime(i)", {}, 0, 60, {{9, 1}, {13, -1}}, {}, 12,
+         "pw(case(point(9), 1), case(point(13), 0), lam(is_prime(#0)))"},
         {"p1^2 + 1 from index 2 (not invertible)", "p1^2 + 1", {1}, 2, 8, {}, {}, 27,
          "no recurrence: the step has no inverse, so the data stays as cases"},
     };

@@ -11,6 +11,9 @@
 #include "infrastructure/abs_function_maker.hpp"
 #include "infrastructure/arith_hole_solver.hpp"
 #include "infrastructure/expr_pool.hpp"
+#include "infrastructure/num_evaluator.hpp"
+#include "infrastructure/num_prime_hypotheses.hpp"
+#include "infrastructure/num_prime_table.hpp"
 #include "infrastructure/poly_condition_evaluator.hpp"
 #include "infrastructure/poly_fit_hypotheses_manifest.hpp"
 #include "infrastructure/poly_kernel_manifest.hpp"
@@ -30,6 +33,7 @@
 #include "infrastructure/subterm_proposer.hpp"
 #include "value_objects/abs_symbols.hpp"
 #include "value_objects/expr.hpp"
+#include "value_objects/num_symbols.hpp"
 #include "value_objects/poly_fit_limits.hpp"
 #include "value_objects/poly_sample.hpp"
 #include "value_objects/pw_symbols.hpp"
@@ -63,8 +67,13 @@ struct seq_fit_rules_manifest {
     struct body_evaluator_t : pw_evaluator<evaluator_t, conditions_t> {
         using pw_evaluator<evaluator_t, conditions_t>::pw_evaluator;
     };
-    struct applying_t : abs_applying_evaluator<binders_t, body_evaluator_t> {
-        using abs_applying_evaluator<binders_t, body_evaluator_t>::abs_applying_evaluator;
+    struct numbers_t : num_evaluator<body_evaluator_t, conditions_t, kernel_t::literals_t, kernel_t::literals_t, num_prime_table,
+                                     num_prime_table> {
+        using num_evaluator<body_evaluator_t, conditions_t, kernel_t::literals_t, kernel_t::literals_t, num_prime_table,
+                            num_prime_table>::num_evaluator;
+    };
+    struct applying_t : abs_applying_evaluator<binders_t, numbers_t> {
+        using abs_applying_evaluator<binders_t, numbers_t>::abs_applying_evaluator;
     };
     struct pw_evaluator_t : pw_evaluator<applying_t, conditions_t> {
         using pw_evaluator<applying_t, conditions_t>::pw_evaluator;
@@ -75,9 +84,13 @@ struct seq_fit_rules_manifest {
     struct recurrences_t : recurrences_base_t {
         using recurrences_base_t::recurrences_base_t;
     };
-    struct hypotheses_t : pw_hypotheses_union<fit_t::hypotheses_t, recurrences_t, recurrences_t, recurrences_t> {
-        using pw_hypotheses_union<fit_t::hypotheses_t, recurrences_t, recurrences_t,
-                                  recurrences_t>::pw_hypotheses_union;
+    struct primes_t : num_prime_hypotheses<kernel_t::literals_t, num_prime_table, num_prime_table, expr_pool> {
+        using num_prime_hypotheses<kernel_t::literals_t, num_prime_table, num_prime_table, expr_pool>::num_prime_hypotheses;
+    };
+    struct hypotheses_t
+        : pw_hypotheses_union<fit_t::hypotheses_t, recurrences_t, recurrences_t, recurrences_t, primes_t> {
+        using pw_hypotheses_union<fit_t::hypotheses_t, recurrences_t, recurrences_t, recurrences_t,
+                                  primes_t>::pw_hypotheses_union;
     };
     struct closing_t : abs_closing_hypotheses<hypotheses_t, function_maker_t> {
         using abs_closing_hypotheses<hypotheses_t, function_maker_t>::abs_closing_hypotheses;
@@ -126,22 +139,26 @@ struct seq_fit_rules_manifest {
     pw_symbols pw_symbols_;
     abs_symbols abs_symbols_;
     seq_symbols seq_symbols_;
+    num_symbols num_symbols_;
     uint32_t point_symbol_;
     uint32_t less_symbol_;
     fit_t fit_;
     fit_t first_steps_;
     fit_t second_steps_;
     fit_t third_steps_;
+    num_prime_table prime_table_;
     binders_t binders_;
     function_maker_t function_maker_;
     evaluator_t evaluator_;
     conditions_t conditions_;
     body_evaluator_t body_evaluator_;
+    numbers_t numbers_;
     applying_t applying_;
     pw_evaluator_t pw_evaluator_;
     recurrences_t first_order_;
     recurrences_t second_order_;
     recurrences_t third_order_;
+    primes_t primes_;
     hypotheses_t hypotheses_;
     closing_t closing_;
     assembler_t assembler_;

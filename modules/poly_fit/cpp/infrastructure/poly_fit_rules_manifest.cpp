@@ -16,16 +16,23 @@ poly_fit_rules_manifest::poly_fit_rules_manifest(
                    .lambdas = kernel.symbols_.intern_symbol("lams"),
                    .application = kernel.symbols_.intern_symbol("app"),
                    .binding = kernel.symbols_.intern_symbol("let")}
+    , num_symbols_{.prime = kernel.symbols_.intern_symbol("prime"),
+                   .is_prime = kernel.symbols_.intern_symbol("is_prime")}
     , indices_(kernel.symbols_, kernel.exprs_, k_abs_default_indices)
     , binders_(kernel.literals_, abs_symbols_)
     , reducer_(indices_, indices_, binders_, kernel.literals_, kernel.exprs_, abs_symbols_)
     , function_maker_(kernel.literals_, kernel.exprs_, abs_symbols_)
-    , applying_(binders_, fit_.pw_evaluator_)
+    , prime_table_(k_num_default_max_value)
+    , numbers_(fit_.pw_evaluator_, fit_.conditions_, kernel.literals_, kernel.literals_, prime_table_, prime_table_,
+               num_symbols_)
+    , applying_(binders_, numbers_)
     , evaluator_(reducer_, applying_)
     , pw_evaluator_(evaluator_, fit_.conditions_, pw_symbols_)
     , iterations_(fit_.converter_, fit_.interpolator_, fit_.interpolator_, kernel.renderer_, indices_, kernel.exprs_,
                   abs_symbols_)
-    , hypotheses_(fit_.hypotheses_, iterations_)
+    , primes_(kernel.literals_, prime_table_, prime_table_, kernel.exprs_, num_symbols_,
+              kernel.symbols_.intern_symbol("#0"))
+    , hypotheses_(fit_.hypotheses_, iterations_, primes_)
     , closing_(hypotheses_, function_maker_, point_symbol_)
     , assembler_(kernel.exprs_, pw_symbols_)
     , builder_(kernel.exprs_, kernel.exprs_, assembler_, pw_symbols_)
