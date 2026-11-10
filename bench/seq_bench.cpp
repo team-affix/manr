@@ -14,9 +14,11 @@
 #include <cstdint>
 #include <cstdio>
 #include <map>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <utility>
+#include <variant>
 #include <vector>
 #include "infrastructure/num_prime_table.hpp"
 #include "infrastructure/poly_interpolator.hpp"
@@ -133,6 +135,46 @@ outcome finish(Manifest& m, Search& search, const std::vector<pw_data_point>& po
     return outcome{.input = "", .cost = search.best_cost(), .best = os.str(), .seconds = seconds, .sound = sound};
 }
 
+// An "open list:" problem starts from the open-ended list of its terms, `cons(a0, ..., cons(ak, ?0))`, and is sound
+// when the result is that list, or an infinite list (`tabulate(f)` or `unfold(f, b...)`) beginning with its terms.
+outcome run_open_list(const std::vector<poly_sample>& samples) {
+    const auto start = std::chrono::steady_clock::now();
+    seq_fit_manifest m{{}, k_poly_default_limits, k_poly_fit_default_limits, k_frontier};
+    poly_kernel_manifest& kernel = m.kernel_;
+    const expr* list = kernel.exprs_.make_var(0);
+    for (auto sample = samples.rbegin(); sample != samples.rend(); ++sample)
+        list = kernel.exprs_.make_functor(kernel.symbols_.intern_symbol("cons"),
+                                          {kernel.literals_.make_literal(sample->output), list});
+    seq_fit_manifest::search_t search{m.rule_set_.rules_, kernel.sizes_, list, k_frontier};
+    while (search.rewrites() < k_rewrites && search.next()) {}
+    const double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
+    const expr* best = search.best();
+    const expr::functor& top = std::get<expr::functor>(best->content);
+    const seq_symbols& symbols = m.rule_set_.seq_symbols_;
+    bool sound = best == list;
+    for (size_t index = 0; index < samples.size() && !sound; ++index) {
+        const expr* at = kernel.literals_.make_literal(static_cast<int>(index));
+        const expr* point = kernel.exprs_.make_functor(m.rule_set_.point_symbol_, {at});
+        std::optional<const expr*> term;
+        if (top.id == symbols.tabulation)
+            term = m.rule_set_.pw_evaluator_.evaluate_at(top.args[0], point);
+        if (top.id == symbols.unfolding) {
+            std::vector<const expr*> args = top.args;
+            args.push_back(at);
+            term = m.rule_set_.pw_evaluator_.evaluate_at(kernel.exprs_.make_functor(symbols.recurrence, args), point);
+        }
+        if (!term.has_value() || term.value() != kernel.literals_.make_literal(samples[index].output))
+            break;
+        sound = index + 1 == samples.size();
+    }
+    std::ostringstream input;
+    std::ostringstream os;
+    kernel.printer_.print(input, list);
+    kernel.printer_.print(os, best);
+    return outcome{.input = input.str(), .cost = search.best_cost(), .best = os.str(), .seconds = seconds,
+                   .sound = sound};
+}
+
 // A problem with holes starts from its own piecewise, with a search of its own.
 outcome run_best_first(const seq_problem& p, const std::vector<poly_sample>& samples) {
     const auto start = std::chrono::steady_clock::now();
@@ -178,8 +220,11 @@ struct solved {
 
 solved solve(const seq_problem& p, bool fast) {
     const std::vector<poly_sample> samples = sample(p);
-    const bool skip_mcts = (fast && samples.size() > k_large) || !p.holes.empty();
+    const bool open = p.name.rfind("open list:", 0) == 0;
+    const bool skip_mcts = (fast && samples.size() > k_large) || !p.holes.empty() || open;
     const outcome skipped{.input = "", .cost = 0, .best = "(skipped)", .seconds = 0, .sound = true};
+    if (open)
+        return solved{.points = samples.size(), .skip_mcts = true, .best_first = run_open_list(samples), .mcts = skipped};
     return solved{.points = samples.size(), .skip_mcts = skip_mcts, .best_first = run_best_first(p, samples),
                   .mcts = skip_mcts ? skipped : run_mcts(samples)};
 }
@@ -250,6 +295,12 @@ int main(int argc, char** argv) {
         {"showcase: second order with the index", "p1 + p2 + i", {0, 1}, 0, 25, {}, {}, 12, "lam(rec(lams(3, #0 + #1 + #2), 0, 1, #0))"},
         {"showcase: primality with unknown labels", "is_prime(i)", {}, 0, 80, {}, {{10, 1}, {37, 1}, {50, 1}}, 3, "lam(is_prime(#0))"},
         {"showcase: Pell from a late start, an unknown term and a miscount", "2*p1 + p2", {0, 1}, 4, 24, {{9, 3}}, {{5, 1}}, 17, "pw(case(point(13), 33464), lam(rec(lams(3, 2*#1 + #2), 0, 1, #0)))"},
+        // reduce request #16: open-ended lists, `cons(a0, ..., ?0)`, read as infinite lists of sequences
+        {"open list: #16 Fibonacci", "p1 + p2", {0, 1}, 0, 7, {}, {}, 8, "unfold(lams(3, #1 + #2), 0, 1)"},
+        {"open list: Lucas", "p1 + p2", {2, 1}, 0, 9, {}, {}, 8, "unfold(lams(3, #1 + #2), 2, 1)"},
+        {"open list: factorials", "i*p1", {1}, 0, 9, {}, {}, 7, "unfold(lam(lam(#0 * #1)), 1)"},
+        {"open list: powers of 3", "3*p1", {1}, 0, 6, {}, {}, 5, "tabulate(lam(exp(3, #0)))"},
+        {"open list: tribonacci", "p1 + p2 + p3", {0, 0, 1}, 0, 12, {}, {}, 11, "unfold(lams(4, #1 + #2 + #3), 0, 0, 1)"},
     };
 
     std::printf("budgets: best-first %zu rewrites; mcts %zu simulations x depth %zu\n", k_rewrites, k_simulations,

@@ -28,8 +28,10 @@
 #include "infrastructure/pw_hole_matcher.hpp"
 #include "infrastructure/pw_hypotheses_union.hpp"
 #include "infrastructure/seq_evaluator.hpp"
+#include "infrastructure/seq_open_list_reader.hpp"
 #include "infrastructure/seq_power_closer.hpp"
 #include "infrastructure/seq_recurrence_hypotheses.hpp"
+#include "infrastructure/seq_unfolder.hpp"
 #include "infrastructure/subterm_proposer.hpp"
 #include "value_objects/abs_symbols.hpp"
 #include "value_objects/expr.hpp"
@@ -45,8 +47,9 @@
 // the closing rule that turns a geometric recurrence into a power. The evaluator runs recurrences and powers and
 // leaves the rest to the polynomial evaluator, and chains of binders merge into one `lams`. A piecewise is a
 // function of the index: what replaces its catch-all is closed over it, `lam(b)` with the index `#0` in b, and a
-// function is applied to the input when evaluated. `rules_` is what a search injects and `initial_` is where it
-// starts.
+// function is applied to the input when evaluated. An open-ended list (`cons(0, cons(1, ..., ?0))`) is read at the
+// root as the infinite list of a sequence, `tabulate` of its data, and the infinite list of a recurrence closes into
+// `unfold`. `rules_` is what a search injects and `initial_` is where it starts.
 struct seq_fit_rules_manifest {
     using kernel_t = poly_kernel_manifest;
     using fit_t = poly_fit_hypotheses_manifest;
@@ -124,11 +127,22 @@ struct seq_fit_rules_manifest {
     struct merger_t : abs_binder_merger<binders_t, kernel_t::literals_t, expr_pool> {
         using abs_binder_merger<binders_t, kernel_t::literals_t, expr_pool>::abs_binder_merger;
     };
-    struct union_t : proposer_union<binder_t, absorber_t, closer_t, merger_t, poly_rules_manifest::union_t> {
-        using proposer_union<binder_t, absorber_t, closer_t, merger_t, poly_rules_manifest::union_t>::proposer_union;
+    struct unfolder_t : seq_unfolder<binders_t, expr_pool> {
+        using seq_unfolder<binders_t, expr_pool>::seq_unfolder;
     };
-    struct rules_t : subterm_proposer<union_t, expr_pool> {
+    struct union_t
+        : proposer_union<binder_t, absorber_t, closer_t, unfolder_t, merger_t, poly_rules_manifest::union_t> {
+        using proposer_union<binder_t, absorber_t, closer_t, unfolder_t, merger_t,
+                             poly_rules_manifest::union_t>::proposer_union;
+    };
+    struct subterms_t : subterm_proposer<union_t, expr_pool> {
         using subterm_proposer<union_t, expr_pool>::subterm_proposer;
+    };
+    struct open_lists_t : seq_open_list_reader<kernel_t::literals_t, kernel_t::literals_t, expr_pool> {
+        using seq_open_list_reader<kernel_t::literals_t, kernel_t::literals_t, expr_pool>::seq_open_list_reader;
+    };
+    struct rules_t : proposer_union<subterms_t, open_lists_t> {
+        using proposer_union<subterms_t, open_lists_t>::proposer_union;
     };
 
     seq_fit_rules_manifest(kernel_t& kernel,
@@ -169,8 +183,11 @@ struct seq_fit_rules_manifest {
     binder_t binder_;
     absorber_t absorber_;
     closer_t closer_;
+    unfolder_t unfolder_;
     merger_t merger_;
     union_t union_;
+    subterms_t subterms_;
+    open_lists_t open_lists_;
     rules_t rules_;
     const expr* initial_;
 };

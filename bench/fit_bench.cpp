@@ -64,18 +64,25 @@ constexpr size_t k_simulations = 150;
 constexpr double k_exploration = 0.4;
 constexpr size_t k_large = 40;  // samples; --fast skips MCTS above this
 
-// Whether a named guard holds at a value: "prime", "even", "odd above 10", "prime or below 5".
-bool guard_holds(const std::string& guard, int value) {
+// The piece a named guard picks at a value: for "prime", "even", "odd above 10", "prime or below 5", the first where
+// it holds and the second elsewhere; for "even, then multiple of 3" and "prime, then multiple of 4", the first where
+// the first condition holds, the second where the other does, and the third elsewhere.
+size_t find_guarded_piece(const std::string& guard, int value) {
     bool prime = value >= 2;
     for (int divisor = 2; divisor * divisor <= value; ++divisor)
         prime = prime && value % divisor != 0;
+    if (guard == "even, then multiple of 3")
+        return value % 2 == 0 ? 0 : value % 3 == 0 ? 1 : 2;
+    if (guard == "prime, then multiple of 4")
+        return prime ? 0 : value % 4 == 0 ? 1 : 2;
+    bool holds = prime || value < 5;
     if (guard == "prime")
-        return prime;
+        holds = prime;
     if (guard == "even")
-        return value % 2 == 0;
+        holds = value % 2 == 0;
     if (guard == "odd above 10")
-        return value % 2 != 0 && value > 10;
-    return prime || value < 5;
+        holds = value % 2 != 0 && value > 10;
+    return holds ? 0 : 1;
 }
 
 // Every point of the grid [low, high]^k, in order, valued by the piece its split coordinate falls in.
@@ -96,7 +103,7 @@ std::vector<poly_sample> sample(const fit_problem& p) {
             s.inputs.push_back(coordinate);
         size_t part = 0;
         if (!p.guard.empty())
-            part = guard_holds(p.guard, coordinates[p.split]) ? 0 : 1;
+            part = find_guarded_piece(p.guard, coordinates[p.split]);
         while (p.guard.empty() && coordinates[p.split] >= p.pieces[part].below)
             ++part;
         s.output = evaluator.evaluate(polynomials[part], s.inputs);
@@ -337,6 +344,12 @@ int main(int argc, char** argv) {
          "lam(pw(when(and(eq(mod(#0, 2), 1), lt(10, #0)), 5*#0 - 3), #0^2))", "odd above 10"},
         {"zero where prime or small, else doubled", {"x"}, {{"0", 0}, {"2*x", 0}}, 0, 0, 40, {}, {}, 13,
          "lam(pw(when(or(is_prime(#0), lt(#0, 5)), 0), 2*#0))", "prime or below 5"},
+        // reduce request #30, and similar: several guarded branches, a constant under each condition, then a model
+        {"#30 data with two guarded branches", {"x"}, {{"1", 0}, {"2", 0}, {"x^2", 0}}, 0, 0, 30, {}, {}, 19,
+         "lam(pw(when(eq(mod(#0, 2), 0), 1), when(eq(mod(#0, 3), 0), 2), #0^2))", "even, then multiple of 3"},
+        {"zero where prime, five at multiples of 4, else linear", {"x"}, {{"0", 0}, {"5", 0}, {"2*x + 1", 0}}, 0, 0, 40,
+         {}, {}, 18, "lam(pw(when(is_prime(#0), 0), when(eq(mod(#0, 4), 0), 5), 2*#0 + 1))",
+         "prime, then multiple of 4"},
     };
 
     std::printf("budgets: best-first %zu rewrites; mcts %zu simulations x depth %zu\n", k_rewrites, k_simulations,

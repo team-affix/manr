@@ -28,6 +28,8 @@ examples below that name an input (`x`, `xs`, `n`, `a`) mean its index: one inpu
 |---|---|
 | `rec(f, b0, ..., b(k-1), n)` | the term at index `n` of the sequence `a` with `a(j) = bj` for `j < k`, and from `k` on `a(j) = s`, where `f` is the closed step function `lam(...lam(s))`, `k + 1` lambdas deep: `s` sees the index `j` as `#0` (innermost) and the terms `a(j-1)`, ..., `a(j-k)` as `#1`, ..., `#k` (0 before the start). Order `k` is the number of bases, 1 to 3. |
 | `exp(b, n)` | `b` to the power `n` |
+| `tabulate(f)` | the infinite list `f(0), f(1), f(2), ...` of a function of the index |
+| `unfold(f, b0, ..., b(k-1))` | the infinite list of a recurrence's terms, `rec(f, b0, ..., b(k-1), n)` for `n >= 0` |
 
 The step's variables are de Bruijn indices like every bound variable (`plans.md`, bound variables). The binders
 are ordered so that each index means the same thing at every order: `#0` is always the index, `#1` the previous term.
@@ -55,6 +57,15 @@ regions can compare recurrences.
   into `a * exp(r, n) + b`, with `b = -d / (r - 1)` the fixed point and `a = a(0) - b`. It fires only when `b` is an
   integer, and drops the trivial parts. It always shrinks the expression. So `rec(lam(lam(2 * #1)), 1, n)` (cost 8)
   becomes `exp(2, n)` (3), and `rec(lam(lam(2 * #1 + 1)), 0, n)` (10) becomes `exp(2, n) - 1` (5).
+
+- **`seq_open_list_reader`** (at the root, since it rebinds a hole): an open-ended list `cons(a0, ..., cons(a(k-1),
+  ?n))` of at least 3 literal terms is the infinite list of a sequence, `tabulate(pw(case(point(0), a0), ...,
+  case(point(k-1), a(k-1)), ?n))`: the terms become data over the index and the tail's hole the catch-all, which the
+  binder fits like any sequence (#16). Under a binding of the tail the two are the same list.
+- **`seq_unfolder`** (local rule): `tabulate(lam(rec(f, b0, ..., #0)))` is `unfold(f, b0, ...)`. So the open
+  Fibonacci list `0, 1, 1, 2, 3, 5, 8, 13, ?0` reduces to `unfold(lams(3, #1 + #2), 0, 1)` (cost 8), the open powers
+  of two to `tabulate(lam(exp(2, #0)))`, and open squares to `tabulate(lam(#0^2))`. Nothing evaluates infinite
+  lists yet: list programs over them (`map` over `unfold`) are not read.
 
 Polynomial data still goes to polynomial fitting first. The polynomial rule set compresses steps like any polynomial.
 

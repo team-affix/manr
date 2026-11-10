@@ -40,6 +40,11 @@ constexpr size_t k_logic_default_max_shared_inputs = 2;
 //         expansion; it always applies, and is kept when it is smaller);
 //   maj   maj(x, y, g) for inputs x and y, plain or negated: where they agree, f must equal them, and where they
 //         differ, g is f.
+// The selector of a mux may itself be a function s of a group S of inputs (`mux(xor(a, b), c, d)`): f restricted to
+// each assignment of S is a function of the other inputs, and when these restrictions fall into two classes
+// (compatible on the rows both know), s says which, and the two classes are the branches (Ashenhurst's decomposition
+// with one intermediate). Each group of at least two inputs, not all of the support, is one table pass; s, and the
+// branches, are decomposed in turn, with s in both polarities.
 template<typename IProposeLeaves, typename IFindTable, typename IHoldsAt, typename IFindCost, typename IMakeLiteral,
          typename IMakeFunctor>
 struct logic_bidecomposition_hypotheses {
@@ -57,6 +62,11 @@ struct logic_bidecomposition_hypotheses {
     void propose_hypotheses(const std::vector<pw_data_point>& points, std::vector<const expr*>& out);
 private:
     using parts_t = std::pair<logic_truth_table, logic_truth_table>;
+    struct selected {
+        logic_truth_table select;
+        logic_truth_table then;
+        logic_truth_table otherwise;
+    };
     const expr* decompose(const logic_truth_table& table, bool top);
     const expr* find_leaf(const logic_truth_table& table);
     uint64_t find_support(const logic_truth_table& table) const;
@@ -66,6 +76,7 @@ private:
                                            uint64_t right_inputs) const;
     logic_truth_table spread(const std::map<uint64_t, bool>& values, uint64_t group) const;
     std::optional<logic_truth_table> find_cofactor(const logic_truth_table& table, size_t position, bool value) const;
+    std::optional<selected> split_selected(const logic_truth_table& table, uint64_t selector_inputs) const;
     std::optional<logic_truth_table> find_majority_rest(const logic_truth_table& table, size_t first, bool first_plain,
                                                         size_t second, bool second_plain) const;
     const expr* make_literal_input(size_t position, bool plain);
@@ -237,6 +248,30 @@ LOGIC_BIDECOMPOSITION_HYPOTHESES_TEMPLATE const expr* LOGIC_BIDECOMPOSITION_HYPO
                 }
         }
     }
+    for (uint64_t selector = support; selectable && selector != 0; selector = (selector - 1) & support) {
+        const bool proper = __builtin_popcountll(selector) >= 2 && selector != support;
+        if (!proper)
+            continue;
+        const std::optional<selected> parts = split_selected(table, selector);
+        if (!parts.has_value())
+            continue;
+        logic_truth_table flipped{.width = width_, .rows = {}};
+        for (const auto& [row, output] : parts.value().select.rows)
+            flipped.rows.emplace(row, !output);
+        for (const bool plain : {true, false}) {
+            const expr* select = decompose(plain ? parts.value().select : flipped, false);
+            const expr* then = decompose(plain ? parts.value().then : parts.value().otherwise, false);
+            const expr* otherwise = decompose(plain ? parts.value().otherwise : parts.value().then, false);
+            if (select == nullptr || then == nullptr || otherwise == nullptr)
+                continue;
+            const expr* composition = make_functor_.make_functor(symbols_.multiplexer, {select, then, otherwise});
+            const size_t cost = find_cost_.cost(composition);
+            if (cost >= best_cost)
+                continue;
+            best = composition;
+            best_cost = cost;
+        }
+    }
     decomposed_.emplace(table, best);
     return best;
 }
@@ -393,6 +428,42 @@ LOGIC_BIDECOMPOSITION_HYPOTHESES::find_cofactor(const logic_truth_table& table, 
     if (cofactor.rows.empty())
         return std::nullopt;
     return cofactor;
+}
+
+// For mux(s(S), g, h): the restrictions of f to each assignment of S, put greedily into at most two classes of
+// compatible functions of the other inputs; s is 1 on the assignments of the first class. Nothing when they need more
+// classes, or one class does (f does not depend on S).
+LOGIC_BIDECOMPOSITION_HYPOTHESES_TEMPLATE std::optional<typename LOGIC_BIDECOMPOSITION_HYPOTHESES::selected>
+LOGIC_BIDECOMPOSITION_HYPOTHESES::split_selected(const logic_truth_table& table, uint64_t selector_inputs) const {
+    const uint64_t others = ((uint64_t(1) << width_) - 1) & ~selector_inputs;
+    std::map<uint64_t, std::map<uint64_t, bool>> restrictions;
+    for (const auto& [row, output] : table.rows)
+        restrictions[row & selector_inputs].emplace(row & others, output);
+    std::vector<std::map<uint64_t, bool>> classes;
+    std::map<uint64_t, bool> select;
+    for (const auto& [assignment, restriction] : restrictions) {
+        size_t chosen = classes.size();
+        for (size_t index = 0; index < classes.size() && chosen == classes.size(); ++index) {
+            bool compatible = true;
+            for (const auto& [rest, output] : restriction) {
+                const auto known = classes[index].find(rest);
+                compatible = compatible && (known == classes[index].end() || known->second == output);
+            }
+            if (compatible)
+                chosen = index;
+        }
+        if (chosen == 2)
+            return std::nullopt;
+        if (chosen == classes.size())
+            classes.emplace_back();
+        classes[chosen].insert(restriction.begin(), restriction.end());
+        select.emplace(assignment, chosen == 0);
+    }
+    if (classes.size() < 2)
+        return std::nullopt;
+    return selected{.select = spread(select, selector_inputs),
+                    .then = spread(classes[0], others),
+                    .otherwise = spread(classes[1], others)};
 }
 
 // For maj(x, y, g): where the two literals agree, f must equal them; g is f on the rows where they differ. Nothing

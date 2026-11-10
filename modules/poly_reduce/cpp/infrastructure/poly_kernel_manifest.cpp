@@ -19,5 +19,5 @@ poly_kernel_manifest::poly_kernel_manifest(const poly_limits& limits)
     , renderer_(exprs_, literals_, poly_symbols_)
     , horner_(exprs_, literals_, renderer_, poly_symbols_)
     , roots_(arithmetic_, arithmetic_, arithmetic_, arithmetic_, arithmetic_, limits.max_root_starts)
-    , parser_(symbols_, exprs_, literals_, literals_, poly_symbols_)
+    , parser_(symbols_, exprs_, exprs_, literals_, literals_, poly_symbols_)
     , printer_(symbols_, poly_symbols_) {}

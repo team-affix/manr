@@ -14,6 +14,8 @@ seq_fit_rules_manifest::seq_fit_rules_manifest(
                    .binding = kernel.symbols_.intern_symbol("let")}
     , seq_symbols_{.recurrence = kernel.symbols_.intern_symbol("rec"),
                    .power = kernel.symbols_.intern_symbol("exp"),
+                   .tabulation = kernel.symbols_.intern_symbol("tabulate"),
+                   .unfolding = kernel.symbols_.intern_symbol("unfold"),
                    .lambda = kernel.symbols_.intern_symbol("lam"),
                    .index = kernel.symbols_.intern_symbol("#0"),
                    .previous = {kernel.symbols_.intern_symbol("#1"), kernel.symbols_.intern_symbol("#2"),
@@ -56,7 +58,11 @@ seq_fit_rules_manifest::seq_fit_rules_manifest(
     , absorber_(filter_, assembler_, pw_symbols_)
     , closer_(binders_, kernel.expander_, kernel.literals_, kernel.literals_, kernel.exprs_, seq_symbols_,
               kernel.poly_symbols_)
+    , unfolder_(binders_, kernel.exprs_, seq_symbols_)
     , merger_(binders_, kernel.literals_, kernel.exprs_, abs_symbols_)
-    , union_(binder_, absorber_, closer_, merger_, poly_rules_.union_)
-    , rules_(union_, kernel.exprs_)
+    , union_(binder_, absorber_, closer_, unfolder_, merger_, poly_rules_.union_)
+    , subterms_(union_, kernel.exprs_)
+    , open_lists_(kernel.literals_, kernel.literals_, kernel.exprs_, kernel.symbols_.intern_symbol("cons"),
+                  point_symbol_, seq_symbols_.tabulation, pw_symbols_)
+    , rules_(subterms_, open_lists_)
     , initial_(builder_.build(fit_.converter_.convert(samples), 0)) {}

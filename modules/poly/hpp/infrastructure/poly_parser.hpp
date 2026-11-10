@@ -12,13 +12,15 @@
 #include "value_objects/poly_symbols.hpp"
 
 // Parses infix polynomial text: `+ - * ^`, parentheses, integer literals, identifiers (including de Bruijn indices,
-// `#0`, `#1`, ..., which a polynomial treats as variables), unary minus. `+ - *` are
+// `#0`, `#1`, ..., which a polynomial treats as variables), free variables `?0`, `?1`, ..., unary minus. `+ - *` are
 // left-associative; `^` takes a non-negative integer literal. Integer literals may have any number of digits. `-e` is a negative literal when e is a literal, and
 // `-1 * e` otherwise. Malformed text throws std::invalid_argument.
-template<typename IInternSymbol, typename IMakeFunctor, typename IMakeLiteral, typename IFindLiteralValue>
+template<typename IInternSymbol, typename IMakeFunctor, typename IMakeVar, typename IMakeLiteral,
+         typename IFindLiteralValue>
 struct poly_parser {
     poly_parser(IInternSymbol& intern_symbol,
                 IMakeFunctor& make_functor,
+                IMakeVar& make_var,
                 IMakeLiteral& make_literal,
                 IFindLiteralValue& find_literal_value,
                 poly_symbols symbols);
@@ -34,6 +36,7 @@ private:
 
     IInternSymbol& intern_symbol_;
     IMakeFunctor& make_functor_;
+    IMakeVar& make_var_;
     IMakeLiteral& make_literal_;
     IFindLiteralValue& find_literal_value_;
     poly_symbols symbols_;
@@ -41,18 +44,21 @@ private:
     size_t position_;
 };
 
-#define POLY_PARSER_TEMPLATE \
-    template<typename IInternSymbol, typename IMakeFunctor, typename IMakeLiteral, typename IFindLiteralValue>
-#define POLY_PARSER poly_parser<IInternSymbol, IMakeFunctor, IMakeLiteral, IFindLiteralValue>
+#define POLY_PARSER_TEMPLATE                                                                         \
+    template<typename IInternSymbol, typename IMakeFunctor, typename IMakeVar, typename IMakeLiteral, \
+             typename IFindLiteralValue>
+#define POLY_PARSER poly_parser<IInternSymbol, IMakeFunctor, IMakeVar, IMakeLiteral, IFindLiteralValue>
 
 POLY_PARSER_TEMPLATE POLY_PARSER::poly_parser(
     IInternSymbol& intern_symbol,
     IMakeFunctor& make_functor,
+    IMakeVar& make_var,
     IMakeLiteral& make_literal,
     IFindLiteralValue& find_literal_value,
     poly_symbols symbols)
     : intern_symbol_(intern_symbol)
     , make_functor_(make_functor)
+    , make_var_(make_var)
     , make_literal_(make_literal)
     , find_literal_value_(find_literal_value)
     , symbols_(symbols)
@@ -110,6 +116,8 @@ POLY_PARSER_TEMPLATE const expr* POLY_PARSER::parse_atom() {
     }
     if (position_ < text_.size() && std::isdigit(static_cast<unsigned char>(text_[position_])))
         return make_literal_.make_literal(parse_integer());
+    if (try_take('?'))
+        return make_var_.make_var(static_cast<uint32_t>(parse_integer()));
     const size_t begin = position_;
     const bool index = position_ < text_.size() && text_[position_] == '#';
     position_ += index ? 1 : 0;

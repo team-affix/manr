@@ -29,15 +29,15 @@ tables. Reducing polynomial expressions: cancellation, factoring, perfect powers
 
 | gap | example | today |
 |---|---|---|
-| holes in expressions | `?0 + ?0`; `(?0 + 1)^2 - ?0^2` | both should reduce to a literal (`0` with `?0 = 0`; `1`, #17); today nothing binds a hole, so they stay or only simplify around it |
+| holes in expressions | `?0 + ?0`; `(?0 + 1)^2 - ?0^2` | polynomials and logic bind them (`poly_hole_binder`, the logic refit); lists, sequences and conditions do not |
 | unknown functors | data `n -> g(n^2 + 1)` | no reduction at all: nothing reads structure it has no vocabulary for |
-| formulas without data | `not(not(x))`, `and(x, or(x, y))`, De Morgan | unchanged: logic has detectors over data, no rules |
+| formulas without data | `not(not(x))`, `and(x, or(x, y))`, De Morgan | solved: structural laws at any width and a truth-table refit (`logic.md`) |
 | composition across domains | sum of the primes in a list; squares of the primes; `map(f, reverse(xs))` | unsolved: each detector hands inner functions to polynomial fitting only |
 | shared subcomputations | majority of 5 (cost 39, `maj(c, d, e)` twice) | no common-subexpression helpers |
 | exact minimization | at least 2 of 4 (19, a 17 exists) | greedy covers |
 | numbers beyond integers | rationals, division, reals | none |
 | whole domains | calculus, trigonometry, sets, strings, graphs | none |
-| text input | reduce requests with `?n`, `pw`, `lam` | built in C++ by hand |
+| text input | reduce requests with `pw`, `lam`, lists, logic | polynomial text parses `?n`; the rest is built in C++ by hand |
 
 ## The large pieces
 
@@ -89,8 +89,8 @@ smallest expression reachable under any binding. `?0 + ?0` reduces to `0`, not t
   over the formula's truth table); a value that makes a subterm a literal.
 - **Holes in data keys and open structures.** A key holding a hole is solved (#20, #24): the model evaluated with
   the hole as an unknown gives a residual, and the output equation is solved in the domain (`?2^2 = 16`). An
-  open-ended list `cons(..., ?0)` (#16) needs vocabulary for unbounded lists (an `unfold` or generator) and a
-  detector that binds the tail to it.
+  open-ended list `cons(..., ?0)` (#16) is read as the infinite list of a sequence (`tabulate`, `unfold`); list
+  programs over infinite lists are not evaluated yet.
 - **Domain hole solvers.** `arith_hole_solver` solves polynomial equations in one hole (integer roots), the others
   set to 0 or 1 (#22, #23). Still missing: systems of several equations, list and tree matching, and Boolean
   constraint solving.

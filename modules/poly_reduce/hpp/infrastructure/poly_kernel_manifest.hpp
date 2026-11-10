@@ -41,8 +41,8 @@ struct poly_kernel_manifest {
     struct linear_factors_t : poly_linear_factor_finder<poly_arithmetic> {
         using poly_linear_factor_finder<poly_arithmetic>::poly_linear_factor_finder;
     };
-    struct parser_t : poly_parser<symbol_table, expr_pool, literals_t, literals_t> {
-        using poly_parser<symbol_table, expr_pool, literals_t, literals_t>::poly_parser;
+    struct parser_t : poly_parser<symbol_table, expr_pool, expr_pool, literals_t, literals_t> {
+        using poly_parser<symbol_table, expr_pool, expr_pool, literals_t, literals_t>::poly_parser;
     };
     struct printer_t : poly_infix_printer<symbol_table> {
         using poly_infix_printer<symbol_table>::poly_infix_printer;

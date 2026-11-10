@@ -1,6 +1,7 @@
 // Polynomial reduction benchmark: every problem under four solvers (full rules or low-level only, best-first or
 // MCTS) with comparable budgets. A problem is solved when the result is no larger than a known compact form.
-// Every result is checked against the input's normal form.
+// Every result is checked against the input's normal form. A problem holding free variables `?n` gives the bindings
+// that reach its target after a `|` (`1 | ?0 = 0, ?1 = x`): a result is sound when it equals the input under them.
 //
 //   poly_bench [--fast] [--serial] [--write FILE] [--check FILE]
 //
@@ -10,9 +11,11 @@
 #include <array>
 #include <chrono>
 #include <cstdio>
+#include <map>
 #include <random>
 #include <sstream>
 #include <string>
+#include <variant>
 #include <vector>
 #include "infrastructure/poly_baseline_manifest.hpp"
 #include "infrastructure/poly_baseline_mcts_manifest.hpp"
@@ -120,18 +123,58 @@ struct solved {
     std::array<outcome, 4> results;
 };
 
+// e with each hole `?k` the bindings name replaced by its binding
+const expr* bind_holes(poly_kernel_manifest& kernel, const expr* e, const std::map<uint32_t, const expr*>& bindings) {
+    const expr::var* hole = std::get_if<expr::var>(&e->content);
+    if (hole != nullptr) {
+        const auto bound = bindings.find(hole->index);
+        return bound == bindings.end() ? e : bound->second;
+    }
+    const expr::functor& f = std::get<expr::functor>(e->content);
+    std::vector<const expr*> args;
+    for (const expr* arg : f.args)
+        args.push_back(bind_holes(kernel, arg, bindings));
+    return kernel.exprs_.make_functor(f.id, args);
+}
+
+// "?0 = 0, ?1 = x" as bindings
+std::map<uint32_t, const expr*> parse_bindings(poly_kernel_manifest& kernel, const std::string& text) {
+    std::map<uint32_t, const expr*> bindings;
+    std::stringstream entries(text);
+    std::string entry;
+    while (std::getline(entries, entry, ',')) {
+        const size_t equals = entry.find('=');
+        const expr* hole = kernel.parser_.parse(entry.substr(0, equals));
+        bindings.emplace(std::get<expr::var>(hole->content).index, kernel.parser_.parse(entry.substr(equals + 1)));
+    }
+    return bindings;
+}
+
 solved solve(const problem& p, bool fast) {
     poly_kernel_manifest sizing{k_poly_default_limits};
+    const size_t bar = p.target.find('|');
     const size_t input = sizing.sizes_.cost(sizing.parser_.parse(p.text));
-    const size_t target = sizing.sizes_.cost(sizing.parser_.parse(p.target));
+    const size_t target = sizing.sizes_.cost(sizing.parser_.parse(p.target.substr(0, bar)));
     const bool skip_mcts = fast && p.name.rfind("wide", 0) == 0;
     const outcome skipped{.cost = input, .best = "(skipped)", .seconds = 0, .sound = true};
-    return solved{.input = input, .target = target, .skip_mcts = skip_mcts, .results = {
+    solved run{.input = input, .target = target, .skip_mcts = skip_mcts, .results = {
         run_best_first<poly_reduce_manifest>(p.text),
         skip_mcts ? skipped : run_mcts<poly_reduce_mcts_manifest>(p.text),
         run_best_first<poly_baseline_manifest>(p.text),
         skip_mcts ? skipped : run_mcts<poly_baseline_mcts_manifest>(p.text),
     }};
+    if (bar == std::string::npos)
+        return run;
+    const std::map<uint32_t, const expr*> bindings = parse_bindings(sizing, p.target.substr(bar + 1));
+    const std::optional<poly_polynomial> meaning =
+        sizing.expander_.find_polynomial(bind_holes(sizing, sizing.parser_.parse(p.text), bindings));
+    for (outcome& result : run.results) {
+        if (result.best == "(skipped)")
+            continue;
+        const expr* best = bind_holes(sizing, sizing.parser_.parse(result.best), bindings);
+        result.sound = meaning.has_value() && sizing.expander_.find_polynomial(best) == meaning;
+    }
+    return run;
 }
 
 }
@@ -176,6 +219,15 @@ int main(int argc, char** argv) {
          "(#0 + 1)^10"},
         {"showcase: square of a trinomial", "#2^2 + #1^2 + #0^2 + 2*#2*#1 + 2*#2*#0 + 2*#1*#0", "(#2 + #1 + #0)^2"},
         {"showcase: product of conjugates", "(#0^2 + #0 + 1)*(#0^2 - #0 + 1)", "#0^4 + #0^2 + 1"},
+        // free variables, bound to what makes the whole smallest: reduce requests #17, #25, #26, and similar
+        {"#17 (?0 + 1)^2 - ?0^2", "(?0 + 1)^2 - ?0^2", "1 | ?0 = 0"},
+        {"#25 a hole bound to an input", "?0^2 - x^2 + 1", "1 | ?0 = x"},
+        {"#26 x * ?0 + x * y", "x * ?0 + x * y", "0 | ?0 = -1 * y"},
+        {"a hole twice", "?0 + ?0", "0 | ?0 = 0"},
+        {"two holes in a product", "?0 * ?1 + x^2 - 5", "x^2 - 5 | ?0 = 0, ?1 = 0"},
+        {"a hole cancelling a product", "(x - 1) * ?0 - x^2 + 1", "0 | ?0 = x + 1"},
+        {"a hole cubed against a cube", "2 * ?0^3 - 2 * (x + y)^3 + 4", "4 | ?0 = x + y"},
+        {"a scaled hole, nearest quotient", "3 * ?0 + 6 * x^2 + 7", "1 | ?0 = -2 * x^2 - 2"},
     };
     poly_kernel_manifest generator{k_poly_default_limits};
     std::mt19937 rng{42};

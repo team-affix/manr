@@ -200,9 +200,9 @@ carries into its elements, and the matcher matches a value holding holes against
 - **Keys the evaluators cannot carry**: a hole in a filtered element (a condition at a hole has no value), a hole
   standing for a whole list or its length, and labels with holes matched against residuals with holes.
 - Holes in labels the logic table reader refutes (a truth table with an unknown row is a don't care there).
-- **Binding rules on expressions**: a hole whose best binding shrinks the whole, e.g. `(?0 + 1)^2 - ?0^2` reduces to
-  `1` with `?0 = 0`, or `or(and(not(x), y), ?0)` to `xor(x, y)` with `?0 = and(x, not(y))`. These are detectors:
-  read what the rest of the expression needs from the hole, and propose it.
+- **Binding rules on expressions** in more domains: polynomials have `poly_hole_binder` (#17, #25, #26), logic the
+  truth-table refit (#19); lists, sequences and conditions have none, and polynomial holes of degree above 1 with
+  middle terms, or several holes solved jointly, are not read.
 - **One hole, one binding.** A rewrite that binds `?n` substitutes it everywhere in the whole expression, so it acts
   at the root even when it was found in a subterm (a binding rewrite, beside `subterm_proposer`'s local ones).
 - **A text form for `?n`** in the parsers, so reduce requests with holes can be written as text.

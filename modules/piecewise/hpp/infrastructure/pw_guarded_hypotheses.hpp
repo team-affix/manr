@@ -7,6 +7,7 @@
 #include <map>
 #include <optional>
 #include <utility>
+#include <variant>
 #include <vector>
 #include "value_objects/expr.hpp"
 #include "value_objects/integer.hpp"
@@ -33,11 +34,19 @@ constexpr size_t k_pw_default_max_guarded_proposals = 4;
 // condition with each value is checked against every point, and only exact readings are kept. A condition is read only from at least
 // `min_guarded` guarded points and as many others: fewer exceptions are left as cases, since a condition read from one
 // or two points does not generalize. Nothing when every output is the same, an input has two outputs, or one of the
-// models already reproduces every point. Only the `max_proposals` smallest
+// models already reproduces every point and is not itself a piecewise. Only the `max_proposals` smallest
 // readings are proposed, since each is checked against all the data. The value domain's own proposals for all the
 // points (the models tried as defaults) are passed through as well, so this stands in for the value domain where both
 // are wanted, and fits the points once. Proposals are memoized per data set, since readings that try several starts
 // ask again for the same data.
+//
+// The mirror reading takes a common output k as the value, where a condition holds, and reads the other points again
+// as the default, by this same detector, so a default may itself be guarded and the branches nest:
+// `pw(when(c1, k1), when(c2, k2), d)`, the inner piecewise's branches spliced into the outer one. So data that is 1 on
+// the evens, 2 on the other multiples of 3 and `#0^2` elsewhere reads as three branches. Each of the `max_guards`
+// most common outputs shared by at least `min_guarded` points, with as many others, is tried as k, when at least two
+// outputs are that common (with one, the model default reads the same branch) and together they cover at least half
+// of the points.
 template<typename IProposeConditions, typename IProposeValues, typename IEvaluateAt, typename IFindCost,
          typename IMakeLiteral, typename IMakeFunctor>
 struct pw_guarded_hypotheses {
@@ -54,10 +63,12 @@ struct pw_guarded_hypotheses {
                           size_t max_proposals = k_pw_default_max_guarded_proposals);
     void propose_hypotheses(const std::vector<pw_data_point>& points, std::vector<const expr*>& out);
 private:
-    void propose_fresh(const std::vector<pw_data_point>& points, const std::vector<const expr*>& models,
+    void propose_fresh(const std::vector<pw_data_point>& all, const std::vector<const expr*>& models,
                        std::vector<const expr*>& out);
     void propose_guarded(const std::vector<pw_data_point>& points, const expr* fallback,
                          const std::vector<bool>& guarded, std::vector<const expr*>& out);
+    void propose_peeled(const std::vector<pw_data_point>& points, const expr* value, std::vector<const expr*>& out);
+    bool reproduces(const expr* reading, const std::vector<pw_data_point>& points);
 
     IProposeConditions& propose_conditions_;
     IProposeValues& propose_values_;
@@ -127,22 +138,27 @@ PW_GUARDED_HYPOTHESES_TEMPLATE void PW_GUARDED_HYPOTHESES::propose_hypotheses(co
     out.insert(out.end(), known->second.begin(), known->second.end());
 }
 
-PW_GUARDED_HYPOTHESES_TEMPLATE void PW_GUARDED_HYPOTHESES::propose_fresh(const std::vector<pw_data_point>& points,
+PW_GUARDED_HYPOTHESES_TEMPLATE void PW_GUARDED_HYPOTHESES::propose_fresh(const std::vector<pw_data_point>& all,
                                                                         const std::vector<const expr*>& models,
                                                                         std::vector<const expr*>& out) {
-    // data that gives one input two outputs is no function: nothing guards it
+    // data that gives one input two outputs is no function: nothing guards it; an input seen again is no more
+    // evidence, so the readings work on the distinct inputs
     std::map<const expr*, const expr*> outputs;
-    for (const pw_data_point& point : points) {
+    std::vector<pw_data_point> points;
+    for (const pw_data_point& point : all) {
         const auto [known, inserted] = outputs.emplace(point.input, point.output);
         if (!inserted && known->second != point.output)
             return;
+        if (inserted)
+            points.push_back(point);
     }
     std::map<const expr*, size_t> counts;
     for (const pw_data_point& point : points)
         ++counts[point.output];
     if (counts.size() < 2)
         return;
-    // which points each model reproduces; a model that reproduces them all leaves nothing to guard
+    // which points each model reproduces; a model that reproduces them all leaves nothing to guard, unless it is a
+    // piecewise
     std::vector<std::vector<bool>> misses;
     const size_t kept_models = std::min(models.size(), max_models_);
     for (size_t index = 0; index < kept_models; ++index) {
@@ -151,7 +167,10 @@ PW_GUARDED_HYPOTHESES_TEMPLATE void PW_GUARDED_HYPOTHESES::propose_fresh(const s
             const std::optional<const expr*> value = evaluate_at_.evaluate_at(models[index], point.input);
             missed.push_back(!value.has_value() || value.value() != point.output);
         }
-        if (std::find(missed.begin(), missed.end(), true) == missed.end())
+        // a piecewise that reproduces them all may still be larger than a guarded reading
+        const expr::functor* head = std::get_if<expr::functor>(&models[index]->content);
+        const bool piecewise = head != nullptr && head->id == symbols_.piecewise;
+        if (std::find(missed.begin(), missed.end(), true) == missed.end() && !piecewise)
             return;
         misses.push_back(missed);
     }
@@ -168,6 +187,20 @@ PW_GUARDED_HYPOTHESES_TEMPLATE void PW_GUARDED_HYPOTHESES::propose_fresh(const s
         for (const pw_data_point& point : points)
             guarded.push_back(point.output != common[guard].second);
         propose_guarded(points, common[guard].second, guarded, out);
+    }
+    // the mirror: common outputs as values, the other points read again as the default; only when another common
+    // output remains and a third output besides, since otherwise the readings above find the same branches, and when
+    // the common outputs cover at least half of the points (a few repeated values among many are no branches)
+    size_t covered = 0;
+    for (const auto& [count, output] : common)
+        covered += count >= min_guarded_ ? count : 0;
+    const bool several = common.size() >= 3 && common[1].first >= min_guarded_ && 2 * covered >= points.size();
+    for (size_t guard = 0; several && guard < common.size() && guard < max_guards_; ++guard) {
+        if (common[guard].first < min_guarded_)
+            break;
+        if (points.size() - common[guard].first < min_guarded_)
+            continue;
+        propose_peeled(points, common[guard].second, out);
     }
     // models as defaults: those that reproduce at least half of the points
     for (size_t index = 0; index < kept_models; ++index) {
@@ -208,14 +241,55 @@ PW_GUARDED_HYPOTHESES_TEMPLATE void PW_GUARDED_HYPOTHESES::propose_guarded(const
         for (const expr* value : values) {
             const expr* region = make_functor_.make_functor(symbols_.region, {condition, value});
             const expr* reading = make_functor_.make_functor(symbols_.piecewise, {region, fallback});
-            bool exact = true;
-            for (size_t index = 0; index < points.size() && exact; ++index) {
-                const std::optional<const expr*> produced = evaluate_at_.evaluate_at(reading, points[index].input);
-                exact = produced.has_value() && produced.value() == points[index].output;
-            }
-            if (exact)
+            if (reproduces(reading, points))
                 out.push_back(reading);
         }
+}
+
+// pw(when(c, value), d) for each condition read from where the output is `value` and each reading d of the other
+// points, a piecewise d spliced in.
+PW_GUARDED_HYPOTHESES_TEMPLATE void PW_GUARDED_HYPOTHESES::propose_peeled(const std::vector<pw_data_point>& points,
+                                                                         const expr* value,
+                                                                         std::vector<const expr*>& out) {
+    const expr* holds = make_literal_.make_literal(integer(1));
+    const expr* fails = make_literal_.make_literal(integer(0));
+    std::vector<pw_data_point> conditions_data;
+    std::vector<pw_data_point> rest;
+    for (const pw_data_point& point : points) {
+        const bool valued = point.output == value;
+        conditions_data.push_back(pw_data_point{.input = point.input, .output = valued ? holds : fails});
+        if (!valued)
+            rest.push_back(point);
+    }
+    std::vector<const expr*> conditions;
+    propose_conditions_.propose_hypotheses(conditions_data, conditions);
+    if (conditions.empty())
+        return;
+    std::vector<const expr*> defaults;
+    propose_hypotheses(rest, defaults);
+    for (const expr* condition : conditions)
+        for (const expr* fallback : defaults) {
+            std::vector<const expr*> branches{make_functor_.make_functor(symbols_.region, {condition, value})};
+            const expr::functor* inner = std::get_if<expr::functor>(&fallback->content);
+            const bool nested = inner != nullptr && inner->id == symbols_.piecewise;
+            if (nested)
+                branches.insert(branches.end(), inner->args.begin(), inner->args.end());
+            if (!nested)
+                branches.push_back(fallback);
+            const expr* reading = make_functor_.make_functor(symbols_.piecewise, branches);
+            if (reproduces(reading, points))
+                out.push_back(reading);
+        }
+}
+
+PW_GUARDED_HYPOTHESES_TEMPLATE bool PW_GUARDED_HYPOTHESES::reproduces(const expr* reading,
+                                                                     const std::vector<pw_data_point>& points) {
+    for (const pw_data_point& point : points) {
+        const std::optional<const expr*> produced = evaluate_at_.evaluate_at(reading, point.input);
+        if (!produced.has_value() || produced.value() != point.output)
+            return false;
+    }
+    return true;
 }
 
 #undef PW_GUARDED_HYPOTHESES

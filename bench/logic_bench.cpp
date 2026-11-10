@@ -222,6 +222,26 @@ int nested_selection(const std::vector<int>& bits) {  // mux(a, mux(b, c, d), ma
     return bits[0] ? (bits[1] ? bits[2] : bits[3]) : (bits[2] + bits[3] + bits[4] >= 2);
 }
 
+int formula_selected(const std::vector<int>& bits) {  // mux(xor(a, b), c, d)
+    return (bits[0] != bits[1]) ? bits[2] : bits[3];
+}
+
+int majority_of_formulas(const std::vector<int>& bits) {  // maj(and(a, b), or(c, d), xor(e, f))
+    return (bits[0] && bits[1]) + (bits[2] || bits[3]) + (bits[4] != bits[5]) >= 2;
+}
+
+int formulas_selected(const std::vector<int>& bits) {  // mux(and(a, b), xor(c, d), or(c, e))
+    return (bits[0] && bits[1]) ? (bits[2] != bits[3]) : (bits[2] || bits[4]);
+}
+
+int majority_selected(const std::vector<int>& bits) {  // mux(maj(a, b, c), d, e)
+    return (bits[0] + bits[1] + bits[2] >= 2) ? bits[3] : bits[4];
+}
+
+int deep_selector(const std::vector<int>& bits) {  // mux(or(a, and(b, c)), d, xor(d, e))
+    return (bits[0] || (bits[1] && bits[2])) ? bits[3] : (bits[3] != bits[4]);
+}
+
 // showcase rules
 int access_rule(const std::vector<int>& bits) {  // admin, or owner and not locked
     return bits[0] || (bits[1] && !bits[2]);
@@ -307,6 +327,19 @@ int main(int argc, char** argv) {
          "lams(5, mux(#4, mux(#3, #2, #1), maj(#2, #1, #0)))"},
         {"nested selection, four rows unseen", {"a", "b", "c", "d", "e"}, nested_selection, {3, 12, 20, 29}, {}, 12,
          "lams(5, mux(#4, mux(#3, #2, #1), maj(#2, #1, #0)))"},
+        // reduce requests #27, #28, #29: selectors and majority arguments that are formulas, and similar
+        {"#27 a multiplexer whose selector is a formula", {"a", "b", "c", "d"}, formula_selected, {}, {}, 8,
+         "lams(4, mux(xor(#3, #2), #1, #0))"},
+        {"#28 majority of three formulas", {"a", "b", "c", "d", "e", "f"}, majority_of_formulas, {}, {}, 12,
+         "lams(6, maj(and(#5, #4), or(#3, #2), xor(#1, #0)))"},
+        {"#29 a multiplexer of three formulas", {"a", "b", "c", "d", "e"}, formulas_selected, {}, {}, 12,
+         "lams(5, mux(and(#4, #3), xor(#2, #1), or(#2, #0)))"},
+        {"a selector formula, three rows unseen", {"a", "b", "c", "d"}, formula_selected, {1, 6, 11}, {}, 8,
+         "lams(4, mux(xor(#3, #2), #1, #0))"},
+        {"selected by a majority", {"a", "b", "c", "d", "e"}, majority_selected, {}, {}, 9,
+         "lams(5, mux(maj(#4, #3, #2), #1, #0))"},
+        {"a two-level selector", {"a", "b", "c", "d", "e"}, deep_selector, {}, {}, 12,
+         "lams(5, mux(or(#4, and(#3, #2)), #1, xor(#1, #0)))"},
     };
 
     std::printf("budgets: best-first %zu rewrites; mcts %zu simulations x depth %zu\n", k_rewrites, k_simulations,

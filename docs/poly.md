@@ -38,6 +38,13 @@ High-level detectors (each reads the normal form and proposes a far-away result 
 Detectors propose only results no larger than their input (factoring and power) or strictly smaller (collector,
 Horner, like terms). The splitter is the exception, since its job is restructuring.
 
+Free variables (`?n`, parsed as text too) are bound by `poly_hole_binder`, at the root only, since a binding
+substitutes the hole everywhere. It reads the expression as a polynomial in each hole and proposes the bindings that
+cancel the most, when strictly smaller: 0; for a hole of degree 1, `c1 * ?k + c0`, the exact quotient `-c0 / c1`
+(`x * ?0 + x * y` -> `0`, `?0 = -y`) or, for a constant c1, the nearest one (`(?0 + 1)^2 - ?0^2` -> `1`, `?0 = 0`);
+for `c * ?k^d + c0`, the d-th roots of `-c0 / c` by completing the power (`?0^2 - x^2 + 1` -> `1`, `?0 = x`). Not yet:
+a hole of degree above 1 with middle terms, several holes solved jointly, and holes inside other domains' functors.
+
 ## Solvers
 
 `poly_kernel_manifest` holds everything that is not a rule or a search. Rule sets: `poly_rules_manifest` (full) and
@@ -150,11 +157,16 @@ Piecewise polynomials:
 Branches guarded by any Boolean condition (`pw_guarded_hypotheses`, with the condition domain of `logic.md` over
 thresholds, residues and primality): `x^2` where x is prime and `2x + 1` elsewhere reads as
 `lam(pw(when(is_prime(#0), #0^2), 2 * #0 + 1))`; a default model that reproduces most points, the points it misses
-read as a condition and fitted as a value. Readings are kept only when exact on every point.
+read as a condition and fitted as a value. Readings are kept only when exact on every point. Several constants
+under conditions before a model nest (#30): 1 on the evens, 2 on the other multiples of 3 and `#0^2` elsewhere reads
+as `lam(pw(when(eq(mod(#0, 2), 0), 1), when(eq(mod(#0, 3), 0), 2), #0^2))`, a common output taken as the value and
+the other points read again, when the common outputs cover half the points.
 
-Labels holding holes (#18): `x^2 + 1` with labels `?1` and `2 * ?2` reduces to `lam(#0^2 + 1)` with `?1 = 2`,
-`?2 = 5`: the branch filter matches a label under a binding, solving a linear one for its hole. A label with no
-integer solution (`2 * ?1` where the model gives 5) stays a case.
+Labels holding holes (#18, #22, #23): `x^2 + 1` with labels `?1` and `2 * ?2` reduces to `lam(#0^2 + 1)` with
+`?1 = 2`, `?2 = 5`: the branch filter matches a label under a binding, solving a label polynomial in a hole for its
+integer roots (`?1^2 + 1`), the label's other holes set to 0 or 1. Keys holding holes (#24) are solved through the
+model: its value at `point(?1)` is the residual `?1^2 + 1`, matched against the label. A label with no integer
+solution (`2 * ?1` where the model gives 5) stays a case.
 
 Gaps:
 

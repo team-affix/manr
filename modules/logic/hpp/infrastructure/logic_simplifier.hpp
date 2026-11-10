@@ -19,7 +19,9 @@
 //                    imp(1, a) = a, imp(a, 0) = not(a), maj(a, b, 0) = and(a, b), maj(a, b, 1) = or(a, b)
 //   involution       not(not(a)) = a
 //   negated forms    not(and) = nand, not(or) = nor, not(xor) = xnor, and back; xor(not(a), b) = xnor(a, b),
-//                    xor(not(a), not(b)) = xor(a, b), xnor(not(a), b) = xor(a, b)
+//                    xor(not(a), not(b)) = xor(a, b), xnor(not(a), b) = xor(a, b); not(maj(a, b, c)) =
+//                    maj(a', b', c') and not(mux(s, a, b)) = mux(s, a', b') when every operand x has a complement x'
+//                    no larger (a negation's operand, the opposite connective, the other constant)
 //   De Morgan        and(not(a), not(b)) = nor(a, b), or(not(a), not(b)) = nand(a, b), or(not(a), b) = imp(a, b)
 //   idempotence      and(a, a) = or(a, a) = a; maj(a, a, b) = a
 //   complement       and(a, not(a)) = 0, or(a, not(a)) = 1, xor(a, a) = 0, xnor(a, a) = 1, xor(a, not(a)) = 1,
@@ -48,6 +50,7 @@ private:
     void collect_chain(const expr* e, std::vector<const expr*>& operands) const;
     std::optional<bool> find_truth(const expr* e) const;
     const expr* find_negated(const expr* e) const;
+    const expr* find_complement(const expr* e);
     bool is_functor(const expr* e, uint32_t id, size_t arity) const;
     const expr* make(uint32_t id, std::vector<const expr*> args);
     const expr* negate(const expr* e);
@@ -90,18 +93,23 @@ LOGIC_SIMPLIFIER_TEMPLATE const expr* LOGIC_SIMPLIFIER::find_simplification(cons
         if (twice != nullptr)
             return twice;
         const expr::functor* g = std::get_if<expr::functor>(&inner->content);
-        if (g == nullptr || g->args.size() != 2)
+        if (g == nullptr)
             return nullptr;
-        const std::map<uint32_t, uint32_t> opposite{{symbols_.conjunction, symbols_.alternative_denial},
-                                                    {symbols_.alternative_denial, symbols_.conjunction},
-                                                    {symbols_.disjunction, symbols_.joint_denial},
-                                                    {symbols_.joint_denial, symbols_.disjunction},
-                                                    {symbols_.exclusion, symbols_.equivalence},
-                                                    {symbols_.equivalence, symbols_.exclusion}};
-        const auto flipped = opposite.find(g->id);
-        if (flipped == opposite.end())
+        if (g->args.size() == 2)
+            return find_complement(inner);
+        const bool self_dual = g->args.size() == 3 && (g->id == symbols_.majority || g->id == symbols_.multiplexer);
+        if (!self_dual)
             return nullptr;
-        return make(flipped->second, g->args);
+        // the selector of a mux keeps its polarity; every other operand is complemented
+        std::vector<const expr*> complements;
+        for (size_t position = 0; position < 3; ++position) {
+            const bool kept = g->id == symbols_.multiplexer && position == 0;
+            const expr* complement = kept ? g->args[0] : find_complement(g->args[position]);
+            if (complement == nullptr)
+                return nullptr;
+            complements.push_back(complement);
+        }
+        return make(g->id, complements);
     }
     if (f.id == symbols_.multiplexer && f.args.size() == 3) {
         const expr* select = f.args[0];
@@ -350,6 +358,30 @@ LOGIC_SIMPLIFIER_TEMPLATE const expr* LOGIC_SIMPLIFIER::find_negated(const expr*
     if (!is_functor(e, symbols_.negation, 1))
         return nullptr;
     return std::get<expr::functor>(e->content).args[0];
+}
+
+// A formula no larger than e meaning not(e): a for e = not(a), a binary connective's opposite (and and nand, or and
+// nor, xor and xnor), the other constant; else nullptr.
+LOGIC_SIMPLIFIER_TEMPLATE const expr* LOGIC_SIMPLIFIER::find_complement(const expr* e) {
+    const expr* inner = find_negated(e);
+    if (inner != nullptr)
+        return inner;
+    const std::optional<bool> truth = find_truth(e);
+    if (truth.has_value())
+        return make_literal_.make_literal(integer(truth.value() ? 0 : 1));
+    const expr::functor* f = std::get_if<expr::functor>(&e->content);
+    if (f == nullptr || f->args.size() != 2)
+        return nullptr;
+    const std::map<uint32_t, uint32_t> opposite{{symbols_.conjunction, symbols_.alternative_denial},
+                                                {symbols_.alternative_denial, symbols_.conjunction},
+                                                {symbols_.disjunction, symbols_.joint_denial},
+                                                {symbols_.joint_denial, symbols_.disjunction},
+                                                {symbols_.exclusion, symbols_.equivalence},
+                                                {symbols_.equivalence, symbols_.exclusion}};
+    const auto flipped = opposite.find(f->id);
+    if (flipped == opposite.end())
+        return nullptr;
+    return make(flipped->second, f->args);
 }
 
 LOGIC_SIMPLIFIER_TEMPLATE bool LOGIC_SIMPLIFIER::is_functor(const expr* e, uint32_t id, size_t arity) const {

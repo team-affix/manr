@@ -23,3 +23,8 @@ TEST_F(PolyTextIntegrationTest, MalformedTextThrows) {
     EXPECT_THROW(parse("(x"), std::invalid_argument);
     EXPECT_THROW(parse("x ^ y"), std::invalid_argument);
 }
+
+TEST_F(PolyTextIntegrationTest, AFreeVariableIsParsedAsAHole) {
+    EXPECT_EQ(parse("?3"), kernel.exprs_.make_var(3));
+    EXPECT_EQ(print(parse("2 * ?0 + x")), "2 * ?0 + x");
+}

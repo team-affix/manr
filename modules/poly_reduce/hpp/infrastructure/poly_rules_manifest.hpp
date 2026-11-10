@@ -1,11 +1,14 @@
 #ifndef POLY_RULES_MANIFEST_HPP
 #define POLY_RULES_MANIFEST_HPP
 
+#include <cstdint>
+#include <vector>
 #include "infrastructure/expr_pool.hpp"
 #include "infrastructure/expr_size.hpp"
 #include "infrastructure/poly_collector.hpp"
 #include "infrastructure/poly_component_splitter.hpp"
 #include "infrastructure/poly_factor_detector.hpp"
+#include "infrastructure/poly_hole_binder.hpp"
 #include "infrastructure/poly_horner_detector.hpp"
 #include "infrastructure/poly_kernel_manifest.hpp"
 #include "infrastructure/poly_like_terms.hpp"
@@ -15,7 +18,8 @@
 #include "infrastructure/subterm_proposer.hpp"
 
 // The full polynomial rule set over a kernel: the low-level local rules plus every detector, applied at every
-// position. `rules_` is what a search injects.
+// position, and the hole binder, applied at the root (a binding substitutes everywhere). `rules_` is what a search
+// injects.
 struct poly_rules_manifest {
     using kernel_t = poly_kernel_manifest;
     struct local_t : poly_local_rules<kernel_t::literals_t, kernel_t::literals_t, expr_pool> {
@@ -53,8 +57,17 @@ struct poly_rules_manifest {
         : proposer_union<local_t, collector_t, horner_t, factor_t, power_t, splitter_t, like_terms_t> {
         using proposer_union<local_t, collector_t, horner_t, factor_t, power_t, splitter_t, like_terms_t>::proposer_union;
     };
-    struct rules_t : subterm_proposer<union_t, expr_pool> {
+    struct subterms_t : subterm_proposer<union_t, expr_pool> {
         using subterm_proposer<union_t, expr_pool>::subterm_proposer;
+    };
+    using holes_base_t = poly_hole_binder<kernel_t::expander_t, kernel_t::renderer_t, kernel_t::renderer_t,
+                                          poly_arithmetic, poly_arithmetic, poly_arithmetic, poly_arithmetic,
+                                          kernel_t::roots_t, expr_pool, expr_pool, expr_size>;
+    struct holes_t : holes_base_t {
+        using holes_base_t::holes_base_t;
+    };
+    struct rules_t : proposer_union<subterms_t, holes_t> {
+        using proposer_union<subterms_t, holes_t>::proposer_union;
     };
 
     poly_rules_manifest(kernel_t& kernel);
@@ -67,7 +80,11 @@ struct poly_rules_manifest {
     splitter_t splitter_;
     like_terms_t like_terms_;
     union_t union_;
+    subterms_t subterms_;
+    holes_t holes_;
     rules_t rules_;
+private:
+    static std::vector<uint32_t> intern_hole_symbols(kernel_t& kernel);
 };
 
 #endif

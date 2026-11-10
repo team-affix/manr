@@ -66,7 +66,11 @@ before a solver runs.
   `xor(maj(a, b, c), and(a, d))` is read through the shared a. Two more outer shapes, at the top and wherever no
   connective splits a part: `mux(v, g, h)` on an input v (g and h are f where v holds and where it fails, Shannon's
   expansion) and `maj(x, y, g)` on two inputs (where they agree f must equal them; g is f where they differ), so
-  `mux(a, xor(b, c), and(b, d))` and `maj(a, b, xor(c, d))` are read whole. `logic_fit_hypotheses_manifest` packages these
+  `mux(a, xor(b, c), and(b, d))` and `maj(a, b, xor(c, d))` are read whole. The selector of a mux may itself be a
+  formula s of a group S of inputs: when f restricted to each assignment of S falls into two classes of functions of
+  the other inputs, s says which (Ashenhurst's decomposition with one intermediate), so `mux(xor(a, b), c, d)` (#27),
+  `mux(and(a, b), xor(c, d), or(c, e))` (#29) and `mux(maj(a, b, c), d, e)` are read whole, with rows unseen too.
+  `logic_fit_hypotheses_manifest` packages these
   detectors for other domains.
 - **`logic_condition_hypotheses`**: condition data (a value kept or removed) as a Boolean function of atomic
   predicates from another domain (`num_condition_atoms`: thresholds, residues, primality; any domain's predicates
@@ -79,7 +83,9 @@ before a solver runs.
 ## Rules
 
 - **`logic_simplifier`**: the laws of Boolean algebra as structural rewrites, at any width, over any subformulas:
-  constants, double negation, the negated forms (`not(and)` is `nand`, ...), De Morgan, idempotence, complement,
+  constants, double negation, the negated forms (`not(and)` is `nand`, ...; `not(maj(a, b, c))` is
+  `maj(a', b', c')` and `not(mux(s, a, b))` is `mux(s, a', b')` when each complement is free), De Morgan,
+  idempotence, complement,
   absorption, cancellation in xor chains (parity stays linear), and the expansions of `xor`, `xnor` and `maj`.
   Soundness is fuzzed against truth tables.
 - **`logic_formula_refitter`**: reduces a subformula by its meaning, bounded in width
@@ -118,14 +124,15 @@ at 64 rows each.
 - **Holes as missing pieces.** The refit binds holes to whatever is smallest, so `or(and(not(#1), #0), ?0)` becomes
   `1`, not the `xor(#1, #0)` reduce request #19 asks for. Recovering "the rest of a shape" needs an objective that
   keeps the known part's structure (completion against primitive expansions), to be decided.
-- **Outer shapes over subfunctions**: `maj(g, h, k)` with three composite arguments, and `mux(s, g, h)` whose
-  selector is itself a formula, are not read. Shared sets are at most two inputs.
+- **Outer shapes over subfunctions**: `maj(g, h, k)` with three composite arguments is reached only through other
+  splits and the law `not(maj(a, b, c)) = maj(a', b', c')` (#28); no detector reads it directly. A mux selector's
+  classes are chosen greedily, and its group shares no input with the branches. Shared sets are at most two inputs.
 - **Shared subformulas.** Majority of 5 repeats `maj(c, d, e)`; sharing it needs helpers (`plans.md`, abstraction).
 - **Exact minimization** for small formulas; the cover is greedy.
 - **Algebraic normal form** (xor of ands, the GF(2) polynomial) as a second normal form beside the cover: parities
   are linear there and sums of products are exponential, and the reverse holds for ors, so each catches what the other
   cannot.
 - **Wide formulas**: the refit stops at 8 inputs; structural rules are the only reduction beyond.
-- **Several guarded branches**: `pw_guarded_hypotheses` reads one guarded branch over a default; data with two or
-  more differently guarded branches is read only where splits by thresholds or residues apply. Separating sets beyond
-  three atoms rely on the greedy choice.
+- **Several guarded branches**: `pw_guarded_hypotheses` nests constants under conditions before a default (#30), but
+  only when the common outputs cover half the points; several branches whose values are models, not constants, are
+  read only where splits by thresholds or residues apply. Separating sets beyond three atoms rely on the greedy choice.

@@ -53,10 +53,12 @@ modules/<name>/{hpp,cpp,test}/...             one directory per rule module; pre
                                               generic selection and factor folds over an inner function g),
                                               delegating bodies to polynomial fitting; rule set, solver manifests,
                                               runtime
-  seq/        (seq_)                          integer sequences: recurrences (`rec`), powers (`exp`), evaluator, the
-                                              closing rule from affine recurrences to powers
+  seq/        (seq_)                          integer sequences: recurrences (`rec`), powers (`exp`), infinite lists
+                                              (`tabulate`, `unfold`), evaluator, the closing rule from affine
+                                              recurrences to powers
   seq_fit/    (seq_)                          composition: the recurrence detector (steps from consecutive terms,
-                                              handed to polynomial fitting), rule set, solver manifests, runtime
+                                              handed to polynomial fitting), open-ended lists read as sequences, rule
+                                              set, solver manifests, runtime
   number/     (num_)                          number-theory primitives over another domain: `prime(n)`, `is_prime(n)`,
                                               a sieve-backed prime table, their evaluator, and a detector comparing
                                               data with the primes (wired into poly, seq and list fitting)

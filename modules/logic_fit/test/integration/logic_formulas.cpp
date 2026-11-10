@@ -211,3 +211,56 @@ TEST_F(LogicFormulasIntegrationTest, DataOfATwoLevelCompositionIsReadAtEveryLeve
     while (runtime.rewrites() < 500 && runtime.next()) {}
     EXPECT_EQ(runtime.best(), "lams(6, or(xor(#5, #4), and(#3, maj(#2, #1, #0))))");
 }
+
+TEST_F(LogicFormulasIntegrationTest, ANegatedMajorityOfComplementsIsTheMajorityOfTheOperands) {
+    const expr* negated = no(op(s.majority, {op(s.joint_denial, {a, b}), op(s.alternative_denial, {b, c}), no(c)}));
+    EXPECT_THAT(simplified(negated), Contains("maj(or(#2, #1), and(#1, #0), #0)"));
+}
+
+TEST_F(LogicFormulasIntegrationTest, ANegatedMultiplexerComplementsItsBranchesOnly) {
+    EXPECT_THAT(simplified(no(op(s.multiplexer, {a, op(s.equivalence, {b, c}), no(c)}))),
+                Contains("mux(#2, xor(#1, #0), #0)"));
+}
+
+TEST_F(LogicFormulasIntegrationTest, DataOfAMultiplexerWhoseSelectorIsAFormulaIsReadThroughTheSelector) {
+    // reduce request #27: mux(xor(#3, #2), #1, #0)
+    std::vector<poly_sample> samples;
+    for (int row = 0; row < 16; ++row) {
+        const int w = row & 1, x = (row >> 1) & 1, y = (row >> 2) & 1, z = (row >> 3) & 1;
+        samples.push_back(poly_sample{.inputs = {w, x, y, z}, .output = (w ^ x) ? y : z});
+    }
+    logic_fit_runtime runtime{4, samples, k_poly_default_limits, 20000};
+    while (runtime.rewrites() < 500 && runtime.next()) {}
+    EXPECT_LE(runtime.best_cost(), 8u) << runtime.best();
+}
+
+TEST_F(LogicFormulasIntegrationTest, DataOfAMultiplexerOfThreeFormulasIsReadAtEveryPart) {
+    // reduce request #29: mux(and(#4, #3), xor(#2, #1), or(#2, #0)), the branches sharing #2
+    std::vector<poly_sample> samples;
+    for (int row = 0; row < 32; ++row) {
+        std::vector<int> bits;
+        for (int position = 0; position < 5; ++position)
+            bits.push_back((row >> position) & 1);
+        const int output = (bits[0] & bits[1]) ? (bits[2] ^ bits[3]) : (bits[2] | bits[4]);
+        samples.push_back(poly_sample{.inputs = {bits[0], bits[1], bits[2], bits[3], bits[4]}, .output = output});
+    }
+    logic_fit_runtime runtime{5, samples, k_poly_default_limits, 20000};
+    while (runtime.rewrites() < 500 && runtime.next()) {}
+    EXPECT_LE(runtime.best_cost(), 12u) << runtime.best();
+}
+
+TEST_F(LogicFormulasIntegrationTest, DataOfAMajorityOfThreeFormulasIsReadWithoutANegation) {
+    // reduce request #28: maj(and(#5, #4), or(#3, #2), xor(#1, #0))
+    std::vector<poly_sample> samples;
+    for (int row = 0; row < 64; ++row) {
+        std::vector<int> bits;
+        for (int position = 0; position < 6; ++position)
+            bits.push_back((row >> position) & 1);
+        const int output = (bits[0] & bits[1]) + (bits[2] | bits[3]) + (bits[4] ^ bits[5]) >= 2;
+        samples.push_back(poly_sample{.inputs = {bits[0], bits[1], bits[2], bits[3], bits[4], bits[5]},
+                                      .output = output});
+    }
+    logic_fit_runtime runtime{6, samples, k_poly_default_limits, 20000};
+    while (runtime.rewrites() < 500 && runtime.next()) {}
+    EXPECT_LE(runtime.best_cost(), 12u) << runtime.best();
+}
