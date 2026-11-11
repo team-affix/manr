@@ -7,6 +7,12 @@ succeed on nearly every problem drawn at random from what the vocabulary can exp
 close we are. MANR is also useful without the piecewise, as a reducer of arbitrary symbolic expressions. Both are
 the same machine.
 
+Two layers get there. The **fast layer** is what MANR is today: eager detectors and special-case rules, one per
+recognizable shape (is it a polynomial, a fold, a parity, a piecewise?), each reaching a far-away result in one step.
+The **complete layer** (piece 6) is generic relations and an exhaustive search behind them, which guarantees that the
+minimal form is eventually found. Special cases are there to make it lightning fast; the complete layer is there so
+that nothing reachable is missed.
+
 This document records where we stand (the checkpoint) and the large pieces that stand between here and there, in
 the order they unlock each other. `plans.md` holds the detailed designs. The issues and the workflows (scout, forge,
 showcase) drive the work one step at a time.
@@ -134,6 +140,42 @@ oracle, a benchmark.
   generates expressions to reduce (a model plus a semantics-preserving scramble). Run it in the showcase, track it
   over time, and feed its failures to scout.
 
+### 6. Completeness: generic relations and a guarantee (held for later)
+
+The detectors and rules are special cases, and so is much of how holes are bound: each binder guesses bindings for
+the shapes it knows (a root of a label polynomial, a completed square, a list hole bound to `nil`, a filler taken
+from a label). Between them lies a large set of reduced forms that are correct and smaller but **unreachable**: no
+detector proposes them, no binder guesses their binding, and the rules only shrink, so a path that must first expand
+(distribute, introduce a helper, rewrite into a form that does not look better yet) is never walked.
+
+**The guarantee we want.** Put in any data or expression over the functors MANR knows, holes anywhere, and the
+search eventually returns the minimal form under those primitives: anytime (the best so far is always sound), and
+complete in the limit. The special cases stay (`keep-specific-detectors`); they become accelerators of a search that
+would get there anyway, not the only roads.
+
+**Ingredients** (not designed yet):
+
+- **Generic relations, both ways.** Equations per functor (laws as data, piece 1) used as relations rather than
+  shrinking rewrites: expansions as well as contractions, so the closure of the rules connects every pair of equal
+  forms a domain can prove equal, and a search may take steps that grow before they shrink.
+- **Holes bound by one mechanism.** Bind `?n` by unification against those relations (narrowing) and against data
+  (evaluate with the hole symbolic, solve the residual constraints), instead of a binder per shape. Every relation is
+  then also a hole binder.
+- **An exhaustive floor.** Enumerate candidate expressions in order of size over the functor set and check each
+  against the data (the evaluator) or the expression (a normal-form oracle, or evaluation on a finite domain). It is
+  minimal by construction and slow; `prog_enumerative_hypotheses` is one domain's instance of it.
+- **Search that interleaves.** The fast layer runs first; the complete layer gets a share of the budget, dovetailed
+  (a growing share of time, never starved by detectors), in an e-graph or MCTS that keeps non-shrinking steps.
+  Results from either layer compete on size as today.
+
+**Limits.** Equality is undecidable in general (programs, reals), so the guarantee is relative: for data, the minimal
+model consistent with the data, reached by enumeration in the limit; for expressions, exact within domains that have
+a decision procedure (polynomials, finite Booleans), and anytime best elsewhere.
+
+**Cost.** It must not slow down what is fast. The complete layer only spends what the fast layer leaves, the gate
+(`make bench_check`) holds every current cost and time, and the dart board measures what it adds. Build it after the
+foundations; until then, keep adding special cases.
+
 ## Order
 
 1. **Foundations.** The parser; the hypothesis service; anti-unification; semantic re-fitting; binding rules for
@@ -145,5 +187,8 @@ oracle, a benchmark.
 4. **Domains.** Calculus, trigonometry, deeper programs, then sets, strings, graphs.
 5. **Real data.** Tolerance and noise models, floating-point inputs read as exact rationals, the associative-model
    usage (`vision.md`).
+6. **Completeness.** Generic relations in both directions, hole binding by narrowing, the exhaustive floor and an
+   interleaved search: the guarantee that the minimal form is eventually found, with the special cases as its
+   accelerators.
 
 Each step lands the usual way: a benchmark problem first, a fix that generalizes, the gate, the showcase.
