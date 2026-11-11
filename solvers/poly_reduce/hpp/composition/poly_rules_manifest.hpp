@@ -7,6 +7,7 @@
 #include "infrastructure/arith_linear_solver.hpp"
 #include "infrastructure/expr_pool.hpp"
 #include "infrastructure/expr_size.hpp"
+#include "infrastructure/hole_scope_proposer.hpp"
 #include "infrastructure/proposer_union.hpp"
 #include "infrastructure/subterm_proposer.hpp"
 #include "rules/poly_collector.hpp"
@@ -17,12 +18,16 @@
 #include "rules/poly_like_terms.hpp"
 #include "rules/poly_local_rules.hpp"
 #include "rules/poly_power_detector.hpp"
+#include "rules/rat_fraction_combiner.hpp"
+#include "rules/rat_hole_binder.hpp"
 #include "rules/rat_quotient_canceller.hpp"
 #include "value_objects/rat_symbols.hpp"
 
-// The full polynomial rule set over a kernel: the low-level local rules, every detector and the cancelling of
-// quotients of polynomials (`rational`), applied at every position, and the hole binder, applied to the whole expression (a binding substitutes everywhere). `rules_` is what a
-// search injects; another solver that reduces polynomials borrows `local_rules_t` into its own local rules.
+// The full polynomial rule set over a kernel: the low-level local rules, every detector, and the cancelling and
+// combining of quotients of polynomials (`rational`), applied at every position; the hole binder, applied to the whole
+// expression (a binding substitutes everywhere), and the quotient hole binder, at every subterm holding all of its
+// holes. `rules_` is what a search injects; another solver that reduces polynomials borrows `local_rules_t` into its
+// own local rules.
 struct poly_rules_manifest {
     using kernel_t = poly_kernel_manifest;
 
@@ -63,12 +68,27 @@ struct poly_rules_manifest {
     struct quotients_t : quotients_base_t {
         using quotients_base_t::quotients_base_t;
     };
+    using fractions_base_t = rat_fraction_combiner<kernel_t::expander_t, poly_arithmetic, poly_arithmetic,
+                                                   poly_arithmetic, poly_arithmetic, poly_arithmetic, poly_arithmetic,
+                                                   kernel_t::literals_t, kernel_t::renderer_t, expr_pool, expr_size>;
+    struct fractions_t : fractions_base_t {
+        using fractions_base_t::fractions_base_t;
+    };
     using holes_base_t = poly_hole_binder<kernel_t::expander_t, kernel_t::renderer_t, kernel_t::renderer_t,
                                           poly_arithmetic, poly_arithmetic, poly_arithmetic, poly_arithmetic,
                                           kernel_t::roots_t, expr_pool, expr_pool, expr_size,
                                           arith_linear_solver>;
     struct holes_t : holes_base_t {
         using holes_base_t::holes_base_t;
+    };
+    using quotient_holes_base_t = rat_hole_binder<kernel_t::expander_t, poly_arithmetic, arith_linear_solver,
+                                                  kernel_t::renderer_t, expr_pool, expr_size>;
+    struct quotient_holes_t : quotient_holes_base_t {
+        using quotient_holes_base_t::quotient_holes_base_t;
+    };
+    // the quotient hole binder at every subterm holding all of its holes (a quotient inside a sum)
+    struct quotient_hole_scopes_t : hole_scope_proposer<quotient_holes_t, expr_pool> {
+        using hole_scope_proposer<quotient_holes_t, expr_pool>::hole_scope_proposer;
     };
 
     // ---- the rule lists ----
@@ -80,12 +100,14 @@ struct poly_rules_manifest {
         power_t,
         splitter_t,
         like_terms_t,
-        quotients_t>;
+        quotients_t,
+        fractions_t>;
     struct local_rules_t : local_rules_base_t {
         using local_rules_base_t::local_rules_base_t;
     };
     using root_rules_base_t = proposer_union<
-        holes_t>;
+        holes_t,
+        quotient_hole_scopes_t>;
     struct root_rules_t : root_rules_base_t {
         using root_rules_base_t::root_rules_base_t;
     };
@@ -108,8 +130,11 @@ struct poly_rules_manifest {
     like_terms_t like_terms_;
     rat_symbols rat_symbols_;
     quotients_t quotients_;
+    fractions_t fractions_;
     arith_linear_solver linear_solver_;
     holes_t holes_;
+    quotient_holes_t quotient_holes_;
+    quotient_hole_scopes_t quotient_hole_scopes_;
     // the rule lists
     local_rules_t local_rules_;
     root_rules_t root_rules_;

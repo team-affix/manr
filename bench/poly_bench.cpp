@@ -54,15 +54,33 @@ std::string print(poly_kernel_manifest& kernel, const expr* e) {
     return os.str();
 }
 
-// The expression as a fraction of polynomials: a quotient `div(n, d)` is (n, d), a polynomial p is (p, 1).
+// The expression as a fraction of polynomials (n, d), built independently of the rules: a polynomial p is (p, 1), and
+// sums, differences, products, quotients and powers of fractions combine by the usual rules of fractions.
 std::optional<std::pair<const expr*, const expr*>> find_fraction(poly_kernel_manifest& kernel, const expr* e) {
+    if (kernel.expander_.find_polynomial(e).has_value())
+        return std::make_pair(e, kernel.literals_.make_literal(1));
     const expr::functor* f = std::get_if<expr::functor>(&e->content);
-    const bool divided = f != nullptr && f->args.size() == 2 && f->id == kernel.symbols_.intern_symbol("div");
-    if (divided)
-        return std::make_pair(f->args[0], f->args[1]);
-    if (!kernel.expander_.find_polynomial(e).has_value())
+    if (f == nullptr || f->args.size() != 2)
         return std::nullopt;
-    return std::make_pair(e, kernel.literals_.make_literal(1));
+    const poly_symbols& ops = kernel.poly_symbols_;
+    auto make = [&kernel](uint32_t id, const expr* a, const expr* b) { return kernel.exprs_.make_functor(id, {a, b}); };
+    const auto left = find_fraction(kernel, f->args[0]);
+    if (!left.has_value())
+        return std::nullopt;
+    const auto [n1, d1] = left.value();
+    if (f->id == ops.pow)
+        return std::make_pair(make(ops.pow, n1, f->args[1]), make(ops.pow, d1, f->args[1]));
+    const auto right = find_fraction(kernel, f->args[1]);
+    if (!right.has_value())
+        return std::nullopt;
+    const auto [n2, d2] = right.value();
+    if (f->id == ops.add || f->id == ops.sub)
+        return std::make_pair(make(f->id, make(ops.mul, n1, d2), make(ops.mul, n2, d1)), make(ops.mul, d1, d2));
+    if (f->id == ops.mul)
+        return std::make_pair(make(ops.mul, n1, n2), make(ops.mul, d1, d2));
+    if (f->id == kernel.symbols_.intern_symbol("div"))
+        return std::make_pair(make(ops.mul, n1, d2), make(ops.mul, d1, n2));
+    return std::nullopt;
 }
 
 // Equal as fractions of polynomials, n1 / d1 = n2 / d2 when n1 * d2 = n2 * d1 (so wherever d1 and d2 are not 0).
@@ -203,10 +221,9 @@ solved solve(const problem& p, bool fast) {
             continue;
         result.sound = false;
         for (const std::map<uint32_t, const expr*>& bindings : witnesses) {
-            const std::optional<poly_polynomial> meaning =
-                sizing.expander_.find_polynomial(bind_holes(sizing, sizing.parser_.parse(p.text), bindings));
+            const expr* input_bound = bind_holes(sizing, sizing.parser_.parse(p.text), bindings);
             const expr* best = bind_holes(sizing, sizing.parser_.parse(result.best), bindings);
-            result.sound = result.sound || (meaning.has_value() && sizing.expander_.find_polynomial(best) == meaning);
+            result.sound = result.sound || means_the_same(sizing, best, input_bound);
         }
     }
     return run;
@@ -278,6 +295,27 @@ int main(int argc, char** argv) {
         {"a quotient by a square's root", "(x^2 + 2 * x * y + y^2) / (x + y)", "x + y"},
         {"a common factor of degree one", "(x^2 - 1) / (x^2 + 2 * x + 1)", "(x - 1) / (x + 1)"},
         {"a quotient with nothing in common", "(x^2 + 1) / (x + 1)", "(x^2 + 1) / (x + 1)"},
+        // reduce request #39: common factors in several variables (multivariate gcd)
+        {"#39 a common factor in two variables", "(x^2 - y^2) / (x^2 - 2*x*y + y^2)", "(x + y) / (x - y)"},
+        {"a common factor in three variables", "(x*z + y*z) / (x^2 + 2*x*y + y^2)", "z / (x + y)"},
+        {"a common binomial of two variables", "(x^2*y - y^3) / (x*y + y^2)", "x - y"},
+        // reduce requests #40 to #42: sums, differences and products of quotients, as one quotient
+        {"#40 a sum over one denominator", "x / (x + 1) + 1 / (x + 1)", "1"},
+        {"#41 quotients over a common denominator", "1 / (x - 1) - 1 / (x + 1)", "2 / (x^2 - 1)"},
+        {"#42 a quotient times its denominator", "(x^2 + 1) / (x + 1) * (x + 1)", "x^2 + 1"},
+        {"a telescoping pair", "1 / x - 1 / (x + 1)", "1 / (x^2 + x)"},
+        {"a quotient plus a polynomial", "(x^3 - 1) / (x - 1) - x^2", "x + 1"},
+        {"a quotient of quotients", "(x / y) / (x^2 / y^2)", "y / x"},
+        {"a squared quotient times a square", "((x + 1) / x)^2 * x^2", "(x + 1)^2"},
+        {"two variables over one denominator", "x / (x - y) - y / (x - y)", "1"},
+        {"a sum that stays (not smaller)", "1 / x + 1 / y", "1 / x + 1 / y"},
+        // reduce requests #43 and #44: holes bound so that a quotient divides exactly
+        {"#43 a hole in a numerator", "(x^2 - ?0) / (x - 1)", "x + 1 | ?0 = 1"},
+        {"#44 a hole in a denominator", "(x^2 - 4) / (x - ?0)", "x + 2 | ?0 = 2; ?0 = -2"},
+        {"two holes in a numerator", "(x^3 + ?0 * x + ?1) / (x^2 - 1)", "x | ?0 = -1, ?1 = 0"},
+        {"a hole in a quadratic denominator", "(x^3 - 4 * x) / (x^2 + ?0)", "x | ?0 = -4"},
+        {"a quotient with a hole inside a sum", "(x^2 - ?0) / (x + 3) + y", "x - 3 + y | ?0 = 9"},
+        {"a hole no root explains", "(x^2 + 1) / (x - ?0)", "(x^2 + 1) / (x - ?0) | ?0 = 0"},
     };
     poly_kernel_manifest generator{k_poly_default_limits};
     std::mt19937 rng{42};

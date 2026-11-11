@@ -1,97 +1,97 @@
 # problem	solver	cost	target	seconds	sound
-#7 powers of two	best-1st	4	4	0.0497696	1
-#7 powers of two	mcts	4	4	0.0521341	1
-#6 Fibonacci	best-1st	10	10	0.178511	1
-#6 Fibonacci	mcts	10	10	0.181663	1
-five times powers of 3	best-1st	6	6	0.0296852	1
-five times powers of 3	mcts	6	6	0.0424361	1
-powers of -2	best-1st	4	4	7.10947	1
-powers of -2	mcts	4	4	0.364188	1
-Lucas numbers	best-1st	10	10	0.207213	1
-Lucas numbers	mcts	10	10	0.22208	1
-Pell numbers	best-1st	12	12	0.0594813	1
-Pell numbers	mcts	12	12	0.065813	1
-tribonacci	best-1st	13	13	0.219771	1
-tribonacci	mcts	13	13	0.225394	1
-factorial	best-1st	9	9	0.0195709	1
-factorial	mcts	9	9	0.0195856	1
-Fibonacci, wrong label	best-1st	15	15	0.215947	1
-Fibonacci, wrong label	mcts	15	15	0.217789	1
-squares	best-1st	4	4	0.00626905	1
-squares	mcts	4	4	0.00616623	1
-powers of two, long	best-1st	4	4	0.422687	1
-powers of two, long	mcts	4	4	0.246296	1
-Mersenne numbers	best-1st	6	6	0.026896	1
-Mersenne numbers	mcts	6	6	0.0267191	1
-#15 Fibonacci, unknown term	best-1st	10	10	0.0405336	1
-Pell numbers, two unknown terms	best-1st	12	12	0.0693683	1
-powers of two, scaled unknown	best-1st	4	4	0.0944733	1
-#11 Fibonacci from index 10	best-1st	10	10	0.292928	1
-#11 Fibonacci from index 10	mcts	10	10	0.292596	1
-Fibonacci from index 1	best-1st	10	10	0.155203	1
-Fibonacci from index 1	mcts	10	10	0.156618	1
-Pell numbers from index 6	best-1st	12	12	0.115995	1
-Pell numbers from index 6	mcts	12	12	0.11633	1
-tribonacci from index 5	best-1st	13	13	0.353574	1
-tribonacci from index 5	mcts	13	13	0.325344	1
-factorial from index 4	best-1st	9	9	0.0300114	1
-factorial from index 4	mcts	9	9	0.0222089	1
-powers of 3 from index 8	best-1st	4	4	0.0502392	1
-powers of 3 from index 8	mcts	4	4	0.0264143	1
-#12 the n-th prime	best-1st	3	3	0.247904	1
-#12 the n-th prime	mcts	3	3	0.196888	1
-#13 is n prime	best-1st	3	3	0.626146	1
-#13 is n prime	mcts	3	3	0.116646	1
-the n-th prime from index 20	best-1st	3	3	0.49151	1
-the n-th prime from index 20	mcts	3	3	0.314993	1
-is n prime, two wrong labels	best-1st	12	12	0.688063	1
-is n prime, two wrong labels	mcts	12	12	0.14669	1
-p1^2 + 1 from index 2 (not invertible)	best-1st	27	27	0.00398349	1
-p1^2 + 1 from index 2 (not invertible)	mcts	27	27	0.00392154	1
-showcase: bacteria, triple then remove 2	best-1st	8	8	0.0273009	1
-showcase: bacteria, triple then remove 2	mcts	8	8	0.0276627	1
-showcase: bacteria, two miscounts	best-1st	17	17	0.0844773	1
-showcase: bacteria, two miscounts	mcts	17	17	0.0759333	1
-showcase: savings, double plus 100	best-1st	8	8	0.053125	1
-showcase: savings, double plus 100	mcts	8	8	0.0532868	1
-showcase: savings, from year 5	best-1st	8	8	0.0820085	1
-showcase: savings, from year 5	mcts	8	8	0.0755237	1
-showcase: staircase, steps of 1 to 3	best-1st	13	13	0.25863	1
-showcase: staircase, steps of 1 to 3	mcts	13	13	0.263586	1
-showcase: staircase, from step 6	best-1st	13	13	0.430947	1
-showcase: staircase, from step 6	mcts	13	13	0.278574	1
-rabbits from month 12, one unrecorded	best-1st	10	10	0.371559	1
-prime-numbered lockers 50 to 120	best-1st	3	3	1.08201	1
-prime-numbered lockers 50 to 120	mcts	3	3	0.760186	1
-showcase: arrangements of n guests	best-1st	9	9	0.0418311	1
-showcase: arrangements of n guests	mcts	9	9	0.0412516	1
-rabbits from month 12, three unrecorded	best-1st	10	10	0.365258	1
-showcase: savings at triple plus 100, from year 5	best-1st	8	8	0.0336409	1
-showcase: savings at triple plus 100, from year 5	mcts	8	8	0.0332303	1
-showcase: staircase from step 6, a miscount	best-1st	18	18	0.329004	1
-showcase: staircase from step 6, a miscount	mcts	18	18	0.292019	1
-showcase: index recurrence from a late start, an unknown term	best-1st	10	11	0.0412022	1
-showcase: second order with the index	best-1st	12	12	0.243424	1
-showcase: second order with the index	mcts	12	12	0.147452	1
-showcase: primality with unknown labels	best-1st	3	3	0.308708	1
-showcase: Pell from a late start, an unknown term and a miscount	best-1st	17	17	0.0922805	1
-open list: #16 Fibonacci	best-1st	8	8	0.00570086	1
-#35 2^n + 3^n	best-1st	8	8	0.0247938	1
-#35 2^n + 3^n	mcts	8	8	0.0249251	1
-2^n - n	best-1st	6	6	0.0269808	1
-2^n - n	mcts	6	6	0.0244063	1
-3^n - 2^n	best-1st	8	8	0.0248709	1
-3^n - 2^n	mcts	8	8	0.0250504	1
-(-1)^n + n^2	best-1st	8	8	0.0520628	1
-(-1)^n + n^2	mcts	8	8	0.0328357	1
-2^n + n, order one	best-1st	6	6	0.0712071	1
-2^n + n, order one	mcts	6	6	0.025815	1
-open list: #37 Fibonacci, unknown term	best-1st	8	8	0.00549244	1
-open list: powers of two, unknown term	best-1st	5	5	0.00142347	1
-open list: Pell, two unknown terms	best-1st	10	10	0.0100122	1
-Lucas, short	best-1st	10	10	0.00241168	1
-Lucas, short	mcts	10	10	0.00265617	1
-open list: Lucas	best-1st	8	8	0.00750486	1
-open list: factorials	best-1st	7	7	0.0111704	1
-open list: powers of 3	best-1st	5	5	0.00342798	1
-open list: tribonacci	best-1st	11	11	0.0183227	1
+#7 powers of two	best-1st	4	4	0.0417587	1
+#7 powers of two	mcts	4	4	0.0412871	1
+#6 Fibonacci	best-1st	10	10	0.188946	1
+#6 Fibonacci	mcts	10	10	0.193158	1
+five times powers of 3	best-1st	6	6	0.0287676	1
+five times powers of 3	mcts	6	6	0.0289146	1
+powers of -2	best-1st	4	4	7.75092	1
+powers of -2	mcts	4	4	0.42711	1
+Lucas numbers	best-1st	10	10	0.188487	1
+Lucas numbers	mcts	10	10	0.198438	1
+Pell numbers	best-1st	12	12	0.0756059	1
+Pell numbers	mcts	12	12	0.0773262	1
+tribonacci	best-1st	13	13	0.238496	1
+tribonacci	mcts	13	13	0.239615	1
+factorial	best-1st	9	9	0.0229549	1
+factorial	mcts	9	9	0.0235819	1
+Fibonacci, wrong label	best-1st	15	15	0.193719	1
+Fibonacci, wrong label	mcts	15	15	0.19372	1
+squares	best-1st	4	4	0.00710881	1
+squares	mcts	4	4	0.00697095	1
+powers of two, long	best-1st	4	4	0.456189	1
+powers of two, long	mcts	4	4	0.36181	1
+Mersenne numbers	best-1st	6	6	0.0301394	1
+Mersenne numbers	mcts	6	6	0.03028	1
+#15 Fibonacci, unknown term	best-1st	10	10	0.0462878	1
+Pell numbers, two unknown terms	best-1st	12	12	0.0660089	1
+powers of two, scaled unknown	best-1st	4	4	0.0943772	1
+#11 Fibonacci from index 10	best-1st	10	10	0.264255	1
+#11 Fibonacci from index 10	mcts	10	10	0.244269	1
+Fibonacci from index 1	best-1st	10	10	0.175464	1
+Fibonacci from index 1	mcts	10	10	0.190921	1
+Pell numbers from index 6	best-1st	12	12	0.111736	1
+Pell numbers from index 6	mcts	12	12	0.120416	1
+tribonacci from index 5	best-1st	13	13	0.436242	1
+tribonacci from index 5	mcts	13	13	0.331818	1
+factorial from index 4	best-1st	9	9	0.0232841	1
+factorial from index 4	mcts	9	9	0.0248425	1
+powers of 3 from index 8	best-1st	4	4	0.0245834	1
+powers of 3 from index 8	mcts	4	4	0.0270052	1
+#12 the n-th prime	best-1st	3	3	0.274526	1
+#12 the n-th prime	mcts	3	3	0.231853	1
+#13 is n prime	best-1st	3	3	0.726679	1
+#13 is n prime	mcts	3	3	0.103378	1
+the n-th prime from index 20	best-1st	3	3	0.546795	1
+the n-th prime from index 20	mcts	3	3	0.361442	1
+is n prime, two wrong labels	best-1st	12	12	0.66633	1
+is n prime, two wrong labels	mcts	12	12	0.126962	1
+p1^2 + 1 from index 2 (not invertible)	best-1st	27	27	0.00392829	1
+p1^2 + 1 from index 2 (not invertible)	mcts	27	27	0.00374111	1
+showcase: bacteria, triple then remove 2	best-1st	8	8	0.0326602	1
+showcase: bacteria, triple then remove 2	mcts	8	8	0.0329622	1
+showcase: bacteria, two miscounts	best-1st	17	17	0.0849443	1
+showcase: bacteria, two miscounts	mcts	17	17	0.0846531	1
+showcase: savings, double plus 100	best-1st	8	8	0.0542763	1
+showcase: savings, double plus 100	mcts	8	8	0.0552541	1
+showcase: savings, from year 5	best-1st	8	8	0.0516671	1
+showcase: savings, from year 5	mcts	8	8	0.0532861	1
+showcase: staircase, steps of 1 to 3	best-1st	13	13	0.260763	1
+showcase: staircase, steps of 1 to 3	mcts	13	13	0.224544	1
+showcase: staircase, from step 6	best-1st	13	13	0.394684	1
+showcase: staircase, from step 6	mcts	13	13	0.370089	1
+rabbits from month 12, one unrecorded	best-1st	10	10	0.376539	1
+prime-numbered lockers 50 to 120	best-1st	3	3	1.15936	1
+prime-numbered lockers 50 to 120	mcts	3	3	0.792491	1
+showcase: arrangements of n guests	best-1st	9	9	0.0440751	1
+showcase: arrangements of n guests	mcts	9	9	0.0469363	1
+rabbits from month 12, three unrecorded	best-1st	10	10	0.336286	1
+showcase: savings at triple plus 100, from year 5	best-1st	8	8	0.0310516	1
+showcase: savings at triple plus 100, from year 5	mcts	8	8	0.0312875	1
+showcase: staircase from step 6, a miscount	best-1st	18	18	0.389131	1
+showcase: staircase from step 6, a miscount	mcts	18	18	0.244314	1
+showcase: index recurrence from a late start, an unknown term	best-1st	10	11	0.0258235	1
+showcase: second order with the index	best-1st	12	12	0.249512	1
+showcase: second order with the index	mcts	12	12	0.141678	1
+showcase: primality with unknown labels	best-1st	3	3	0.269206	1
+showcase: Pell from a late start, an unknown term and a miscount	best-1st	17	17	0.101506	1
+open list: #16 Fibonacci	best-1st	8	8	0.00540913	1
+#35 2^n + 3^n	best-1st	8	8	0.0249275	1
+#35 2^n + 3^n	mcts	8	8	0.0250138	1
+2^n - n	best-1st	6	6	0.0289008	1
+2^n - n	mcts	6	6	0.0271629	1
+3^n - 2^n	best-1st	8	8	0.0291811	1
+3^n - 2^n	mcts	8	8	0.0284578	1
+(-1)^n + n^2	best-1st	8	8	0.0529499	1
+(-1)^n + n^2	mcts	8	8	0.0331901	1
+2^n + n, order one	best-1st	6	6	0.0623417	1
+2^n + n, order one	mcts	6	6	0.0325617	1
+open list: #37 Fibonacci, unknown term	best-1st	8	8	0.00511406	1
+open list: powers of two, unknown term	best-1st	5	5	0.00134996	1
+open list: Pell, two unknown terms	best-1st	10	10	0.00926284	1
+Lucas, short	best-1st	10	10	0.00248371	1
+Lucas, short	mcts	10	10	0.00267293	1
+open list: Lucas	best-1st	8	8	0.00606841	1
+open list: factorials	best-1st	7	7	0.0114728	1
+open list: powers of 3	best-1st	5	5	0.00316874	1
+open list: tribonacci	best-1st	11	11	0.0259792	1

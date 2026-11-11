@@ -1,10 +1,54 @@
 #include "infrastructure/poly_arithmetic.hpp"
+#include <set>
 #include <utility>
 #include <vector>
 #include "value_objects/rational.hpp"
 #include "debug_assert.hpp"
 
 namespace {
+
+// the exponent of `variable` in a polynomial: its largest power there
+uint32_t find_degree(const poly_polynomial& polynomial, uint32_t variable) {
+    uint32_t degree = 0;
+    for (const auto& [monomial, coefficient] : polynomial.terms)
+        for (const poly_power& power : monomial.powers)
+            if (power.variable == variable && power.exponent > degree)
+                degree = power.exponent;
+    return degree;
+}
+
+// the coefficients of the powers of `variable`, lowest first, each a polynomial in the other variables
+std::vector<poly_polynomial> split_by_degree(const poly_polynomial& polynomial, uint32_t variable) {
+    std::vector<poly_polynomial> coefficients(find_degree(polynomial, variable) + 1);
+    for (const auto& [monomial, coefficient] : polynomial.terms) {
+        poly_monomial rest;
+        uint32_t degree = 0;
+        for (const poly_power& power : monomial.powers) {
+            if (power.variable == variable) {
+                degree = power.exponent;
+                continue;
+            }
+            rest.powers.push_back(power);
+        }
+        coefficients[degree].terms.emplace(rest, coefficient);
+    }
+    return coefficients;
+}
+
+// divided by the gcd of its coefficients, with a positive leading coefficient
+poly_polynomial make_primitive(const poly_polynomial& polynomial) {
+    integer common = 0;
+    for (const auto& [monomial, coefficient] : polynomial.terms)
+        common = boost::multiprecision::gcd(common, coefficient);
+    if (common == 0)
+        return polynomial;
+    if (polynomial.terms.rbegin()->second < 0)
+        common = -common;
+    poly_polynomial primitive;
+    for (const auto& [monomial, coefficient] : polynomial.terms)
+        primitive.terms.emplace(monomial, integer(coefficient / common));
+    return primitive;
+}
 
 poly_monomial multiply_monomials(const poly_monomial& lhs, const poly_monomial& rhs) {
     poly_monomial product;
@@ -139,6 +183,96 @@ std::optional<poly_polynomial> poly_arithmetic::combine(
 std::optional<poly_polynomial> poly_arithmetic::find_gcd(const poly_polynomial& lhs, const poly_polynomial& rhs) const {
     if (lhs.terms.empty() || rhs.terms.empty())
         return std::nullopt;
+    std::set<uint32_t> variables;
+    for (const poly_polynomial* side : {&lhs, &rhs})
+        for (const auto& [monomial, coefficient] : side->terms)
+            for (const poly_power& power : monomial.powers)
+                variables.insert(power.variable);
+    if (variables.size() <= 1)
+        return find_univariate_gcd(lhs, rhs);
+    // gcd = gcd(contents) * gcd(primitive parts), both over the main variable
+    const uint32_t main = *variables.rbegin();
+    const std::optional<poly_polynomial> lhs_content = find_content(lhs, main);
+    const std::optional<poly_polynomial> rhs_content = find_content(rhs, main);
+    if (!lhs_content.has_value() || !rhs_content.has_value())
+        return std::nullopt;
+    const std::optional<poly_polynomial> common_content = find_gcd(lhs_content.value(), rhs_content.value());
+    std::optional<poly_polynomial> a = find_quotient(lhs, lhs_content.value());
+    std::optional<poly_polynomial> b = find_quotient(rhs, rhs_content.value());
+    if (!common_content.has_value() || !a.has_value() || !b.has_value())
+        return std::nullopt;
+    if (find_degree(a.value(), main) < find_degree(b.value(), main))
+        std::swap(a, b);
+    // Euclid on primitive parts: a, b <- b, pp(prem(a, b)) until b is free of the main variable
+    while (find_degree(b.value(), main) > 0) {
+        const std::optional<poly_polynomial> remainder = find_pseudo_remainder(a.value(), b.value(), main);
+        if (!remainder.has_value())
+            return std::nullopt;
+        a = b;
+        if (remainder.value().terms.empty())
+            break;
+        const std::optional<poly_polynomial> content = find_content(remainder.value(), main);
+        if (!content.has_value())
+            return std::nullopt;
+        b = find_quotient(remainder.value(), content.value());
+        if (!b.has_value())
+            return std::nullopt;
+    }
+    const bool coprime = find_degree(b.value(), main) == 0 && !(a == b);
+    const poly_polynomial unit = poly_polynomial{.terms = {{poly_monomial{}, integer(1)}}};
+    const std::optional<poly_polynomial> product = multiply(common_content.value(), coprime ? unit : a.value());
+    if (!product.has_value())
+        return std::nullopt;
+    return make_primitive(product.value());
+}
+
+// The content over `variable`: the gcd of the coefficients of its powers, each a polynomial in the other variables.
+std::optional<poly_polynomial> poly_arithmetic::find_content(const poly_polynomial& polynomial,
+                                                             uint32_t variable) const {
+    const std::vector<poly_polynomial> coefficients = split_by_degree(polynomial, variable);
+    std::optional<poly_polynomial> content;
+    for (const poly_polynomial& coefficient : coefficients) {
+        if (coefficient.terms.empty())
+            continue;
+        content = content.has_value() ? find_gcd(content.value(), coefficient) : make_primitive(coefficient);
+        if (!content.has_value())
+            return std::nullopt;
+    }
+    return content;
+}
+
+// lc(divisor)^k * dividend reduced by divisor over `variable` until its degree there is below the divisor's
+std::optional<poly_polynomial> poly_arithmetic::find_pseudo_remainder(const poly_polynomial& dividend,
+                                                                      const poly_polynomial& divisor,
+                                                                      uint32_t variable) const {
+    const uint32_t divisor_degree = find_degree(divisor, variable);
+    const poly_polynomial leading = split_by_degree(divisor, variable)[divisor_degree];
+    poly_polynomial remainder = dividend;
+    while (!remainder.terms.empty() && find_degree(remainder, variable) >= divisor_degree) {
+        const uint32_t degree = find_degree(remainder, variable);
+        const std::vector<poly_polynomial> coefficients = split_by_degree(remainder, variable);
+        poly_polynomial shifted;
+        for (const auto& [monomial, coefficient] : coefficients[degree].terms) {
+            poly_monomial raised = monomial;
+            if (degree > divisor_degree)
+                raised = multiply_monomials(monomial, poly_monomial{.powers = {poly_power{
+                    .variable = variable, .exponent = degree - divisor_degree}}});
+            shifted.terms.emplace(raised, coefficient);
+        }
+        const std::optional<poly_polynomial> scaled = multiply(leading, remainder);
+        const std::optional<poly_polynomial> removed = multiply(shifted, divisor);
+        if (!scaled.has_value() || !removed.has_value())
+            return std::nullopt;
+        const std::optional<poly_polynomial> next = subtract(scaled.value(), removed.value());
+        if (!next.has_value())
+            return std::nullopt;
+        remainder = next.value();
+    }
+    return remainder;
+}
+
+std::optional<poly_polynomial> poly_arithmetic::find_univariate_gcd(const poly_polynomial& lhs,
+                                                                    const poly_polynomial& rhs) const {
     // dense coefficients over the rationals, lowest degree first, in the one variable both use
     std::optional<uint32_t> variable;
     std::vector<std::vector<rational>> dense(2);

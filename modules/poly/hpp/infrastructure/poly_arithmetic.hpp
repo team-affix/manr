@@ -22,11 +22,18 @@ struct poly_arithmetic {
     std::optional<poly_polynomial> power(const poly_polynomial& base, uint32_t exponent) const;
     // The exact quotient, if `divisor` divides `dividend` over the integers.
     std::optional<poly_polynomial> find_quotient(const poly_polynomial& dividend, const poly_polynomial& divisor) const;
-    // The greatest common divisor of two nonzero polynomials in at most one variable, primitive (coefficients without a
-    // common factor) with a positive leading coefficient: 1 when they share no factor. Nothing for more variables.
+    // The greatest common divisor of two nonzero polynomials, primitive (coefficients without a common factor) with a
+    // positive leading coefficient: 1 when they share no factor. In one variable by Euclid over the rationals; in
+    // several, recursively over a main variable (contents, then Euclid on primitive parts by pseudo-remainders).
+    // Nothing when an intermediate result would pass `max_terms`.
     std::optional<poly_polynomial> find_gcd(const poly_polynomial& lhs, const poly_polynomial& rhs) const;
 private:
     std::optional<poly_polynomial> combine(const poly_polynomial& lhs, const poly_polynomial& rhs, int sign) const;
+    std::optional<poly_polynomial> find_univariate_gcd(const poly_polynomial& lhs, const poly_polynomial& rhs) const;
+    std::optional<poly_polynomial> find_content(const poly_polynomial& polynomial, uint32_t variable) const;
+    std::optional<poly_polynomial> find_pseudo_remainder(const poly_polynomial& dividend,
+                                                         const poly_polynomial& divisor,
+                                                         uint32_t variable) const;
 
     size_t max_terms_;
 };

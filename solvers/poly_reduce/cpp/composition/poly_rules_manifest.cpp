@@ -17,12 +17,18 @@ poly_rules_manifest::poly_rules_manifest(kernel_t& kernel)
     , rat_symbols_{.quotient = kernel.symbols_.intern_symbol("div")}
     , quotients_(kernel.expander_, kernel.arithmetic_, kernel.arithmetic_, kernel.renderer_, kernel.exprs_, kernel.sizes_,
                  rat_symbols_)
+    , fractions_(kernel.expander_, kernel.arithmetic_, kernel.arithmetic_, kernel.arithmetic_, kernel.arithmetic_,
+                 kernel.arithmetic_, kernel.arithmetic_, kernel.literals_, kernel.renderer_, kernel.exprs_, kernel.sizes_,
+                 rat_symbols_, kernel.poly_symbols_)
     , linear_solver_()
     , holes_(kernel.expander_, kernel.renderer_, kernel.renderer_, kernel.arithmetic_, kernel.arithmetic_,
              kernel.arithmetic_, kernel.arithmetic_, kernel.roots_, kernel.exprs_, kernel.exprs_, kernel.sizes_,
              linear_solver_, intern_hole_symbols(kernel))
-    , local_rules_(low_level_, collector_, horner_, factor_, power_, splitter_, like_terms_, quotients_)
-    , root_rules_(holes_)
+    , quotient_holes_(kernel.expander_, kernel.arithmetic_, linear_solver_, kernel.renderer_, kernel.exprs_,
+                      kernel.sizes_, rat_symbols_, intern_hole_symbols(kernel))
+    , quotient_hole_scopes_(quotient_holes_, kernel.exprs_)
+    , local_rules_(low_level_, collector_, horner_, factor_, power_, splitter_, like_terms_, quotients_, fractions_)
+    , root_rules_(holes_, quotient_hole_scopes_)
     , subterms_(local_rules_, kernel.exprs_)
     , rules_(subterms_, root_rules_) {}
 

@@ -68,7 +68,8 @@ seq/         (seq_)    integer sequences: recurrences (`rec`), powers (`exp`), i
                        evaluator, the recurrence detector, the closing rule, open-ended lists read as sequences
 number/      (num_)    number theory over another domain: `prime(n)`, `is_prime(n)`, a sieve, evaluator, detector
 rational/    (rat_)    quotients of polynomials `n / d`: the quotient canceller (exact division, common factors in
-                       one variable); wired into the full polynomial rule set
+                       any number of variables), the fraction combiner (sums, products, powers of quotients as one),
+                       the quotient hole binder; wired into the full polynomial rule set
 logic/       (logic_)  Boolean functions: and, or, xor, not, xnor, nand, nor, imp, maj, mux; evaluator, the laws,
                        a condition evaluator for any domain's predicates; parity, cover, primitive, decomposition
                        detectors, Boolean conditions over atoms, the truth-table refit (holes as don't cares)

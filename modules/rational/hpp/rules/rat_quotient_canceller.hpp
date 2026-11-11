@@ -10,7 +10,7 @@
 #include "value_objects/rewrite.hpp"
 
 // Local rule: cancels the common factor of a quotient of polynomials, `div(n, d)`: when d divides n, the quotient
-// itself (`(x^2 - 1) / (x - 1)` is `x + 1`); otherwise, over one variable, n and d each divided by their greatest
+// itself (`(x^2 - 1) / (x - 1)` is `x + 1`); otherwise n and d each divided by their greatest
 // common divisor (`(x^2 - 1) / (x^2 + 2 * x + 1)` is `(x - 1) / (x + 1)`). The cancelled form also has a value where
 // the factor was 0, its continuous extension, as computer algebra does; where d was 0 the quotient had none. Fires
 // only when the result is smaller. Nothing for a divisor that is 0 or a quotient that is not of polynomials.
