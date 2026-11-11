@@ -394,12 +394,195 @@ solved solve(const prog_problem& p, bool fast) {
     return solved{.skip_mcts = skip_mcts, .best_first = run_best_first(p), .mcts = skip_mcts ? skipped : run_mcts(p)};
 }
 
+long sum_of(const list_t& l) { return std::accumulate(l.begin(), l.end(), 0L); }
+list_t squares(const list_t& l) { list_t r; for (long v : l) r.push_back(v * v); return r; }
+std::string pair_text(const list_t& a, const list_t& b) { return "point(" + show(a) + ", " + show(b) + ")"; }
+
+// compositions: programs of several steps, helpers used twice, programs under a sort or a reverse (the probe of the
+// decomposer, `docs/prog.md`)
+std::vector<prog_problem> composition_problems() {
+    const std::vector<list_t> lists = random_lists(30, 0, 6, -5, 9, 201);
+    const std::vector<list_t> nonempty = random_lists(30, 1, 6, -5, 9, 202);
+    std::vector<prog_problem> ps;
+    // one step with a body of five nodes
+    ps.push_back(from_lists("T1 count evens", lists, [](const list_t& l) {
+        long c = 0;
+        for (long v : l) c += (v % 2 == 0);
+        return std::to_string(c);
+    }, 10, "lam(length(filter(lam(eq(mod(#0,2),0)),#0)))", {}));
+    // two steps
+    ps.push_back(from_lists("T2 doubled, keep >5", lists, [](const list_t& l) {
+        list_t r;
+        for (long v : l) if (2*v > 5) r.push_back(2*v);
+        return show(r);
+    }, 12, "lam(filter(lam(lt(5,#0)),map(lam(#0+#0),#0)))", {}));
+    ps.push_back(from_lists("T2 sorted squares", lists, [](const list_t& l) {
+        list_t r = squares(l);
+        std::sort(r.begin(), r.end());
+        return show(r);
+    }, 8, "lam(sort(map(lam(#0*#0),#0)))", {}));
+    ps.push_back(from_lists("T2 reversed prefix sums", lists, [](const list_t& l) {
+        list_t r;
+        long s = 0;
+        for (long v : l) r.push_back(s += v);
+        std::reverse(r.begin(), r.end());
+        return show(r);
+    }, 10, "lam(reverse(scan(+,0,#0)))", {}));
+    // three steps
+    ps.push_back(from_lists("T3 sorted distinct squares", lists, [](const list_t& l) {
+        list_t r = squares(l);
+        std::set<long> s(r.begin(), r.end());
+        return show(list_t(s.begin(), s.end()));
+    }, 9, "lam(sort(unique(map(sq,#0))))", {}));
+    ps.push_back(from_lists("T3 max of squares", nonempty, [](const list_t& l) {
+        list_t r = squares(l);
+        return std::to_string(*std::max_element(r.begin(), r.end()));
+    }, 9, "lam(head(reverse(sort(map(sq,#0)))))", {}));
+    // nested lists
+    {
+        std::mt19937 rng(206);
+        prog_problem rev{"N map reverse", {}, 6, "lam(map(lam(reverse(#0)),#0))"};
+        prog_problem total{"N total element count", {}, 10, "lam(length(flatten))"};
+        prog_problem sflat{"N sorted flatten", {}, 10, "lam(sort(flatten))"};
+        prog_problem maxes{"N max of each sublist", {}, 8, "lam(map(lam(head(reverse(sort(#0)))),#0))"};
+        prog_problem nonemp{"N drop empty sublists", {}, 9, "lam(filter(lam(lt(0,length(#0))),#0))"};
+        for (int i = 0; i < 30; ++i) {
+            const size_t count = std::uniform_int_distribution<size_t>(0, 3)(rng);
+            const std::vector<list_t> ls = random_lists(count, 0, 3, -5, 9, 300 + i);
+            const size_t full_count = std::uniform_int_distribution<size_t>(0, 3)(rng);
+            const std::vector<list_t> full = random_lists(full_count, 1, 3, -5, 9, 400 + i);
+            std::string text = "[", ftext = "[", rtext = "[", mtext = "[", ntext = "[";
+            list_t flat;
+            bool firstn = true;
+            for (size_t j = 0; j < ls.size(); ++j) {
+                text += (j ? ", " : "") + show(ls[j]);
+                list_t r = ls[j]; std::reverse(r.begin(), r.end());
+                rtext += (j ? ", " : "") + show(r);
+                flat.insert(flat.end(), ls[j].begin(), ls[j].end());
+                if (!ls[j].empty()) { ntext += (firstn ? "" : ", ") + show(ls[j]); firstn = false; }
+            }
+            for (size_t j = 0; j < full.size(); ++j) {
+                ftext += (j ? ", " : "") + show(full[j]);
+                mtext += (j ? ", " : "") + std::to_string(*std::max_element(full[j].begin(), full[j].end()));
+            }
+            text += "]"; ftext += "]"; rtext += "]"; mtext += "]"; ntext += "]";
+            rev.samples.push_back({text, rtext});
+            total.samples.push_back({text, std::to_string(flat.size())});
+            std::sort(flat.begin(), flat.end());
+            sflat.samples.push_back({text, show(flat)});
+            maxes.samples.push_back({ftext, mtext});
+            nonemp.samples.push_back({text, ntext});
+        }
+        for (auto* p : {&rev, &total, &sflat, &maxes, &nonemp}) ps.push_back(*p);
+    }
+    // two inputs, and helpers
+    {
+        const std::vector<list_t> as = random_lists(30, 0, 4, -5, 9, 207);
+        prog_problem esum{"2 elementwise sum", {}, 10, "lams(2,zipwith(+,#1,#0))"};
+        prog_problem both{"2 sum of both lists", {}, 12, "lams(2,fold(+,0,append(#1,#0)))"};
+        prog_problem addk{"2 add k to each", {}, 8, "lams(2,map(lam(#0+#2),#0))"};
+        prog_problem below{"2 keep those below k", {}, 8, "lams(2,filter(lam(lt(#0,#2)),#0))"};
+        prog_problem sqdiff{"H sumsq(xs) - sumsq(ys)", {}, 22,
+                            "lams(2,let(lam(fold(sq+acc)),sub(app(#0,#2),app(#0,#1))))"};
+        prog_problem sortcat{"H sortsq(xs) ++ sortsq(ys)", {}, 17,
+                             "lams(2,let(lam(sort(map(sq,#0))),append(app(#0,#2),app(#0,#1))))"};
+        prog_problem rangesum{"H range(xs) + range(ys)", {}, 22, "lams(2,let(lam(max-min #0),app+app))"};
+        std::mt19937 krng(208);
+        for (size_t i = 0; i < as.size(); ++i) {
+            const list_t& a = as[i];
+            const list_t b = random_lists(1, a.size(), a.size(), -5, 9, 500 + i)[0];
+            const list_t c = random_lists(1, 1, 5, -5, 9, 600 + i)[0];
+            const list_t d = random_lists(1, 1, 5, -5, 9, 700 + i)[0];
+            list_t s; for (size_t j = 0; j < a.size(); ++j) s.push_back(a[j] + b[j]);
+            esum.samples.push_back({pair_text(a, b), show(s)});
+            both.samples.push_back({pair_text(c, d), std::to_string(sum_of(c) + sum_of(d))});
+            const long k = std::uniform_int_distribution<int>(-3, 5)(krng);
+            list_t added, kept;
+            for (long v : d) { added.push_back(v + k); if (v < k) kept.push_back(v); }
+            addk.samples.push_back({"point(" + std::to_string(k) + ", " + show(d) + ")", show(added)});
+            below.samples.push_back({"point(" + std::to_string(k) + ", " + show(d) + ")", show(kept)});
+            sqdiff.samples.push_back({pair_text(c, d), std::to_string(sum_of(squares(c)) - sum_of(squares(d)))});
+            list_t sc = squares(c), sd = squares(d);
+            std::sort(sc.begin(), sc.end()); std::sort(sd.begin(), sd.end());
+            sc.insert(sc.end(), sd.begin(), sd.end());
+            sortcat.samples.push_back({pair_text(c, d), show(sc)});
+            const long rc = *std::max_element(c.begin(), c.end()) - *std::min_element(c.begin(), c.end());
+            const long rd = *std::max_element(d.begin(), d.end()) - *std::min_element(d.begin(), d.end());
+            rangesum.samples.push_back({pair_text(c, d), std::to_string(rc + rd)});
+        }
+        for (auto* p : {&esum, &both, &addk, &below, &sqdiff, &sortcat, &rangesum}) ps.push_back(*p);
+    }
+    // trees
+    {
+        std::mt19937 rng(209);
+        prog_problem sq{"Tr sum of squares", {}, 13, "lam(tfold(lams(3,#2+#1*#1+#0),0,#0))"};
+        prog_problem leaves{"Tr count leaves", {}, 9, "lam(tfold(lams(3,#2+#0),1,#0))"};
+        prog_problem sorted_vals{"Tr sorted values", {}, 12, "lam(sort(inorder))"};
+        prog_problem inc{"Tr add 1 to every value", {}, 12, "lam(tfold(lams(3,node(#2,#1+1,#0)),leaf,#0))"};
+        for (int i = 0; i < 30; ++i) {
+            std::vector<tree_node> tree;
+            const int root = grow_tree(rng, tree, std::uniform_int_distribution<int>(0, 6)(rng));
+            const std::string text = tree_text(tree, root, false);
+            long s = 0; for (const auto& n : tree) s += (long)n.value * n.value;
+            sq.samples.push_back({text, std::to_string(s)});
+            leaves.samples.push_back({text, std::to_string(tree.size() + 1)});
+            list_t in; traverse(tree, root, false, in); std::sort(in.begin(), in.end());
+            sorted_vals.samples.push_back({text, show(in)});
+            std::vector<tree_node> plus = tree; for (auto& n : plus) n.value += 1;
+            inc.samples.push_back({text, tree_text(plus, root, false)});
+        }
+        for (auto* p : {&sq, &leaves, &sorted_vals, &inc}) ps.push_back(*p);
+    }
+    // deeper: three to five steps
+    ps.push_back(from_lists("D3 reversed incremented evens", lists, [](const list_t& l) {
+        list_t r;
+        for (long v : l) if (v % 2 == 0) r.push_back(v + 1);
+        std::reverse(r.begin(), r.end());
+        return show(r);
+    }, 13, "lam(reverse(filter(lam(mod(#0,2)),map(lam(#0+1),#0))))", {}));
+    ps.push_back(from_lists("D3 squares of reversed positives", lists, [](const list_t& l) {
+        list_t r;
+        for (auto it = l.rbegin(); it != l.rend(); ++it) if (*it > 0) r.push_back(*it * *it);
+        return show(r);
+    }, 12, "lam(map(sq,filter(pos,reverse(#0))))", {}));
+    ps.push_back(from_lists("D4 sorted squares then reversed", lists, [](const list_t& l) {
+        list_t r = squares(l);
+        std::sort(r.rbegin(), r.rend());
+        return show(r);
+    }, 9, "lam(reverse(sort(map(sq,#0))))", {}));
+    {
+        std::mt19937 rng(210);
+        prog_problem nested{"D4 sorted squares of each sublist", {}, 11, "lam(map(lam(sort(map(sq,#0))),#0))"};
+        prog_problem helped{"DH sum of positives(xs) - (ys)", {}, 22,
+                            "lams(2,let(lam(fold(max(#0,0)+acc)),sub(app,app)))"};
+        for (int i = 0; i < 30; ++i) {
+            const size_t count = std::uniform_int_distribution<size_t>(0, 3)(rng);
+            const std::vector<list_t> ls = random_lists(count, 0, 3, -5, 9, 800 + i);
+            std::string text = "[", out = "[";
+            for (size_t j = 0; j < ls.size(); ++j) {
+                list_t r = squares(ls[j]); std::sort(r.begin(), r.end());
+                text += (j ? ", " : "") + show(ls[j]);
+                out += (j ? ", " : "") + show(r);
+            }
+            nested.samples.push_back({text + "]", out + "]"});
+            const list_t c = random_lists(1, 0, 5, -5, 9, 900 + i)[0];
+            const list_t d = random_lists(1, 0, 5, -5, 9, 950 + i)[0];
+            long pc = 0, pd = 0; for (long v : c) pc += std::max(v, 0L); for (long v : d) pd += std::max(v, 0L);
+            helped.samples.push_back({pair_text(c, d), std::to_string(pc - pd)});
+        }
+        ps.push_back(nested);
+        ps.push_back(helped);
+    }
+    return ps;
+}
+
 }
 
 int main(int argc, char** argv) {
     const bench_options options = parse_bench_options(argc, argv);
     std::vector<prog_problem> problems = list_problems();
-    for (const std::vector<prog_problem>& group : {nested_problems(), tree_problems(), graph_problems()})
+    for (const std::vector<prog_problem>& group :
+         {nested_problems(), tree_problems(), graph_problems(), composition_problems()})
         problems.insert(problems.end(), group.begin(), group.end());
 
     std::printf("budgets: best-first %zu rewrites; mcts %zu simulations x depth %zu\n", k_rewrites, k_simulations,

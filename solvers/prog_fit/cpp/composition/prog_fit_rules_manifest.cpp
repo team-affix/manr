@@ -15,14 +15,20 @@ prog_fit_rules_manifest::prog_fit_rules_manifest(kernel_t& kernel, const std::ve
     , pw_evaluator_(interpreter_, interpreter_, pw_symbols_)
     , function_maker_(kernel.literals_, kernel.exprs_, abs_symbols_)
     , parser_(kernel.literals_, kernel.exprs_, kernel.symbols_, kernel.exprs_, prog_symbols_)
+    , matcher_(kernel.literals_, prog_symbols_)
+    , binders_(kernel.literals_, abs_symbols_)
+    , reducer_(indices_, indices_, binders_, kernel.literals_, kernel.exprs_, abs_symbols_)
     , points_(parse_samples(parser_, samples))
     , constants_(kernel.sizes_)
-    , programs_(interpreter_, kernel.literals_, kernel.literals_, indices_, kernel.exprs_, prog_symbols_)
-    , hypotheses_(constants_, programs_)
+    , programs_(interpreter_, matcher_, kernel.literals_, kernel.literals_, indices_, kernel.exprs_, prog_symbols_)
+    , compositions_(programs_, programs_, interpreter_, matcher_, kernel.literals_, kernel.literals_, indices_,
+                    kernel.exprs_, kernel.exprs_, prog_symbols_)
+    , hypotheses_(constants_, compositions_)
     , piecewise_(hypotheses_, pw_evaluator_, function_maker_, kernel.literals_, kernel.exprs_, pw_symbols_,
                  prog_symbols_.point, kernel.poly_symbols_.add, kernel.poly_symbols_.sub, kernel.poly_symbols_.mul,
                  kernel.poly_symbols_.pow)
-    , local_rules_(piecewise_.binder_, piecewise_.absorber_, poly_rules_.local_rules_)
+    , helpers_(reducer_, indices_, indices_, binders_, kernel.exprs_, kernel.exprs_, kernel.sizes_, abs_symbols_)
+    , local_rules_(piecewise_.binder_, piecewise_.absorber_, poly_rules_.local_rules_, helpers_)
     , root_rules_()
     , subterms_(local_rules_, kernel.exprs_)
     , rules_(subterms_, root_rules_)

@@ -11,6 +11,8 @@
 #include <vector>
 #include "value_objects/expr.hpp"
 #include "value_objects/integer.hpp"
+#include "value_objects/prog_hole.hpp"
+#include "value_objects/prog_spec.hpp"
 #include "value_objects/prog_symbols.hpp"
 #include "value_objects/pw_data_point.hpp"
 
@@ -25,6 +27,7 @@ constexpr size_t k_prog_default_max_fold_body_size = 3;
 constexpr size_t k_prog_default_max_base_size = 2;
 constexpr size_t k_prog_default_max_bank = 2000;
 constexpr size_t k_prog_default_max_probes = 24;
+constexpr size_t k_prog_default_max_scope_envs = 64;
 
 // Hypothesis source: the smallest program of `prog_symbols` that reproduces every sample, found by bottom-up
 // enumeration by size, so the first program that matches is the smallest one the grammar has (the MDL model, up to
@@ -46,10 +49,18 @@ constexpr size_t k_prog_default_max_probes = 24;
 // fold, scan or tree fold at most `max_base_size`; a commutative operation is built in one order of its arguments, and
 // no operation on literals alone (its value is a literal already). Needs Results are memoized per set of samples, and at most `max_searches` sets are searched (the
 // piecewise rules ask again for every subset a model leaves; a subset rarely needs a program the whole set did not).
-template<typename IEvaluateWith, typename IFindLiteralValue, typename IMakeLiteral, typename IMakeIndex,
-         typename IMakeFunctor>
+//
+// Two more entries serve a decomposing search (`prog_decomposing_hypotheses`): `find_program` searches one
+// specification (`prog_spec`: environments, outputs, and the relation a value must have to its output, e.g. a
+// permutation of it under a `sort`) for programs of at most a given size, and `fill_hole` enumerates the content of a hole in a frame (`prog_hole`: the
+// frame `length(filter(lam(□), #0))`, or a helper `let(lam(□), app(#0, #2) - app(#0, #1))`), over the environments
+// of the hole's own scope (at most `k_prog_default_max_scope_envs`), each candidate checked by evaluating the filled
+// frame on the specification. Both take their own budget of terms and need no minimum of samples.
+template<typename IEvaluateWith, typename IMatchRelation, typename IFindLiteralValue, typename IMakeLiteral,
+         typename IMakeIndex, typename IMakeFunctor>
 struct prog_enumerative_hypotheses {
     prog_enumerative_hypotheses(IEvaluateWith& evaluate_with,
+                                IMatchRelation& match_relation,
                                 IFindLiteralValue& find_literal_value,
                                 IMakeLiteral& make_literal,
                                 IMakeIndex& make_index,
@@ -62,6 +73,8 @@ struct prog_enumerative_hypotheses {
                                 size_t max_body_size = k_prog_default_max_body_size,
                                 size_t max_base_size = k_prog_default_max_base_size);
     void propose_hypotheses(const std::vector<pw_data_point>& points, std::vector<const expr*>& out);
+    std::optional<const expr*> find_program(const prog_spec& spec, size_t max_size, size_t max_terms);
+    std::optional<const expr*> fill_hole(const prog_hole& hole);
 private:
     // value types
     static constexpr uint8_t k_integer = 0;
@@ -103,6 +116,10 @@ private:
     };
 
     std::optional<const expr*> search(const std::vector<pw_data_point>& points);
+    std::optional<const expr*> run(const std::vector<values_t>& scope_envs, std::optional<uint8_t> output_type,
+                                   size_t max_size, size_t max_terms);
+    std::optional<uint8_t> find_common_type(const values_t& values) const;
+    const expr* plug(const expr* frame, const expr* content);
     uint8_t find_type(const expr* value) const;
     void make_productions();
     static argument make_data_argument(uint8_t type);
@@ -133,6 +150,7 @@ private:
     static bool holds_hole(const expr* e);
 
     IEvaluateWith& evaluate_with_;
+    IMatchRelation& match_relation_;
     IFindLiteralValue& find_literal_value_;
     IMakeLiteral& make_literal_;
     IMakeIndex& make_index_;
@@ -161,16 +179,23 @@ private:
     size_t deduced_size_;
     values_t probe_outputs_;
     std::map<std::vector<const expr*>, std::optional<const expr*>> memo_;
+    size_t budget_;
+    uint8_t relation_;
+    std::vector<const expr*> frames_;
+    const expr* marker_;
+    prog_spec framed_;
 };
 
 #define PROG_ENUMERATIVE_HYPOTHESES_TEMPLATE                                                           \
-    template<typename IEvaluateWith, typename IFindLiteralValue, typename IMakeLiteral, typename IMakeIndex, \
-             typename IMakeFunctor>
-#define PROG_ENUMERATIVE_HYPOTHESES \
-    prog_enumerative_hypotheses<IEvaluateWith, IFindLiteralValue, IMakeLiteral, IMakeIndex, IMakeFunctor>
+    template<typename IEvaluateWith, typename IMatchRelation, typename IFindLiteralValue, typename IMakeLiteral, \
+             typename IMakeIndex, typename IMakeFunctor>
+#define PROG_ENUMERATIVE_HYPOTHESES                                                                                \
+    prog_enumerative_hypotheses<IEvaluateWith, IMatchRelation, IFindLiteralValue, IMakeLiteral, IMakeIndex,       \
+                                IMakeFunctor>
 
 PROG_ENUMERATIVE_HYPOTHESES_TEMPLATE PROG_ENUMERATIVE_HYPOTHESES::prog_enumerative_hypotheses(
     IEvaluateWith& evaluate_with,
+    IMatchRelation& match_relation,
     IFindLiteralValue& find_literal_value,
     IMakeLiteral& make_literal,
     IMakeIndex& make_index,
@@ -183,6 +208,7 @@ PROG_ENUMERATIVE_HYPOTHESES_TEMPLATE PROG_ENUMERATIVE_HYPOTHESES::prog_enumerati
     size_t max_body_size,
     size_t max_base_size)
     : evaluate_with_(evaluate_with)
+    , match_relation_(match_relation)
     , find_literal_value_(find_literal_value)
     , make_literal_(make_literal)
     , make_index_(make_index)
@@ -210,7 +236,12 @@ PROG_ENUMERATIVE_HYPOTHESES_TEMPLATE PROG_ENUMERATIVE_HYPOTHESES::prog_enumerati
     , deduced_()
     , deduced_size_(0)
     , probe_outputs_()
-    , memo_() {
+    , memo_()
+    , budget_(max_terms)
+    , relation_(k_prog_relation_equal)
+    , frames_()
+    , marker_(nullptr)
+    , framed_() {
     make_productions();
 }
 
@@ -232,85 +263,132 @@ PROG_ENUMERATIVE_HYPOTHESES_TEMPLATE void PROG_ENUMERATIVE_HYPOTHESES::propose_h
 
 PROG_ENUMERATIVE_HYPOTHESES_TEMPLATE std::optional<const expr*> PROG_ENUMERATIVE_HYPOTHESES::search(
     const std::vector<pw_data_point>& points) {
-    // the samples without holes, their inputs as environments, and the types of inputs and output
-    std::vector<values_t> envs;
-    values_t outputs;
-    std::optional<std::vector<uint8_t>> input_types;
-    uint8_t output_type = k_unknown;
+    // the samples without holes, their inputs as environments
+    prog_spec spec{.envs = {}, .outputs = {}, .relation = k_prog_relation_equal};
     for (const pw_data_point& point : points) {
         if (holds_hole(point.input) || holds_hole(point.output))
             continue;
         const expr::functor* f = std::get_if<expr::functor>(&point.input->content);
         const bool tuple = f != nullptr && f->id == symbols_.point;
-        const values_t inputs = tuple ? f->args : values_t{point.input};
-        std::vector<uint8_t> types;
-        for (const expr* input : inputs)
-            types.push_back(find_type(input));
-        if (input_types.has_value() && input_types.value().size() != types.size())
-            return std::nullopt;
-        if (!input_types.has_value())
-            input_types = types;
-        for (size_t i = 0; i < types.size(); ++i) {
-            // an empty list is any list: keep the most specific type seen
-            const bool refine = input_types.value()[i] == k_integers && (types[i] == k_lists || types[i] == k_records);
-            if (refine)
-                input_types.value()[i] = types[i];
-            const bool clash = types[i] != input_types.value()[i]
-                               && !(types[i] == k_integers && (input_types.value()[i] == k_lists
-                                                                || input_types.value()[i] == k_records));
-            if (clash || types[i] == k_unknown)
-                return std::nullopt;
-        }
-        const uint8_t type = find_type(point.output);
-        const bool refine = output_type == k_integers && type == k_lists;
-        if (output_type == k_unknown || refine)
-            output_type = type;
-        if (type == k_unknown || (type != output_type && !(type == k_integers && output_type == k_lists)))
-            return std::nullopt;
-        envs.push_back(inputs);
-        outputs.push_back(point.output);
+        spec.envs.push_back(tuple ? f->args : values_t{point.input});
+        spec.outputs.push_back(point.output);
     }
-    if (envs.size() < min_points_ || !input_types.has_value() || output_type == k_unknown)
+    if (spec.envs.size() < min_points_)
+        return std::nullopt;
+    return find_program(spec, max_size_, max_terms_);
+}
+
+PROG_ENUMERATIVE_HYPOTHESES_TEMPLATE std::optional<const expr*> PROG_ENUMERATIVE_HYPOTHESES::find_program(
+    const prog_spec& spec, size_t max_size, size_t max_terms) {
+    if (spec.envs.empty())
+        return std::nullopt;
+    frames_.clear();
+    relation_ = spec.relation;
+    // the probes are the first samples; the rest only check a candidate that matches them
+    const size_t probes = std::min(spec.envs.size(), k_prog_default_max_probes);
+    checked_envs_.assign(spec.envs.begin() + static_cast<long>(probes), spec.envs.end());
+    checked_outputs_ = spec.outputs;
+    probe_outputs_.assign(spec.outputs.begin(), spec.outputs.begin() + static_cast<long>(probes));
+    const std::vector<values_t> envs(spec.envs.begin(), spec.envs.begin() + static_cast<long>(probes));
+    return run(envs, std::nullopt, std::min(max_size, max_size_), max_terms);
+}
+
+PROG_ENUMERATIVE_HYPOTHESES_TEMPLATE std::optional<const expr*> PROG_ENUMERATIVE_HYPOTHESES::fill_hole(
+    const prog_hole& hole) {
+    if (hole.scope_envs.empty() || hole.spec.envs.empty())
+        return std::nullopt;
+    frames_ = hole.frames;
+    marker_ = hole.marker;
+    framed_ = hole.spec;
+    relation_ = hole.spec.relation;
+    checked_envs_.clear();
+    checked_outputs_.clear();
+    probe_outputs_.clear();
+    const size_t scope = std::min(hole.scope_envs.size(), k_prog_default_max_scope_envs);
+    const std::vector<values_t> envs(hole.scope_envs.begin(), hole.scope_envs.begin() + static_cast<long>(scope));
+    const std::optional<const expr*> found = run(envs, find_type(hole.exemplar), hole.max_size, hole.max_terms);
+    frames_.clear();
+    return found;
+}
+
+// the type all these values share (an empty list is any list: the most specific type seen)
+PROG_ENUMERATIVE_HYPOTHESES_TEMPLATE std::optional<uint8_t> PROG_ENUMERATIVE_HYPOTHESES::find_common_type(
+    const values_t& values) const {
+    uint8_t common = k_unknown;
+    for (const expr* value : values) {
+        const uint8_t type = find_type(value);
+        if (type == k_unknown)
+            return std::nullopt;
+        const bool refine = common == k_integers && (type == k_lists || type == k_records);
+        const bool general = type == k_integers && (common == k_lists || common == k_records);
+        if (common == k_unknown || refine)
+            common = type;
+        if (type != common && !general)
+            return std::nullopt;
+    }
+    if (common == k_unknown)
+        return std::nullopt;
+    return common;
+}
+
+// the search over environments (the probes, or a hole's scope) for a term of the output's type
+PROG_ENUMERATIVE_HYPOTHESES_TEMPLATE std::optional<const expr*> PROG_ENUMERATIVE_HYPOTHESES::run(
+    const std::vector<values_t>& scope_envs, std::optional<uint8_t> output_type, size_t max_size, size_t max_terms) {
+    std::vector<uint8_t> input_types;
+    for (size_t position = 0; position < scope_envs[0].size(); ++position) {
+        values_t column;
+        for (const values_t& env : scope_envs) {
+            if (env.size() != scope_envs[0].size())
+                return std::nullopt;
+            column.push_back(env[position]);
+        }
+        const std::optional<uint8_t> type = find_common_type(column);
+        if (!type.has_value())
+            return std::nullopt;
+        input_types.push_back(type.value());
+    }
+    if (!output_type.has_value())
+        output_type = find_common_type(checked_outputs_);
+    if (!output_type.has_value() || output_type.value() == k_unknown)
         return std::nullopt;
     contexts_.clear();
     context_index_.clear();
     children_.clear();
     terms_ = 0;
+    budget_ = max_terms;
     pools_.assign(k_types, {});
     pools_[k_integer] = {make_literal_.make_literal(integer(0)), make_literal_.make_literal(integer(1))};
     pools_[k_integers] = {make_functor_.make_functor(symbols_.nil, {})};
     pools_[k_tree] = {make_functor_.make_functor(symbols_.leaf, {})};
-    for (size_t i = 0; i < envs.size(); ++i) {
-        for (const expr* input : envs[i])
+    for (const values_t& env : scope_envs)
+        for (const expr* input : env)
             collect_pools(input);
-        collect_pools(outputs[i]);
-    }
-    // the probes are the first samples; the rest only check a candidate that matches them
-    const size_t probes = std::min(envs.size(), k_prog_default_max_probes);
-    checked_envs_.assign(envs.begin() + static_cast<long>(probes), envs.end());
-    checked_outputs_.assign(outputs.begin() + static_cast<long>(probes), outputs.end());
-    outputs.resize(probes);
-    envs.resize(probes);
+    for (const expr* output : frames_.empty() ? checked_outputs_ : framed_.outputs)
+        collect_pools(output);
     found_.reset();
     deduced_.reset();
-    probe_outputs_ = outputs;
-    output_type_ = output_type;
-    top_ = find_context(input_types.value(), envs, 0, max_size_);
+    output_type_ = output_type.value();
+    top_ = find_context(input_types, scope_envs, 0, max_size);
     // contexts are made before any term: every lambda body needs its bank from size 1
     for (size_t index = 0; index < contexts_.size(); ++index)
         make_child_contexts(index);
-    checked_outputs_.insert(checked_outputs_.begin(), outputs.begin(), outputs.end());
     // bottom-up by size; after each size, the deductions may propose a larger program, kept while nothing smaller
     // turns up
-    for (size_t size = 1; size <= max_size_ && terms_ < max_terms_ && !found_.has_value(); ++size) {
+    size_t reached = 0;
+    for (size_t size = 1; size <= max_size && terms_ < budget_ && !found_.has_value(); ++size) {
         for (size_t index = 0; index < contexts_.size() && !found_.has_value(); ++index)
             grow(index, size);
-        if (found_.has_value())
-            break;
+        if (found_.has_value() || !frames_.empty())
+            continue;
+        reached = size;
         deduce(size);
         if (deduced_.has_value() && deduced_size_ <= size + 1)
             break;
     }
+    // a budget spent before the bodies were complete: the deductions still read what was built
+    const bool short_of_bodies = reached < k_prog_default_max_unary_body_size && !deduced_.has_value();
+    if (frames_.empty() && !found_.has_value() && short_of_bodies)
+        deduce(k_prog_default_max_unary_body_size);
     return found_.has_value() ? found_ : deduced_;
 }
 
@@ -372,6 +450,7 @@ PROG_ENUMERATIVE_HYPOTHESES_TEMPLATE void PROG_ENUMERATIVE_HYPOTHESES::make_prod
         productions_.push_back({op, k_integer, {integer_data, integer_data}, commutative});
     }
     productions_.push_back({s.negation, k_integer, {integer_data}, false});
+    productions_.push_back({s.mod, k_integer, {integer_data, integer_data}, false});
     // lists of integers
     productions_.push_back({s.map, k_integers, {make_function_argument({k_integer}, k_integer), integers_data}, false});
     productions_.push_back({s.map, k_integers,
@@ -523,7 +602,7 @@ PROG_ENUMERATIVE_HYPOTHESES_TEMPLATE void PROG_ENUMERATIVE_HYPOTHESES::grow(size
         current_size_ = size;
         std::vector<const expr*> args;
         combine(index, p, 0, size - 1, args);
-        if (terms_ >= max_terms_)
+        if (terms_ >= budget_)
             return;
     }
 }
@@ -532,7 +611,7 @@ PROG_ENUMERATIVE_HYPOTHESES_TEMPLATE void PROG_ENUMERATIVE_HYPOTHESES::grow(size
 PROG_ENUMERATIVE_HYPOTHESES_TEMPLATE void PROG_ENUMERATIVE_HYPOTHESES::combine(size_t index, const production& p,
                                                                               size_t position, size_t remaining,
                                                                               std::vector<const expr*>& args) {
-    if (terms_ >= max_terms_)
+    if (terms_ >= budget_)
         return;
     if (position == p.args.size()) {
         if (remaining != 0)
@@ -578,7 +657,7 @@ PROG_ENUMERATIVE_HYPOTHESES_TEMPLATE void PROG_ENUMERATIVE_HYPOTHESES::combine(s
             args.push_back(arg.lambda ? make_lambda(arg.parameters.size(), t.e) : t.e);
             combine(index, p, position + 1, remaining - size - overhead, args);
             args.pop_back();
-            if (terms_ >= max_terms_)
+            if (terms_ >= budget_)
                 return;
         }
     }
@@ -605,17 +684,18 @@ PROG_ENUMERATIVE_HYPOTHESES_TEMPLATE bool PROG_ENUMERATIVE_HYPOTHESES::admit(siz
     c.bank[type][nodes].push_back(term{.e = e, .values = std::move(values)});
     const bool candidate = index == top_ && type == output_type_;
     if (candidate && check(c.bank[type][nodes].back())) {
-        found_ = e;
-        terms_ = max_terms_;
+        found_ = frames_.empty() ? e : found_;
+        terms_ = budget_;
     }
     return true;
 }
 
 // The deductions: programs read backwards from the outputs, over the terms the enumeration has so far.
 PROG_ENUMERATIVE_HYPOTHESES_TEMPLATE void PROG_ENUMERATIVE_HYPOTHESES::deduce(size_t size) {
-    if (output_type_ == k_integer)
+    const bool exact = relation_ == k_prog_relation_equal;
+    if (exact && output_type_ == k_integer)
         deduce_arithmetic(size);
-    if (output_type_ == k_integers)
+    if (exact && output_type_ == k_integers)
         deduce_element_wise(size);
     deduce_folds(size);
 }
@@ -724,7 +804,7 @@ PROG_ENUMERATIVE_HYPOTHESES_TEMPLATE void PROG_ENUMERATIVE_HYPOTHESES::deduce_fo
                     bool screened = true;
                     for (size_t i = 0; i < envs.size() && screened; ++i) {
                         const std::optional<const expr*> value = evaluate_with_.evaluate_with(body.e, envs[i]);
-                        screened = value.has_value() && value.value() == wanted[i];
+                        screened = value.has_value() && match_relation_.matches(relation_, value.value(), wanted[i]);
                     }
                     if (!screened)
                         continue;
@@ -1007,18 +1087,49 @@ PROG_ENUMERATIVE_HYPOTHESES_TEMPLATE size_t PROG_ENUMERATIVE_HYPOTHESES::count_n
     return nodes;
 }
 
-// whether a top term reproduces every sample: the probes' outputs (the first ones), then the rest by evaluation
+// whether a top term reproduces every sample: the probes' outputs (the first ones), then the rest by evaluation; in a
+// hole, whether a frame filled with it meets the specification (the first that does is found)
 PROG_ENUMERATIVE_HYPOTHESES_TEMPLATE bool PROG_ENUMERATIVE_HYPOTHESES::check(const term& candidate) {
+    for (const expr* frame : frames_) {
+        const expr* filled = plug(frame, candidate.e);
+        bool meets = true;
+        for (size_t i = 0; i < framed_.envs.size() && meets; ++i) {
+            const std::optional<const expr*> value = evaluate_with_.evaluate_with(filled, framed_.envs[i]);
+            meets = value.has_value() && match_relation_.matches(relation_, value.value(), framed_.outputs[i]);
+        }
+        if (!meets)
+            continue;
+        found_ = filled;
+        return true;
+    }
+    if (!frames_.empty())
+        return false;
     const size_t probes = candidate.values.size();
     for (size_t i = 0; i < probes; ++i)
-        if (candidate.values[i] != checked_outputs_[i])
+        if (candidate.values[i] == nullptr
+            || !match_relation_.matches(relation_, candidate.values[i], checked_outputs_[i]))
             return false;
     for (size_t i = 0; i < checked_envs_.size(); ++i) {
         const std::optional<const expr*> value = evaluate_with_.evaluate_with(candidate.e, checked_envs_[i]);
-        if (!value.has_value() || value.value() != checked_outputs_[probes + i])
+        if (!value.has_value() || !match_relation_.matches(relation_, value.value(), checked_outputs_[probes + i]))
             return false;
     }
     return true;
+}
+
+// the frame with its hole (every occurrence) replaced by the content, which is built in the hole's scope
+PROG_ENUMERATIVE_HYPOTHESES_TEMPLATE const expr* PROG_ENUMERATIVE_HYPOTHESES::plug(const expr* frame,
+                                                                                  const expr* content) {
+    if (frame == marker_)
+        return content;
+    const expr::functor* f = std::get_if<expr::functor>(&frame->content);
+    if (f == nullptr || f->args.empty())
+        return frame;
+    std::vector<const expr*> args;
+    args.reserve(f->args.size());
+    for (const expr* arg : f->args)
+        args.push_back(plug(arg, content));
+    return make_functor_.make_functor(f->id, args);
 }
 
 // `lam(b)`, `lam(lam(b))`, or `lams(k, b)` for three parameters or more

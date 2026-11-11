@@ -1,65 +1,119 @@
 # problem	solver	cost	target	seconds	sound
-sum (control)	best-1st	9	9	5.99959	1
-sum (control)	mcts	9	9	5.50808	1
-#56 sort	best-1st	3	3	0.00577246	1
-#56 sort	mcts	3	3	0.00248208	1
-sort, an input element ?1	best-1st	3	3	0.00533385	1
-sort, an input element ?1	mcts	3	3	0.00256292	1
-sort descending	best-1st	4	4	0.0183619	1
-sort descending	mcts	4	4	0.0118394	1
-#57 prefix sums	best-1st	9	9	10.0563	1
-#57 prefix sums	mcts	9	9	8.21108	1
-prefix sums, an output ?1	best-1st	9	9	11.1277	1
-prefix sums, an output ?1	mcts	9	9	6.41678	1
-running maximum	best-1st	9	10	10.8565	1
-running maximum	mcts	9	10	8.58247	1
-#58 remove duplicates	best-1st	3	3	0.00509956	1
-#58 remove duplicates	mcts	3	3	0.00254459	1
-#59 last element	best-1st	4	4	0.0118561	1
-#59 last element	mcts	4	4	0.00983377	1
-#60 pairwise differences	best-1st	10	10	10.5182	1
-#60 pairwise differences	mcts	10	10	7.22568	1
-#61 sum times length	best-1st	12	12	17.0632	1
-#61 sum times length	mcts	12	12	9.12114	1
-maximum minus minimum	best-1st	9	10	6.77599	1
-maximum minus minimum	mcts	9	10	5.1213	1
-#62 reverse of squares	best-1st	8	8	3.28868	1
-#62 reverse of squares	mcts	8	8	3.25754	1
-#63 is sorted	best-1st	5	5	0.162814	1
-#63 is sorted	mcts	5	5	0.171479	1
-random labels stay (control)	best-1st	266	10000	45.5115	1
-random labels stay (control)	mcts	266	10000	36.016	1
-#65 flatten a list of lists	best-1st	9	9	4.73351	1
-#65 flatten a list of lists	mcts	9	9	5.36762	1
-#66 sum of each sublist	best-1st	12	12	10.3526	1
-#66 sum of each sublist	mcts	12	12	6.65495	1
-length of each sublist	best-1st	6	6	0.706957	1
-length of each sublist	mcts	6	6	0.72343	1
-flatten, an inner list ?1	best-1st	33	9	4.59529	1
-flatten, an inner list ?1	mcts	33	9	4.78095	1
-#64 append two lists	best-1st	5	5	0.019873	1
-#64 append two lists	mcts	5	5	0.0180197	1
-dot product of two lists	best-1st	331	17	37.0007	1
-dot product of two lists	mcts	331	17	28.0606	1
-membership of a value in a list	best-1st	5	5	0.0173513	1
-membership of a value in a list	mcts	5	5	0.0125915	1
-#67 tree sum	best-1st	11	11	14.4788	1
-#67 tree sum	mcts	11	11	9.36727	1
-tree depth	best-1st	11	11	12.3478	1
-tree depth	mcts	11	11	10.2735	1
-tree size	best-1st	11	11	6.568	1
-tree size	mcts	11	11	6.12123	1
-#68 tree mirror	best-1st	10	10	4.40109	1
-#68 tree mirror	mcts	10	10	4.30916	1
-#69 tree in-order traversal	best-1st	11	11	6.84372	1
-#69 tree in-order traversal	mcts	11	11	5.56793	1
-tree pre-order traversal	best-1st	11	11	5.84434	1
-tree pre-order traversal	mcts	11	11	5.69606	1
-tree sum, a value ?1	best-1st	11	11	12.2723	1
-tree sum, a value ?1	mcts	11	11	7.91371	1
-#70 out-degree of node 0	best-1st	9	10	3.31228	1
-#70 out-degree of node 0	mcts	9	10	3.2388	1
-in-degree of node 0	best-1st	9	10	3.62123	1
-in-degree of node 0	mcts	9	10	3.29586	1
-#71 is node 4 reachable from 0	best-1st	6	6	0.457883	1
-#71 is node 4 reachable from 0	mcts	6	6	0.606085	1
+sum (control)	best-1st	9	9	8.81804	1
+sum (control)	mcts	9	9	11.4777	1
+#56 sort	best-1st	3	3	0.00484081	1
+#56 sort	mcts	3	3	0.00222371	1
+sort, an input element ?1	best-1st	3	3	0.00484762	1
+sort, an input element ?1	mcts	3	3	0.00206569	1
+sort descending	best-1st	4	4	0.0136295	1
+sort descending	mcts	4	4	0.00964694	1
+#57 prefix sums	best-1st	9	9	73.3426	1
+#57 prefix sums	mcts	9	9	63.2384	1
+prefix sums, an output ?1	best-1st	9	9	60.2255	1
+prefix sums, an output ?1	mcts	9	9	58.0499	1
+running maximum	best-1st	9	10	72.7324	1
+running maximum	mcts	9	10	60.5909	1
+#58 remove duplicates	best-1st	3	3	0.00453666	1
+#58 remove duplicates	mcts	3	3	0.00241653	1
+#59 last element	best-1st	4	4	0.027751	1
+#59 last element	mcts	4	4	0.0192413	1
+#60 pairwise differences	best-1st	10	10	33.5256	1
+#60 pairwise differences	mcts	10	10	33.7149	1
+#61 sum times length	best-1st	12	12	28.2696	1
+#61 sum times length	mcts	12	12	31.8201	1
+maximum minus minimum	best-1st	9	10	7.40927	1
+maximum minus minimum	mcts	9	10	10.1502	1
+#62 reverse of squares	best-1st	8	8	17.6107	1
+#62 reverse of squares	mcts	8	8	14.6966	1
+#63 is sorted	best-1st	5	5	0.151133	1
+#63 is sorted	mcts	5	5	0.149709	1
+random labels stay (control)	best-1st	266	10000	101.374	1
+random labels stay (control)	mcts	266	10000	71.5327	1
+#65 flatten a list of lists	best-1st	9	9	14.2845	1
+#65 flatten a list of lists	mcts	9	9	13.8519	1
+#66 sum of each sublist	best-1st	12	12	50.6205	1
+#66 sum of each sublist	mcts	12	12	46.6856	1
+length of each sublist	best-1st	6	6	1.1527	1
+length of each sublist	mcts	6	6	0.610804	1
+flatten, an inner list ?1	best-1st	33	9	14.8385	1
+flatten, an inner list ?1	mcts	33	9	14.4354	1
+#64 append two lists	best-1st	5	5	0.0464716	1
+#64 append two lists	mcts	5	5	0.0162792	1
+dot product of two lists	best-1st	331	17	121.559	1
+dot product of two lists	mcts	331	17	73.7636	1
+membership of a value in a list	best-1st	5	5	0.0259354	1
+membership of a value in a list	mcts	5	5	0.0172022	1
+#67 tree sum	best-1st	11	11	19.0913	1
+#67 tree sum	mcts	11	11	17.6019	1
+tree depth	best-1st	11	11	22.0907	1
+tree depth	mcts	11	11	23.2135	1
+tree size	best-1st	11	11	4.53462	1
+tree size	mcts	11	11	9.11535	1
+#68 tree mirror	best-1st	10	10	3.45243	1
+#68 tree mirror	mcts	10	10	5.08383	1
+#69 tree in-order traversal	best-1st	11	11	8.08655	1
+#69 tree in-order traversal	mcts	11	11	10.3218	1
+tree pre-order traversal	best-1st	11	11	9.71443	1
+tree pre-order traversal	mcts	11	11	10.689	1
+tree sum, a value ?1	best-1st	11	11	17.9691	1
+tree sum, a value ?1	mcts	11	11	18.9192	1
+#70 out-degree of node 0	best-1st	9	10	4.8207	1
+#70 out-degree of node 0	mcts	9	10	9.03947	1
+in-degree of node 0	best-1st	9	10	4.78226	1
+in-degree of node 0	mcts	9	10	6.13422	1
+#71 is node 4 reachable from 0	best-1st	6	6	0.746849	1
+#71 is node 4 reachable from 0	mcts	6	6	0.718516	1
+T1 count evens	best-1st	9	10	9.26563	1
+T1 count evens	mcts	9	10	8.74796	1
+T2 doubled, keep >5	best-1st	12	12	32.8552	1
+T2 doubled, keep >5	mcts	12	12	31.0632	1
+T2 sorted squares	best-1st	8	8	102.175	1
+T2 sorted squares	mcts	8	8	57.8479	1
+T2 reversed prefix sums	best-1st	10	10	111.881	1
+T2 reversed prefix sums	mcts	10	10	68.1763	1
+T3 sorted distinct squares	best-1st	9	9	52.4822	1
+T3 sorted distinct squares	mcts	9	9	46.1016	1
+T3 max of squares	best-1st	11	9	39.3054	1
+T3 max of squares	mcts	11	9	38.4641	1
+N map reverse	best-1st	6	6	42.9778	1
+N map reverse	mcts	6	6	39.6891	1
+N total element count	best-1st	10	10	11.9511	1
+N total element count	mcts	10	10	11.9475	1
+N sorted flatten	best-1st	10	10	22.11	1
+N sorted flatten	mcts	10	10	21.9974	1
+N max of each sublist	best-1st	8	8	41.1759	1
+N max of each sublist	mcts	8	8	43.3973	1
+N drop empty sublists	best-1st	6	9	19.9382	1
+N drop empty sublists	mcts	6	9	19.0873	1
+2 elementwise sum	best-1st	10	10	124.319	1
+2 elementwise sum	mcts	10	10	79.1383	1
+2 sum of both lists	best-1st	12	12	45.2851	1
+2 sum of both lists	mcts	12	12	40.7763	1
+2 add k to each	best-1st	8	8	27.04	1
+2 add k to each	mcts	8	8	27.0774	1
+2 keep those below k	best-1st	8	8	5.9021	1
+2 keep those below k	mcts	8	8	5.89524	1
+H sumsq(xs) - sumsq(ys)	best-1st	21	22	156.26	1
+H sumsq(xs) - sumsq(ys)	mcts	21	22	82.9453	1
+H sortsq(xs) ++ sortsq(ys)	best-1st	17	17	97.6131	1
+H sortsq(xs) ++ sortsq(ys)	mcts	17	17	80.2831	1
+H range(xs) + range(ys)	best-1st	399	22	148.697	1
+H range(xs) + range(ys)	mcts	399	22	86.6982	1
+Tr sum of squares	best-1st	13	13	33.1903	1
+Tr sum of squares	mcts	13	13	26.0893	1
+Tr count leaves	best-1st	9	9	3.42204	1
+Tr count leaves	mcts	9	9	3.43413	1
+Tr sorted values	best-1st	12	12	16.2704	1
+Tr sorted values	mcts	12	12	16.5919	1
+Tr add 1 to every value	best-1st	12	12	13.5773	1
+Tr add 1 to every value	mcts	12	12	13.5215	1
+D3 reversed incremented evens	best-1st	13	13	30.0251	1
+D3 reversed incremented evens	mcts	13	13	20.0939	1
+D3 squares of reversed positives	best-1st	373	12	103.972	1
+D3 squares of reversed positives	mcts	373	12	67.669	1
+D4 sorted squares then reversed	best-1st	9	9	75.2706	1
+D4 sorted squares then reversed	mcts	9	9	62.311	1
+D4 sorted squares of each sublist	best-1st	11	11	79.2416	1
+D4 sorted squares of each sublist	mcts	11	11	53.7682	1
+DH sum of positives(xs) - (ys)	best-1st	21	22	68.3013	1
+DH sum of positives(xs) - (ys)	mcts	21	22	58.3566	1
