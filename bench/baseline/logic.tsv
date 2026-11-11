@@ -1,83 +1,83 @@
 # problem	solver	cost	target	seconds	sound
-#9 parity of 4 bits	best-1st	9	9	0.0513733	1
-#9 parity of 4 bits	mcts	9	9	0.0309668	1
-#10 majority of 3 bits	best-1st	6	11	0.004044	1
-#10 majority of 3 bits	mcts	6	11	0.0031558	1
-parity of 3 bits	best-1st	7	7	0.00499406	1
-parity of 3 bits	mcts	7	7	0.00402449	1
-parity of 6 bits	best-1st	13	13	0.600942	1
-parity of 6 bits	mcts	13	13	0.421861	1
-equivalence	best-1st	5	6	0.000560897	1
-equivalence	mcts	5	6	0.000680321	1
-implication	best-1st	5	6	0.00108984	1
-implication	mcts	5	6	0.0011593	1
-and of 3 bits	best-1st	7	7	0.00402648	1
-and of 3 bits	mcts	7	7	0.00338668	1
-multiplexer	best-1st	6	10	0.00195396	1
-multiplexer	mcts	6	10	0.00127487	1
-majority, two rows unseen	best-1st	6	11	0.00499311	1
-majority, two rows unseen	mcts	6	11	0.00429351	1
-parity of 4, wrong label	best-1st	17	17	0.064299	1
-parity of 4, wrong label	mcts	17	17	0.0246419	1
-exactly one of 3	best-1st	10	14	0.00553395	1
-exactly one of 3	mcts	10	14	0.00465996	1
-majority of 5 bits	best-1st	26	39	0.176504	1
-majority of 5 bits	mcts	26	39	0.125521	1
-showcase: access rule	best-1st	8	8	0.00326255	1
-showcase: access rule	mcts	8	8	0.00269802	1
-showcase: alarm	best-1st	7	7	0.0041249	1
-showcase: alarm	mcts	7	7	0.00350967	1
-showcase: seat belt warning	best-1st	7	8	0.00471182	1
-showcase: seat belt warning	mcts	7	8	0.00432521	1
-showcase: implication into a conjunction	best-1st	7	8	0.00336252	1
-showcase: implication into a conjunction	mcts	7	8	0.00284053	1
-nand	best-1st	5	5	0.00107273	1
-nand	mcts	5	5	0.00108917	1
-nor	best-1st	5	5	0.00105807	1
-nor	mcts	5	5	0.00112808	1
-nand of two of three, two rows unseen	best-1st	5	5	0.00373506	1
-nand of two of three, two rows unseen	mcts	5	5	0.00334365	1
-majority of three of five	best-1st	6	6	0.057127	1
-majority of three of five	mcts	6	6	0.0240839	1
-xor of a majority and a fourth	best-1st	8	8	0.0433885	1
-xor of a majority and a fourth	mcts	8	8	0.02957	1
-xor of a majority and a fourth, three rows unseen	best-1st	8	8	0.049752	1
-xor of a majority and a fourth, three rows unseen	mcts	8	8	0.0320186	1
-and of an equivalence and a third	best-1st	7	7	0.00357118	1
-and of an equivalence and a third	mcts	7	7	0.00349605	1
-xnor of an and and an or	best-1st	9	9	0.0194852	1
-xnor of an and and an or	mcts	9	9	0.0195572	1
-two levels over six inputs	best-1st	12	12	0.728785	1
-two levels over six inputs	mcts	12	12	0.419586	1
-xor of two majorities	best-1st	11	11	0.504032	1
-xor of two majorities	mcts	11	11	1.04799	1
-xor of two majorities, eight rows unseen	best-1st	11	11	0.830369	1
-xor of two majorities, eight rows unseen	mcts	11	11	1.08237	1
-three levels over six inputs	best-1st	13	13	0.323205	1
-three levels over six inputs	mcts	13	13	0.278802	1
-xor of a majority and an and sharing an input	best-1st	10	10	0.0304242	1
-xor of a majority and an and sharing an input	mcts	10	10	0.0251965	1
-or of an and and an xor sharing an input	best-1st	8	9	0.00323194	1
-or of an and and an xor sharing an input	mcts	8	9	0.00336134	1
-and of a parity and an or sharing two inputs	best-1st	13	13	0.0295299	1
-and of a parity and an or sharing two inputs	mcts	13	13	0.0220358	1
-mux between two compositions	best-1st	10	10	0.0154509	1
-mux between two compositions	mcts	10	10	0.0142417	1
-majority with a composition	best-1st	8	8	0.0272948	1
-majority with a composition	mcts	8	8	0.025654	1
-nested selection over five inputs	best-1st	11	12	0.137185	1
-nested selection over five inputs	mcts	11	12	0.0926361	1
-nested selection, four rows unseen	best-1st	12	12	0.149798	1
-nested selection, four rows unseen	mcts	12	12	0.0943104	1
-#27 a multiplexer whose selector is a formula	best-1st	8	8	0.0245553	1
-#27 a multiplexer whose selector is a formula	mcts	8	8	0.0219048	1
-#28 majority of three formulas	best-1st	12	12	0.656227	1
-#28 majority of three formulas	mcts	12	12	0.432889	1
-#29 a multiplexer of three formulas	best-1st	12	12	0.0933377	1
-#29 a multiplexer of three formulas	mcts	12	12	0.0655586	1
-a selector formula, three rows unseen	best-1st	8	8	0.0196334	1
-a selector formula, three rows unseen	mcts	8	8	0.0191948	1
-selected by a majority	best-1st	9	9	0.114257	1
-selected by a majority	mcts	9	9	0.0949562	1
-a two-level selector	best-1st	12	12	0.0938372	1
-a two-level selector	mcts	12	12	0.0699691	1
+#9 parity of 4 bits	best-1st	9	9	0.0407073	1
+#9 parity of 4 bits	mcts	9	9	0.0283866	1
+#10 majority of 3 bits	best-1st	6	11	0.00431173	1
+#10 majority of 3 bits	mcts	6	11	0.00300439	1
+parity of 3 bits	best-1st	7	7	0.00516203	1
+parity of 3 bits	mcts	7	7	0.00379389	1
+parity of 6 bits	best-1st	13	13	0.650099	1
+parity of 6 bits	mcts	13	13	0.454142	1
+equivalence	best-1st	5	6	0.00103763	1
+equivalence	mcts	5	6	0.000675839	1
+implication	best-1st	5	6	0.00152892	1
+implication	mcts	5	6	0.00105327	1
+and of 3 bits	best-1st	7	7	0.00336668	1
+and of 3 bits	mcts	7	7	0.00306151	1
+multiplexer	best-1st	6	10	0.00207369	1
+multiplexer	mcts	6	10	0.00180406	1
+majority, two rows unseen	best-1st	6	11	0.00471318	1
+majority, two rows unseen	mcts	6	11	0.00426431	1
+parity of 4, wrong label	best-1st	17	17	0.0582945	1
+parity of 4, wrong label	mcts	17	17	0.0247916	1
+exactly one of 3	best-1st	10	14	0.00497733	1
+exactly one of 3	mcts	10	14	0.00441154	1
+majority of 5 bits	best-1st	26	39	0.195141	1
+majority of 5 bits	mcts	26	39	0.136698	1
+showcase: access rule	best-1st	8	8	0.0028735	1
+showcase: access rule	mcts	8	8	0.00236411	1
+showcase: alarm	best-1st	7	7	0.00375125	1
+showcase: alarm	mcts	7	7	0.00326164	1
+showcase: seat belt warning	best-1st	7	8	0.00409164	1
+showcase: seat belt warning	mcts	7	8	0.00369426	1
+showcase: implication into a conjunction	best-1st	7	8	0.00310615	1
+showcase: implication into a conjunction	mcts	7	8	0.00272468	1
+nand	best-1st	5	5	0.00128739	1
+nand	mcts	5	5	0.00100947	1
+nor	best-1st	5	5	0.00142705	1
+nor	mcts	5	5	0.00104579	1
+nand of two of three, two rows unseen	best-1st	5	5	0.00418635	1
+nand of two of three, two rows unseen	mcts	5	5	0.00394329	1
+majority of three of five	best-1st	6	6	0.0261462	1
+majority of three of five	mcts	6	6	0.0238979	1
+xor of a majority and a fourth	best-1st	8	8	0.043092	1
+xor of a majority and a fourth	mcts	8	8	0.0293358	1
+xor of a majority and a fourth, three rows unseen	best-1st	8	8	0.0235977	1
+xor of a majority and a fourth, three rows unseen	mcts	8	8	0.0220158	1
+and of an equivalence and a third	best-1st	7	7	0.00350071	1
+and of an equivalence and a third	mcts	7	7	0.00339197	1
+xnor of an and and an or	best-1st	9	9	0.017479	1
+xnor of an and and an or	mcts	9	9	0.0174861	1
+two levels over six inputs	best-1st	12	12	0.780383	1
+two levels over six inputs	mcts	12	12	0.425953	1
+xor of two majorities	best-1st	11	11	0.557043	1
+xor of two majorities	mcts	11	11	0.969015	1
+xor of two majorities, eight rows unseen	best-1st	11	11	0.73001	1
+xor of two majorities, eight rows unseen	mcts	11	11	1.11708	1
+three levels over six inputs	best-1st	13	13	0.324186	1
+three levels over six inputs	mcts	13	13	0.272066	1
+xor of a majority and an and sharing an input	best-1st	10	10	0.0305459	1
+xor of a majority and an and sharing an input	mcts	10	10	0.0321321	1
+or of an and and an xor sharing an input	best-1st	8	9	0.00345792	1
+or of an and and an xor sharing an input	mcts	8	9	0.00345247	1
+and of a parity and an or sharing two inputs	best-1st	13	13	0.0297546	1
+and of a parity and an or sharing two inputs	mcts	13	13	0.0257448	1
+mux between two compositions	best-1st	10	10	0.0156929	1
+mux between two compositions	mcts	10	10	0.01488	1
+majority with a composition	best-1st	8	8	0.0249713	1
+majority with a composition	mcts	8	8	0.0219035	1
+nested selection over five inputs	best-1st	11	12	0.133294	1
+nested selection over five inputs	mcts	11	12	0.126882	1
+nested selection, four rows unseen	best-1st	12	12	0.145582	1
+nested selection, four rows unseen	mcts	12	12	0.117267	1
+#27 a multiplexer whose selector is a formula	best-1st	8	8	0.0249579	1
+#27 a multiplexer whose selector is a formula	mcts	8	8	0.0226287	1
+#28 majority of three formulas	best-1st	12	12	0.722745	1
+#28 majority of three formulas	mcts	12	12	0.460866	1
+#29 a multiplexer of three formulas	best-1st	12	12	0.082988	1
+#29 a multiplexer of three formulas	mcts	12	12	0.105784	1
+a selector formula, three rows unseen	best-1st	8	8	0.019573	1
+a selector formula, three rows unseen	mcts	8	8	0.0193983	1
+selected by a majority	best-1st	9	9	0.0991584	1
+selected by a majority	mcts	9	9	0.0536419	1
+a two-level selector	best-1st	12	12	0.0818096	1
+a two-level selector	mcts	12	12	0.0691704	1

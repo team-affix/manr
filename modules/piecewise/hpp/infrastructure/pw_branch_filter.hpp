@@ -1,6 +1,7 @@
 #ifndef PW_BRANCH_FILTER_HPP
 #define PW_BRANCH_FILTER_HPP
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <map>
@@ -13,6 +14,8 @@
 #include "value_objects/pw_coverage.hpp"
 #include "value_objects/pw_symbols.hpp"
 
+constexpr size_t k_pw_default_max_label_fillers = 24;
+
 // Finds the branches an otherwise does not already reproduce. A branch `case(key, value)` is covered when the
 // otherwise's value at `key` matches `value`: equal, or equal under a binding of the holes either holds (an unknown
 // label `?1`, or `2 * ?2`), with one binding shared by every branch of the call, which is returned with them. Labels
@@ -20,7 +23,8 @@
 // rest, then once more those that failed and hold a hole (a later binding may settle them). An otherwise the domain
 // cannot evaluate (e.g. one holding an extension term) covers nothing. A branch whose key holds holes and that is still
 // not covered (a filter stops at `lt(0, ?1)`) is tried last with the key's unbound holes at each of `fillers` in turn
-// (the domain's 0 and 1), and is covered under the first binding where the model reproduces it. A `when` branch is
+// (the domain's 0 and 1), then at each part of its own label (at most `max_label_fillers`: an element of a sorted
+// list), and is covered under the first binding where the model reproduces it. A `when` branch is
 // never covered: it is not a data point. Dropping a covered branch drops its holes, so this assumes they occur nowhere
 // outside the piecewise.
 template<typename IEvaluateAt, typename IMatchOutput, typename ISubstituteHoles>
@@ -114,7 +118,20 @@ PW_BRANCH_FILTER_TEMPLATE bool PW_BRANCH_FILTER::cover_by_filling(const expr* ot
                                                                   std::map<uint32_t, const expr*>& bindings) {
     std::set<uint32_t> holes;
     collect_holes(substitute_holes_.substitute_holes(key, bindings), holes);
-    for (const expr* filler : fillers_) {
+    // the fixed fillers, then the parts of the label without holes (a sorted list's elements, a sum's value)
+    std::vector<const expr*> candidates = fillers_;
+    std::vector<const expr*> parts{label};
+    while (!parts.empty() && candidates.size() < fillers_.size() + k_pw_default_max_label_fillers) {
+        const expr* part = parts.back();
+        parts.pop_back();
+        std::set<uint32_t> inside;
+        collect_holes(part, inside);
+        if (inside.empty() && std::find(candidates.begin(), candidates.end(), part) == candidates.end())
+            candidates.push_back(part);
+        if (const expr::functor* f = std::get_if<expr::functor>(&part->content))
+            parts.insert(parts.end(), f->args.begin(), f->args.end());
+    }
+    for (const expr* filler : candidates) {
         std::map<uint32_t, const expr*> trial = bindings;
         for (const uint32_t hole : holes)
             trial.emplace(hole, filler);

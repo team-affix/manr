@@ -12,7 +12,9 @@ problems in the benchmark first.
 Occam's razor needs abstraction. A model that does the same computation in several places is shorter when the
 computation is named once and called by name: `g(g(g(x)))` with `g(y) = y^2 + 1` instead of its degree-8 expansion,
 or "fold both lists and add 1" defined once and applied to many pairs. Helpers, composition and application (and,
-eventually, recursion) are what make MANR's models Turing complete. Nothing in this section exists yet.
+eventually, recursion) are what make MANR's models Turing complete. Started: `abs_helper_abstractor` abstracts a
+fragment with one cut that recurs around different arguments (#75); helpers with several inputs, arity-0 helpers
+(shared subterms), inlining, and detectors that propose helpers from data are not built yet.
 
 ### A helper is a cut of the computation graph, not a subterm
 

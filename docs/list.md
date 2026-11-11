@@ -36,6 +36,13 @@ Programs are expressions too, and the laws of the vocabulary reduce them (`modul
 - `list_reverse_canceller`: `reverse(reverse(xs))` to `xs`, through element-wise steps that commute with it:
   `reverse(map(f, filter(p, reverse(xs))))` to `map(f, filter(p, xs))` (#52).
 
+- `list_fold_law_rewriter`: `fold(lam(lam(cons(#0, #1))), b, xs)` is `append(xs, b)`, a fold whose step appends
+  `cons(#0, nil)` is `append(reverse(xs), b)`, and `append` with `nil` is the other list (#72, #73).
+- `list_fold_map_fuser`: a fold over a map is one fold, the map's body substituted for the head (#74).
+- `list_nil_binder` (root, through `hole_scope_proposer`): a hole where a list goes is bound to `nil` (#72, #73).
+- `abs_helper_abstractor` (abstraction module): a fragment recurring around different arguments becomes a helper,
+  `let(lam(F), ... app(#d, a) ...)` (#75); the evaluator reduces helpers away (`abs_evaluator`).
+
 Holes in a program are bound by the polynomial hole binder at any subterm holding every occurrence of its holes
 (`hole_scope_proposer`, the root list of `list_fit`), so a map's body is bound in place:
 `map(lam(#0 + ?0), map(lam(#0 - 1), xs))` fuses to `map(lam(#0 - 1 + ?0), xs)`, `?0 = 1` leaves the identity, and the
@@ -214,8 +221,8 @@ accumulator (`#1`):
 
 ## Gaps (the open problems)
 
-- **More laws.** Folds over maps (`fold(s, b, map(f, xs))` into one fold), a fold over a reverse when its step
-  commutes, `map` over `append`, the length of a map, and filters on a condition that is always true or false.
+- **More laws.** A fold over a reverse when its step commutes, a fold over an append, `map` over `append`, and
+  filters on a condition that is always true or false.
 
 - **Steps in pieces in general.** The extremum detector covers the largest and smallest element. A step in pieces
   that compares the two variables some other way (`lt(acc, p(h))`, e.g. the largest square) is still out of reach:

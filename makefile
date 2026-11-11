@@ -114,7 +114,7 @@ $(eval $(call TEST_BINARIES,debug_fast,_debug_fast))
 # Benchmarks (release)
 # ==============================================================================
 
-.PHONY: poly_bench fit_bench list_bench seq_bench logic_bench bench_timing bench_check bench_check_full bench_baseline
+.PHONY: poly_bench fit_bench list_bench seq_bench logic_bench prog_bench bench_timing bench_check bench_check_full bench_baseline
 
 poly_bench: build/libmanr_modules.a build/libmanr_core.a
 	$(CXX) $(CXXFLAGS) $(RELEASE_CXXFLAGS) -pthread bench/poly_bench.cpp -Lbuild -lmanr_modules -lmanr_core -o build/poly_bench
@@ -131,9 +131,12 @@ seq_bench: build/libmanr_modules.a build/libmanr_core.a
 logic_bench: build/libmanr_modules.a build/libmanr_core.a
 	$(CXX) $(CXXFLAGS) $(RELEASE_CXXFLAGS) -pthread bench/logic_bench.cpp -Lbuild -lmanr_modules -lmanr_core -o build/logic_bench
 
+prog_bench: build/libmanr_modules.a build/libmanr_core.a
+	$(CXX) $(CXXFLAGS) $(RELEASE_CXXFLAGS) -pthread bench/prog_bench.cpp -Lbuild -lmanr_modules -lmanr_core -o build/prog_bench
+
 # The regression gate (docs/extending.md): every solver's cost on every problem must be no worse than the committed
 # baseline, and every result sound. bench_check skips MCTS on the largest problems; bench_check_full runs everything.
-bench_check: poly_bench fit_bench list_bench seq_bench logic_bench
+bench_check: poly_bench fit_bench list_bench seq_bench logic_bench prog_bench
 	@status=0; \
 	./build/poly_bench --fast --check bench/baseline/poly.tsv > build/poly_bench.txt || status=1; \
 	sed -n '/^gate against/,$$p' build/poly_bench.txt; \
@@ -145,9 +148,11 @@ bench_check: poly_bench fit_bench list_bench seq_bench logic_bench
 	sed -n '/^gate against/,$$p' build/seq_bench.txt; \
 	./build/logic_bench --fast --check bench/baseline/logic.tsv > build/logic_bench.txt || status=1; \
 	sed -n '/^gate against/,$$p' build/logic_bench.txt; \
+	./build/prog_bench --fast --check bench/baseline/prog.tsv > build/prog_bench.txt || status=1; \
+	sed -n '/^gate against/,$$p' build/prog_bench.txt; \
 	exit $$status
 
-bench_check_full: poly_bench fit_bench list_bench seq_bench logic_bench
+bench_check_full: poly_bench fit_bench list_bench seq_bench logic_bench prog_bench
 	@status=0; \
 	./build/poly_bench --check bench/baseline/poly.tsv > build/poly_bench.txt || status=1; \
 	sed -n '/^gate against/,$$p' build/poly_bench.txt; \
@@ -159,21 +164,25 @@ bench_check_full: poly_bench fit_bench list_bench seq_bench logic_bench
 	sed -n '/^gate against/,$$p' build/seq_bench.txt; \
 	./build/logic_bench --check bench/baseline/logic.tsv > build/logic_bench.txt || status=1; \
 	sed -n '/^gate against/,$$p' build/logic_bench.txt; \
+	./build/prog_bench --check bench/baseline/prog.tsv > build/prog_bench.txt || status=1; \
+	sed -n '/^gate against/,$$p' build/prog_bench.txt; \
 	exit $$status
 
 # True timings: every problem under every solver, one at a time (the gate runs problems in parallel, so its seconds
 # are measured under load). Results go to build/*_bench_serial.txt; nothing is checked or written.
-bench_timing: poly_bench fit_bench list_bench seq_bench logic_bench
+bench_timing: poly_bench fit_bench list_bench seq_bench logic_bench prog_bench
 	./build/poly_bench --serial > build/poly_bench_serial.txt
 	./build/fit_bench --serial > build/fit_bench_serial.txt
 	./build/list_bench --serial > build/list_bench_serial.txt
 	./build/seq_bench --serial > build/seq_bench_serial.txt
 	./build/logic_bench --serial > build/logic_bench_serial.txt
+	./build/prog_bench --serial > build/prog_bench_serial.txt
 
 # Records the current results as the baseline. Run only when a change is accepted; commit the diff with it.
-bench_baseline: poly_bench fit_bench list_bench seq_bench logic_bench
+bench_baseline: poly_bench fit_bench list_bench seq_bench logic_bench prog_bench
 	./build/poly_bench --write bench/baseline/poly.tsv > build/poly_bench.txt
 	./build/fit_bench --write bench/baseline/fit.tsv > build/fit_bench.txt
 	./build/list_bench --write bench/baseline/list.tsv > build/list_bench.txt
 	./build/seq_bench --write bench/baseline/seq.tsv > build/seq_bench.txt
 	./build/logic_bench --write bench/baseline/logic.tsv > build/logic_bench.txt
+	./build/prog_bench --write bench/baseline/prog.tsv > build/prog_bench.txt

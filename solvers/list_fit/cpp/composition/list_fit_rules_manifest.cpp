@@ -53,7 +53,8 @@ list_fit_rules_manifest::list_fit_rules_manifest(
     , evaluator_(values_, values_, kernel.exprs_, kernel.literals_, element_values_, conditions_, step_values_,
                  binders_, binders_, list_symbols_, point_symbol_, less_symbol_)
     , applying_(binders_, evaluator_)
-    , pw_evaluator_(applying_, evaluator_, pw_symbols_)
+    , plain_evaluator_(applying_, evaluator_, pw_symbols_)
+    , pw_evaluator_(reducer_, plain_evaluator_)
     , converter_(values_, kernel.literals_)
     , constants_(kernel.sizes_)
     , primes_(kernel.literals_, prime_table_, prime_table_, kernel.exprs_, num_symbols_, list_symbols_.element)
@@ -108,9 +109,14 @@ list_fit_rules_manifest::list_fit_rules_manifest(
     , filter_fuser_(kernel.exprs_, list_symbols_, logic_symbols_.conjunction)
     , reverse_canceller_(kernel.exprs_, list_symbols_)
     , holes_(poly_rules_.holes_, kernel.exprs_)
+    , fold_laws_(kernel.exprs_, list_symbols_)
+    , fold_map_fuser_(reducer_, reducer_, kernel.sizes_, kernel.exprs_, list_symbols_)
+    , nil_binder_(kernel.exprs_, list_symbols_)
+    , nil_scopes_(nil_binder_, kernel.exprs_)
+    , helpers_(reducer_, indices_, indices_, binders_, kernel.exprs_, kernel.exprs_, kernel.sizes_, abs_symbols_)
     , local_rules_(piecewise_.binder_, piecewise_.absorber_, poly_rules_.local_rules_, map_fuser_, identity_maps_,
-                   filter_fuser_, reverse_canceller_)
-    , root_rules_(holes_)
+                   filter_fuser_, reverse_canceller_, fold_laws_, fold_map_fuser_, helpers_)
+    , root_rules_(holes_, nil_scopes_)
     , subterms_(local_rules_, kernel.exprs_)
     , rules_(subterms_, root_rules_)
     , initial_(piecewise_.builder_.build(converter_.convert(samples), 0)) {}

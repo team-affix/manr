@@ -29,6 +29,7 @@
 #include "hypotheses/pw_guarded_hypotheses.hpp"
 #include "infrastructure/abs_applying_evaluator.hpp"
 #include "infrastructure/abs_binders.hpp"
+#include "infrastructure/abs_evaluator.hpp"
 #include "infrastructure/abs_function_maker.hpp"
 #include "infrastructure/abs_indices.hpp"
 #include "infrastructure/abs_reducer.hpp"
@@ -50,9 +51,13 @@
 #include "infrastructure/pw_hypotheses_union.hpp"
 #include "infrastructure/subterm_proposer.hpp"
 #include "infrastructure/symbol_table.hpp"
+#include "rules/abs_helper_abstractor.hpp"
 #include "rules/list_filter_fuser.hpp"
+#include "rules/list_fold_law_rewriter.hpp"
+#include "rules/list_fold_map_fuser.hpp"
 #include "rules/list_identity_map_remover.hpp"
 #include "rules/list_map_fuser.hpp"
+#include "rules/list_nil_binder.hpp"
 #include "rules/list_reverse_canceller.hpp"
 #include "value_objects/abs_symbols.hpp"
 #include "value_objects/expr.hpp"
@@ -77,7 +82,8 @@
 // primitive `reverse(#0)`. The list detectors hand the element-level part of the problem to polynomial fitting:
 // `element_fit_` over `#0` for map bodies, `step_fit_` over `#0` (the head) and `#1` (the accumulator) for fold steps.
 // The full polynomial rule set then compresses the bodies, all at every position, beside the laws of list programs
-// (fusion of maps and of filters, the identity map, reverses cancelling); the polynomial hole binder runs at every
+// (fusion of maps, of filters and of folds over maps, the identity map, reverses cancelling, folds that copy or reverse,
+// appending nil); holes where a list goes may be bound to nil; the polynomial hole binder runs at every
 // subterm holding all of its holes, such as a map's body. `rules_` is what a search injects and `initial_` is where it
 // starts.
 // The most atoms a filter condition combines (the placeholder inputs of its truth table).
@@ -126,8 +132,19 @@ struct list_fit_rules_manifest {
     struct applying_t : abs_applying_evaluator<binders_t, evaluator_t> {
         using abs_applying_evaluator<binders_t, evaluator_t>::abs_applying_evaluator;
     };
-    struct pw_evaluator_t : pw_evaluator<applying_t, evaluator_t> {
+    struct plain_evaluator_t : pw_evaluator<applying_t, evaluator_t> {
         using pw_evaluator<applying_t, evaluator_t>::pw_evaluator;
+    };
+    // de Bruijn indices and beta-reduction: helpers (`let`, `app`) are reduced away before evaluating, and the laws
+    // substitute bodies with them
+    struct indices_t : abs_indices<symbol_table, expr_pool> {
+        using abs_indices<symbol_table, expr_pool>::abs_indices;
+    };
+    struct reducer_t : abs_reducer<indices_t, indices_t, binders_t, kernel_t::literals_t, expr_pool> {
+        using abs_reducer<indices_t, indices_t, binders_t, kernel_t::literals_t, expr_pool>::abs_reducer;
+    };
+    struct pw_evaluator_t : abs_evaluator<reducer_t, plain_evaluator_t> {
+        using abs_evaluator<reducer_t, plain_evaluator_t>::abs_evaluator;
     };
     struct converter_t : list_sample_converter<values_t, kernel_t::literals_t> {
         using list_sample_converter<values_t, kernel_t::literals_t>::list_sample_converter;
@@ -258,12 +275,6 @@ struct list_fit_rules_manifest {
                                     kernel_t::literals_t>::pw_fit_rules_manifest;
     };
     // the laws of list programs: fusion of maps and of filters, the identity map, reverses cancelling
-    struct indices_t : abs_indices<symbol_table, expr_pool> {
-        using abs_indices<symbol_table, expr_pool>::abs_indices;
-    };
-    struct reducer_t : abs_reducer<indices_t, indices_t, binders_t, kernel_t::literals_t, expr_pool> {
-        using abs_reducer<indices_t, indices_t, binders_t, kernel_t::literals_t, expr_pool>::abs_reducer;
-    };
     struct map_fuser_t : list_map_fuser<reducer_t, expr_size, expr_pool> {
         using list_map_fuser<reducer_t, expr_size, expr_pool>::list_map_fuser;
     };
@@ -277,6 +288,25 @@ struct list_fit_rules_manifest {
     struct holes_t : hole_scope_proposer<poly_rules_manifest::holes_t, expr_pool> {
         using hole_scope_proposer<poly_rules_manifest::holes_t, expr_pool>::hole_scope_proposer;
     };
+    struct fold_laws_t : list_fold_law_rewriter<expr_pool> {
+        using list_fold_law_rewriter<expr_pool>::list_fold_law_rewriter;
+    };
+    struct fold_map_fuser_t : list_fold_map_fuser<reducer_t, reducer_t, expr_size, expr_pool> {
+        using list_fold_map_fuser<reducer_t, reducer_t, expr_size, expr_pool>::list_fold_map_fuser;
+    };
+    // holes where a list goes bound to nil, at every subterm holding all of their occurrences
+    struct nil_binder_t : list_nil_binder<expr_pool> {
+        using list_nil_binder<expr_pool>::list_nil_binder;
+    };
+    struct nil_scopes_t : hole_scope_proposer<nil_binder_t, expr_pool> {
+        using hole_scope_proposer<nil_binder_t, expr_pool>::hole_scope_proposer;
+    };
+    // a fragment that recurs around different arguments, named once as a helper (`let` and `app`)
+    using helpers_base_t = abs_helper_abstractor<reducer_t, indices_t, indices_t, binders_t, expr_pool, expr_pool,
+                                                 expr_size>;
+    struct helpers_t : helpers_base_t {
+        using helpers_base_t::helpers_base_t;
+    };
 
     // ---- the rule lists ----
     using local_rules_base_t = proposer_union<
@@ -286,12 +316,16 @@ struct list_fit_rules_manifest {
         map_fuser_t,
         list_identity_map_remover,
         filter_fuser_t,
-        reverse_canceller_t>;
+        reverse_canceller_t,
+        fold_laws_t,
+        fold_map_fuser_t,
+        helpers_t>;
     struct local_rules_t : local_rules_base_t {
         using local_rules_base_t::local_rules_base_t;
     };
     using root_rules_base_t = proposer_union<
-        holes_t>;
+        holes_t,
+        nil_scopes_t>;
     struct root_rules_t : root_rules_base_t {
         using root_rules_base_t::root_rules_base_t;
     };
@@ -328,7 +362,8 @@ struct list_fit_rules_manifest {
     step_values_t step_values_;
     evaluator_t evaluator_;
     applying_t applying_;
-    pw_evaluator_t pw_evaluator_;
+    plain_evaluator_t plain_evaluator_;
+    pw_evaluator_t pw_evaluator_;  // reduces with `reducer_`, constructed last
     converter_t converter_;
     constants_t constants_;
     primes_t primes_;
@@ -366,6 +401,11 @@ struct list_fit_rules_manifest {
     filter_fuser_t filter_fuser_;
     reverse_canceller_t reverse_canceller_;
     holes_t holes_;
+    fold_laws_t fold_laws_;
+    fold_map_fuser_t fold_map_fuser_;
+    nil_binder_t nil_binder_;
+    nil_scopes_t nil_scopes_;
+    helpers_t helpers_;
 
     // the rule lists
     local_rules_t local_rules_;

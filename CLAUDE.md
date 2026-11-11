@@ -71,12 +71,15 @@ number/      (num_)    number theory over another domain: `prime(n)`, `is_prime(
 rational/    (rat_)    quotients of polynomials `n / d`: the quotient canceller (exact division, common factors in
                        any number of variables), the fraction combiner (sums, products, powers of quotients as one),
                        the quotient hole binder; wired into the full polynomial rule set
+prog/        (prog_)   generic programs over data of any shape (lists, nested lists, trees, records, graphs, tuples
+                       of inputs): a value parser, an interpreter, and the enumerative detector (bottom-up typed
+                       search with observational equivalence and deductions); `docs/prog.md`
 logic/       (logic_)  Boolean functions: and, or, xor, not, xnor, nand, nor, imp, maj, mux; evaluator, the laws,
                        a condition evaluator for any domain's predicates; parity, cover, primitive, decomposition
                        detectors, Boolean conditions over atoms, the truth-table refit (holes as don't cares)
 ```
 
-Solvers: `arith_fit` (the smallest example of the shape), `poly_reduce` (polynomial expressions; also the kernel
+Solvers: `arith_fit` (the smallest example of the shape), `prog_fit` (programs over any data), `poly_reduce` (polynomial expressions; also the kernel
 and the polynomial rules every solver borrows), `poly_fit`, `list_fit`, `seq_fit`, `logic_fit`, and `pw_fit` (the
 piecewise rules every fitting solver shares, `pw_fit_rules_manifest`).
 
@@ -117,6 +120,8 @@ piecewise rules every fitting solver shares, `pw_fit_rules_manifest`).
   `lams(2, (#1 + #0)^2)`, `lam(map(lam(#0^2), #0))`, `lam(fold(lam(lam(#0 + #1)), 0, #0))` (head `#0`,
   accumulator `#1`), `lam(rec(lams(3, #1 + #2), 0, 1, #0))`. Evaluating a function at an input applies it
   (`abs_applying_evaluator`). Free variables `?n` are unchanged. Don't add a named variable.
+- Generic programs over any data are `docs/prog.md`: one enumerative detector over a typed grammar, run by an
+  interpreter, with deductions for larger programs. Helpers (`let`, `app`) are found by `abs_helper_abstractor`.
 - Lists are the first program domain. Read `docs/list.md`: detectors recognize a program's shape and hand the rest
   to polynomial fitting.
 - Sequences are the third domain. Read `docs/seq.md`: a recurrence's steps are read off consecutive terms and fitted

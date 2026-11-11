@@ -32,6 +32,7 @@ every module's `hpp/` is on the include path.
 | `number` | `num_` | number theory over another domain: primes |
 | `logic` | `logic_` | Boolean functions |
 | `rational` | `rat_` | quotients of polynomials (`docs/rational.md`) |
+| `prog` | `prog_` | generic programs over data of any shape (`docs/prog.md`) |
 
 Inside a module, a file's directory says what it is:
 
@@ -102,6 +103,7 @@ solvers/<name>/
 | `list_fit` | list programs from list data | `poly_kernel_manifest` |
 | `seq_fit` | integer sequences, and open-ended lists | `poly_kernel_manifest` |
 | `logic_fit` | Boolean functions from truth tables | `poly_kernel_manifest` |
+| `prog_fit` | programs over data of any shape, from text samples | `poly_kernel_manifest` |
 
 A *kernel* manifest holds what is neither a rule nor a search: the pool, symbols, literals, sizes and printing (and,
 for polynomials, the normal form oracle). Some solvers also provide reusable pieces that other solvers borrow:

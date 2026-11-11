@@ -81,3 +81,38 @@ TEST_F(ListLawsIntegrationTest, AHoleInAFusedBodyIsBoundToMakeTheMapTheIdentity)
     const expr* e = make(symbols.map, {lam("#0 + ?0"), make(symbols.map, {lam("#0 - 1"), xs})});
     EXPECT_EQ(reduced(make(symbols.lambda, {e})), "lam(#0)");
 }
+
+TEST_F(ListLawsIntegrationTest, AFoldThatCopiesOrReversesIsAnAppend) {
+    // reduce request #72: appending each head at the end reverses
+    const expr* snoc = make(symbols.lambda, {make(symbols.lambda, {make(symbols.append, {parse("#1"),
+        make(symbols.cons, {parse("#0"), make(symbols.nil, {})})})})});
+    EXPECT_EQ(reduced(make(symbols.lambda, {make(symbols.fold, {snoc, make(symbols.nil, {}), xs})})),
+              "lam(reverse(#0))");
+}
+
+TEST_F(ListLawsIntegrationTest, AHoleWhereAListGoesIsBoundToNil) {
+    // reduce request #73: ?0 = nil
+    const expr* copy = make(symbols.lambda, {make(symbols.lambda, {make(symbols.cons, {parse("#0"), parse("#1")})})});
+    EXPECT_EQ(reduced(make(symbols.lambda, {make(symbols.fold, {copy, parse("?0"), xs})})), "lam(#0)");
+}
+
+TEST_F(ListLawsIntegrationTest, AFoldOverAMapIsOneFold) {
+    // reduce request #74
+    const expr* step = make(symbols.lambda, {make(symbols.lambda, {parse("#0 + #1")})});
+    const expr* e = make(symbols.fold, {step, parse("0"), make(symbols.map, {lam("2 * #0"), xs})});
+    EXPECT_THAT(detected(e), Contains("fold(lam(lam(2 * #0 + #1)), 0, #0)"));
+}
+
+TEST_F(ListLawsIntegrationTest, AFragmentAroundTwoArgumentsBecomesAHelper) {
+    // reduce request #75: the sum of squares of the input and of its reverse, as one helper
+    const expr* step = make(symbols.lambda, {make(symbols.lambda, {parse("#0 + #1")})});
+    const expr* squares = make(symbols.fold, {step, parse("0"), make(symbols.map, {lam("#0^2"), xs})});
+    const expr* reversed = make(symbols.fold, {step, parse("0"),
+                                               make(symbols.map, {lam("#0^2"), make(symbols.reverse, {xs})})});
+    const expr* e = make(symbols.cons, {squares, make(symbols.cons, {reversed, make(symbols.nil, {})})});
+    out.clear();
+    rules.helpers_.detect(e, out);
+    ASSERT_EQ(out.size(), 1u);
+    EXPECT_EQ(print(out[0]()),
+              "let(lam(fold(lam(lam(#0 + #1)), 0, map(lam(#0^2), #0))), cons(app(#0, #1), cons(app(#0, reverse(#1)), nil)))");
+}

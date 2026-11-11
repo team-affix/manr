@@ -297,15 +297,26 @@ outcome run_program(const program_problem& p) {
     std::map<uint32_t, const expr*> bindings;
     for (const auto& [hole, text] : p.bindings)
         bindings.emplace(hole, parse_program(m, text));
+    // helpers (`let`, `app`) are beta-reduced away before evaluating
     const expr* bound_input = m.rule_set_.piecewise_.matcher_.substitute_holes(initial, bindings);
-    const expr* bound_best = m.rule_set_.piecewise_.matcher_.substitute_holes(search.best(), bindings);
+    const std::optional<const expr*> reduced = m.rule_set_.reducer_.reduce(search.best());
+    const expr* bound_best = m.rule_set_.piecewise_.matcher_.substitute_holes(
+        reduced.has_value() ? reduced.value() : search.best(), bindings);
     std::vector<list_sample> lists;
     for (const list_t& list : all_lists(-3, 3, 3))
         lists.push_back(list_sample{.input = list, .output = list, .output_is_list = true});
+    // a program of two inputs (`lams(2, ..)`) is checked on pairs of lists
+    const expr::functor* top = std::get_if<expr::functor>(&initial->content);
+    const bool pairs = top != nullptr && top->id == m.rule_set_.abs_symbols_.lambdas;
+    const std::vector<pw_data_point> points = m.rule_set_.converter_.convert(lists);
     bool sound = true;
-    for (const pw_data_point& point : m.rule_set_.converter_.convert(lists)) {
-        const std::optional<const expr*> expected = m.rule_set_.pw_evaluator_.evaluate_at(bound_input, point.input);
-        const std::optional<const expr*> value = m.rule_set_.pw_evaluator_.evaluate_at(bound_best, point.input);
+    for (size_t index = 0; index < points.size(); ++index) {
+        const expr* input = pairs ? m.kernel_.exprs_.make_functor(m.rule_set_.point_symbol_,
+                                                                  {points[index].input,
+                                                                   points[(index * 7 + 3) % points.size()].input})
+                                  : points[index].input;
+        const std::optional<const expr*> expected = m.rule_set_.pw_evaluator_.evaluate_at(bound_input, input);
+        const std::optional<const expr*> value = m.rule_set_.pw_evaluator_.evaluate_at(bound_best, input);
         sound = sound && expected.has_value() && value.has_value() && value.value() == expected.value();
     }
     std::ostringstream input;
@@ -682,6 +693,32 @@ int main(int argc, char** argv) {
          "lam(filter(lam(lt(0, #0)), #0))"},
         {"filters on two conditions", "lam(filter(lam(lt(0, #0)), filter(lam(eq(mod(#0, 2), 0)), #0)))", {}, 13,
          "lam(filter(lam(and(eq(mod(#0, 2), 0), lt(0, #0))), #0))"},
+        // reduce requests #72 to #74: folds that rebuild a list, holes where a list goes, a fold over a map
+        {"#72 reverse written as a fold", "lam(fold(lam(lam(append(#1, cons(#0, nil)))), nil, #0))", {}, 3,
+         "lam(reverse(#0))"},
+        {"reverse as a fold, a hole for nil", "lam(fold(lam(lam(append(#1, cons(#0, ?0)))), nil, #0))", {{0, "nil"}},
+         3, "lam(reverse(#0)), ?0 = nil"},
+        {"#73 fold of cons, a hole as its base", "lam(fold(lam(lam(cons(#0, #1))), ?0, #0))", {{0, "nil"}}, 2,
+         "lam(#0), ?0 = nil"},
+        {"fold of cons is the identity", "lam(fold(lam(lam(cons(#0, #1))), nil, #0))", {}, 2, "lam(#0)"},
+        {"appending nil", "lam(append(#0, nil))", {}, 2, "lam(#0)"},
+        {"fold of cons onto a list", "lam(fold(lam(lam(cons(#0, #1))), cons(1, nil), #0))", {}, 7,
+         "lam(append(#0, cons(1, nil)))"},
+        {"#74 a fold over a map", "lam(fold(lam(lam(#0 + #1)), 0, map(lam(2 * #0), #0)))", {}, 11,
+         "lam(fold(lam(lam(2 * #0 + #1)), 0, #0))"},
+        {"the length of a map", "lam(fold(lam(lam(#1 + 1)), 0, map(lam(#0^2), #0)))", {}, 9,
+         "lam(fold(lam(lam(#1 + 1)), 0, #0))"},
+        {"a fold over a map of a map", "lam(fold(lam(lam(#0 + #1)), 0, map(lam(#0 + 1), map(lam(3 * #0), #0))))", {},
+         13, "lam(fold(lam(lam(3 * #0 + 1 + #1)), 0, #0))"},
+        // reduce request #75: a fragment recurring around different arguments named once as a helper
+        {"#75 a helper used on two arguments",
+         "lam(cons(fold(lam(lam(#0 + #1)), 0, map(lam(#0^2), #0)), cons(fold(lam(lam(#0 + #1)), 0, map(lam(#0^2), reverse(#0))), nil)))",
+         {}, 25, "lam(let(lam(fold(lam(lam(#0 + #1)), 0, map(lam(#0^2), #0))), cons(app(#0, #1), cons(app(#0, reverse(#1)), nil))))"},
+        {"a helper used three times",
+         "lam(cons(fold(lam(lam(#0 + #1)), 1, map(lam(#0 * 3), #0)), cons(fold(lam(lam(#0 + #1)), 1, map(lam(#0 * 3), reverse(#0))), cons(fold(lam(lam(#0 + #1)), 1, map(lam(#0 * 3), map(lam(#0 + 1), #0))), nil))))",
+         {}, 40, "lam(let(lam(fold(..., map(lam(#0 * 3), #0))), cons(app(#0, #1), cons(app(#0, reverse(#1)), ...))))"},
+        {"a fragment used once stays", "lam(fold(lam(lam(#0 + #1)), 0, map(lam(#0^2), #0)))", {}, 13,
+         "lam(fold(lam(lam(#0 + #1)), 0, map(lam(#0^2), #0)))"},
         {"a fold over a reverse stays", "lam(fold(lam(lam(#0 - #1)), 0, reverse(#0)))", {}, 10,
          "lam(fold(lam(lam(#0 - #1)), 0, reverse(#0)))"},
     };

@@ -1,0 +1,65 @@
+# problem	solver	cost	target	seconds	sound
+sum (control)	best-1st	9	9	5.99959	1
+sum (control)	mcts	9	9	5.50808	1
+#56 sort	best-1st	3	3	0.00577246	1
+#56 sort	mcts	3	3	0.00248208	1
+sort, an input element ?1	best-1st	3	3	0.00533385	1
+sort, an input element ?1	mcts	3	3	0.00256292	1
+sort descending	best-1st	4	4	0.0183619	1
+sort descending	mcts	4	4	0.0118394	1
+#57 prefix sums	best-1st	9	9	10.0563	1
+#57 prefix sums	mcts	9	9	8.21108	1
+prefix sums, an output ?1	best-1st	9	9	11.1277	1
+prefix sums, an output ?1	mcts	9	9	6.41678	1
+running maximum	best-1st	9	10	10.8565	1
+running maximum	mcts	9	10	8.58247	1
+#58 remove duplicates	best-1st	3	3	0.00509956	1
+#58 remove duplicates	mcts	3	3	0.00254459	1
+#59 last element	best-1st	4	4	0.0118561	1
+#59 last element	mcts	4	4	0.00983377	1
+#60 pairwise differences	best-1st	10	10	10.5182	1
+#60 pairwise differences	mcts	10	10	7.22568	1
+#61 sum times length	best-1st	12	12	17.0632	1
+#61 sum times length	mcts	12	12	9.12114	1
+maximum minus minimum	best-1st	9	10	6.77599	1
+maximum minus minimum	mcts	9	10	5.1213	1
+#62 reverse of squares	best-1st	8	8	3.28868	1
+#62 reverse of squares	mcts	8	8	3.25754	1
+#63 is sorted	best-1st	5	5	0.162814	1
+#63 is sorted	mcts	5	5	0.171479	1
+random labels stay (control)	best-1st	266	10000	45.5115	1
+random labels stay (control)	mcts	266	10000	36.016	1
+#65 flatten a list of lists	best-1st	9	9	4.73351	1
+#65 flatten a list of lists	mcts	9	9	5.36762	1
+#66 sum of each sublist	best-1st	12	12	10.3526	1
+#66 sum of each sublist	mcts	12	12	6.65495	1
+length of each sublist	best-1st	6	6	0.706957	1
+length of each sublist	mcts	6	6	0.72343	1
+flatten, an inner list ?1	best-1st	33	9	4.59529	1
+flatten, an inner list ?1	mcts	33	9	4.78095	1
+#64 append two lists	best-1st	5	5	0.019873	1
+#64 append two lists	mcts	5	5	0.0180197	1
+dot product of two lists	best-1st	331	17	37.0007	1
+dot product of two lists	mcts	331	17	28.0606	1
+membership of a value in a list	best-1st	5	5	0.0173513	1
+membership of a value in a list	mcts	5	5	0.0125915	1
+#67 tree sum	best-1st	11	11	14.4788	1
+#67 tree sum	mcts	11	11	9.36727	1
+tree depth	best-1st	11	11	12.3478	1
+tree depth	mcts	11	11	10.2735	1
+tree size	best-1st	11	11	6.568	1
+tree size	mcts	11	11	6.12123	1
+#68 tree mirror	best-1st	10	10	4.40109	1
+#68 tree mirror	mcts	10	10	4.30916	1
+#69 tree in-order traversal	best-1st	11	11	6.84372	1
+#69 tree in-order traversal	mcts	11	11	5.56793	1
+tree pre-order traversal	best-1st	11	11	5.84434	1
+tree pre-order traversal	mcts	11	11	5.69606	1
+tree sum, a value ?1	best-1st	11	11	12.2723	1
+tree sum, a value ?1	mcts	11	11	7.91371	1
+#70 out-degree of node 0	best-1st	9	10	3.31228	1
+#70 out-degree of node 0	mcts	9	10	3.2388	1
+in-degree of node 0	best-1st	9	10	3.62123	1
+in-degree of node 0	mcts	9	10	3.29586	1
+#71 is node 4 reachable from 0	best-1st	6	6	0.457883	1
+#71 is node 4 reachable from 0	mcts	6	6	0.606085	1
