@@ -184,6 +184,7 @@ private:
     std::vector<const expr*> frames_;
     const expr* marker_;
     prog_spec framed_;
+    bool short_of_bodies_;
 };
 
 #define PROG_ENUMERATIVE_HYPOTHESES_TEMPLATE                                                           \
@@ -241,7 +242,8 @@ PROG_ENUMERATIVE_HYPOTHESES_TEMPLATE PROG_ENUMERATIVE_HYPOTHESES::prog_enumerati
     , relation_(k_prog_relation_equal)
     , frames_()
     , marker_(nullptr)
-    , framed_() {
+    , framed_()
+    , short_of_bodies_(false) {
     make_productions();
 }
 
@@ -387,8 +389,11 @@ PROG_ENUMERATIVE_HYPOTHESES_TEMPLATE std::optional<const expr*> PROG_ENUMERATIVE
     }
     // a budget spent before the bodies were complete: the deductions still read what was built
     const bool short_of_bodies = reached < k_prog_default_max_unary_body_size && !deduced_.has_value();
-    if (frames_.empty() && !found_.has_value() && short_of_bodies)
+    // (not the folds over every list term: on long inputs their evaluations take minutes)
+    short_of_bodies_ = frames_.empty() && !found_.has_value() && short_of_bodies;
+    if (short_of_bodies_)
         deduce(k_prog_default_max_unary_body_size);
+    short_of_bodies_ = false;
     return found_.has_value() ? found_ : deduced_;
 }
 
@@ -737,7 +742,8 @@ PROG_ENUMERATIVE_HYPOTHESES_TEMPLATE void PROG_ENUMERATIVE_HYPOTHESES::deduce_fo
 PROG_ENUMERATIVE_HYPOTHESES_TEMPLATE void PROG_ENUMERATIVE_HYPOTHESES::deduce_folds(size_t size) {
     if (size != k_prog_default_max_unary_body_size)
         return;
-    deduce_folds_over_terms();
+    if (!short_of_bodies_)
+        deduce_folds_over_terms();
     context& top = contexts_[top_];
     const uint8_t element_of[k_types] = {k_unknown, k_integer, k_integers, k_unknown, k_unknown, k_record};
     for (size_t k = 0; k < top.types.size(); ++k) {
@@ -1042,10 +1048,11 @@ PROG_ENUMERATIVE_HYPOTHESES_TEMPLATE void PROG_ENUMERATIVE_HYPOTHESES::propose(c
     const size_t nodes = count_nodes(e);
     if (deduced_.has_value() && deduced_size_ <= nodes)
         return;
+    // each probe checked as it is evaluated: most candidates miss the first
     term candidate{.e = e, .values = {}};
-    for (const values_t& env : contexts_[top_].envs) {
-        const std::optional<const expr*> value = evaluate_with_.evaluate_with(e, env);
-        if (!value.has_value())
+    for (size_t i = 0; i < contexts_[top_].envs.size(); ++i) {
+        const std::optional<const expr*> value = evaluate_with_.evaluate_with(e, contexts_[top_].envs[i]);
+        if (!value.has_value() || !match_relation_.matches(relation_, value.value(), checked_outputs_[i]))
             return;
         candidate.values.push_back(value.value());
     }

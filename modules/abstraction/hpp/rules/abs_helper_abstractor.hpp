@@ -23,7 +23,9 @@ constexpr uint32_t k_abs_cut_marker = 1u << 30;
 // in e moves under one more binder, so its free indices move out by one (`shift`). The fragment must be closed (no
 // index of its own but its input, which is not under its binders), so it means the same at every occurrence. Fires
 // only when smaller: k occurrences of a fragment of B nodes (its cut counted as one) save k * (B - 3) - B - 2. The
-// sum of squares of two lists is one helper applied twice (#75). Nothing for an e of more than `max_size` nodes.
+// sum of squares of two lists is one helper applied twice (#75). Only a piece of a program is read: a function (an e
+// whose root is a `lam` or `lams`) or a body over variables bound outside it (an e with a free index), never data
+// (a piecewise's cases are closed). Nothing for an e of more than `max_size` nodes.
 template<typename IShiftIndices, typename IFindIndex, typename IMakeIndex, typename ICountBinders, typename IMakeFunctor,
          typename IMakeVar, typename IFindCost>
 struct abs_helper_abstractor {
@@ -52,7 +54,6 @@ private:
     const expr* replace_at(const expr* e, const std::vector<size_t>& path, size_t at, size_t depth,
                            const expr* argument);
     bool is_closed(const expr* e, size_t binders) const;
-    bool holds_function(const expr* e) const;
     size_t count_binders_at(const expr* parent, size_t position) const;
 
     IShiftIndices& shift_indices_;
@@ -97,15 +98,15 @@ ABS_HELPER_ABSTRACTOR_TEMPLATE void ABS_HELPER_ABSTRACTOR::detect(const expr* e,
     const size_t cost = find_cost_.cost(e);
     if (cost > max_size_ || cost < 10)
         return;
-    // a helper names a piece of a program: only an expression holding a function is read, and once
+    // a helper names a piece of a program: only a function is read, and once
+    const expr::functor* root = std::get_if<expr::functor>(&e->content);
+    const bool function = root != nullptr && (root->id == symbols_.lambda || root->id == symbols_.lambdas);
+    if (root == nullptr || (!function && is_closed(e, 0)))
+        return;
     const auto known = abstracted_.find(e);
     if (known != abstracted_.end()) {
         if (known->second != nullptr)
             out.push_back(ready(known->second));
-        return;
-    }
-    if (!holds_function(e)) {
-        abstracted_.emplace(e, nullptr);
         return;
     }
     // e as it will sit under the `let`: every free index one further out
@@ -149,18 +150,6 @@ ABS_HELPER_ABSTRACTOR_TEMPLATE void ABS_HELPER_ABSTRACTOR::detect(const expr* e,
     abstracted_.emplace(e, best.has_value() ? best.value() : nullptr);
     if (best.has_value())
         out.push_back(ready(best.value()));
-}
-
-ABS_HELPER_ABSTRACTOR_TEMPLATE bool ABS_HELPER_ABSTRACTOR::holds_function(const expr* e) const {
-    const expr::functor* f = std::get_if<expr::functor>(&e->content);
-    if (f == nullptr)
-        return false;
-    if (f->id == symbols_.lambda || f->id == symbols_.lambdas)
-        return true;
-    for (const expr* arg : f->args)
-        if (holds_function(arg))
-            return true;
-    return false;
 }
 
 // every fragment of every subterm: the subterm with one position cut, that position not under the subterm's binders
