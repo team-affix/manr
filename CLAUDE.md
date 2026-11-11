@@ -65,7 +65,8 @@ list/        (list_)   lists and list programs (map, filter, fold): vocabulary, 
                        and integer cases; affine, extremum, product, count, selection, factor, sum folds), the laws
                        of programs (map and filter fusion, the identity map, reverses cancelling)
 seq/         (seq_)    integer sequences: recurrences (`rec`), powers (`exp`), infinite lists (`tabulate`, `unfold`),
-                       evaluator, the recurrence detector, the closing rule, open-ended lists read as sequences
+                       evaluator, the recurrence detector, the closing rules (repeated roots too), the laws of
+                       powers, open-ended lists read as sequences
 number/      (num_)    number theory over another domain: `prime(n)`, `is_prime(n)`, a sieve, evaluator, detector
 rational/    (rat_)    quotients of polynomials `n / d`: the quotient canceller (exact division, common factors in
                        any number of variables), the fraction combiner (sums, products, powers of quotients as one),

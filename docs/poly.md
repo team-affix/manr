@@ -49,7 +49,9 @@ hole of degree d with a term of degree d - 1, the shift `-c(d-1) / (d * cd)` tha
 (`(?0 - x)^2 + y` -> `y`, `?0 = x`, #32). Holes the expression is linear in are also bound jointly, to integers, by
 solving the linear system that cancels every coefficient of the other variables, or every one but the constant
 (`?0 * x^2 + ?1 * x + ?0 - (x + 1)^2` -> `0`, `?0 = 1, ?1 = 2`, #33; `arith_linear_solver`). Not yet: holes in one
-term together (`?0 * ?1 * x`), joint bindings that are polynomials, and holes inside other domains' functors.
+term together (`?0 * ?1 * x`) and joint bindings that are polynomials. Holes inside other domains' functors (atoms)
+are bound by `poly_atom_unifier`, which makes a holed atom equal to another atom of the same head when the whole then
+shrinks as a polynomial over its atoms (`exp(2, n) - exp(?0, n)` -> `0`, `?0 = 2`, #49; wired in `seq_fit`).
 
 Quotients `n / d` (the `rational` module, `docs/rational.md`) are part of the full rule set: `rat_quotient_canceller`
 cancels a divisor or, over one variable, the common factor (`(x^2 - 1) / (x - 1)` -> `x + 1`, #38).

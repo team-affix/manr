@@ -15,6 +15,8 @@
 #include "infrastructure/abs_binders.hpp"
 #include "infrastructure/abs_function_maker.hpp"
 #include "infrastructure/expr_pool.hpp"
+#include "infrastructure/expr_size.hpp"
+#include "infrastructure/hole_scope_proposer.hpp"
 #include "infrastructure/num_evaluator.hpp"
 #include "infrastructure/num_prime_table.hpp"
 #include "infrastructure/poly_condition_evaluator.hpp"
@@ -24,9 +26,11 @@
 #include "infrastructure/seq_evaluator.hpp"
 #include "infrastructure/subterm_proposer.hpp"
 #include "rules/abs_binder_merger.hpp"
+#include "rules/poly_atom_unifier.hpp"
 #include "rules/seq_open_list_reader.hpp"
 #include "rules/seq_linear_closer.hpp"
 #include "rules/seq_power_closer.hpp"
+#include "rules/seq_power_merger.hpp"
 #include "rules/seq_unfolder.hpp"
 #include "value_objects/abs_symbols.hpp"
 #include "value_objects/expr.hpp"
@@ -124,6 +128,18 @@ struct seq_fit_rules_manifest {
     struct open_lists_t : seq_open_list_reader<kernel_t::literals_t, kernel_t::literals_t, expr_pool> {
         using seq_open_list_reader<kernel_t::literals_t, kernel_t::literals_t, expr_pool>::seq_open_list_reader;
     };
+    struct power_merger_t : seq_power_merger<kernel_t::literals_t, kernel_t::literals_t, expr_pool, expr_size> {
+        using seq_power_merger<kernel_t::literals_t, kernel_t::literals_t, expr_pool, expr_size>::seq_power_merger;
+    };
+    using atoms_base_t = poly_atom_unifier<kernel_t::expander_t, poly_arithmetic, poly_arithmetic,
+                                           kernel_t::renderer_t, expr_pool, expr_pool, expr_size>;
+    struct atoms_t : atoms_base_t {
+        using atoms_base_t::atoms_base_t;
+    };
+    // the atom unifier at every subterm holding all of its holes (`exp(2, n) - exp(?0, n)` inside a lambda)
+    struct atom_scopes_t : hole_scope_proposer<atoms_t, expr_pool> {
+        using hole_scope_proposer<atoms_t, expr_pool>::hole_scope_proposer;
+    };
 
     // ---- the rule lists ----
     using local_rules_base_t = proposer_union<
@@ -133,12 +149,14 @@ struct seq_fit_rules_manifest {
         linear_closer_t,
         unfolder_t,
         merger_t,
-        poly_rules_manifest::local_rules_t>;
+        poly_rules_manifest::local_rules_t,
+        power_merger_t>;
     struct local_rules_t : local_rules_base_t {
         using local_rules_base_t::local_rules_base_t;
     };
     using root_rules_base_t = proposer_union<
-        open_lists_t>;
+        open_lists_t,
+        atom_scopes_t>;
     struct root_rules_t : root_rules_base_t {
         using root_rules_base_t::root_rules_base_t;
     };
@@ -189,12 +207,18 @@ struct seq_fit_rules_manifest {
     unfolder_t unfolder_;
     merger_t merger_;
     open_lists_t open_lists_;
+    power_merger_t power_merger_;
+    // constructed last: the atom unifier interns its placeholder symbols, and interning order is behavior
+    atoms_t atoms_;
+    atom_scopes_t atom_scopes_;
     // the rule lists
     local_rules_t local_rules_;
     root_rules_t root_rules_;
     subterms_t subterms_;
     rules_t rules_;
     const expr* initial_;
+private:
+    static std::vector<uint32_t> intern_numbered(kernel_t& kernel, const std::string& prefix, size_t count);
 };
 
 #endif

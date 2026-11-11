@@ -18,9 +18,10 @@ constexpr size_t k_seq_default_max_root_trials = 10000;
 // Local rule: closes a linear recurrence with constant coefficients, `rec(lams(k + 1, s), a(0), ..., a(k-1), n)` whose
 // step is `c1 * #1 + ... + ck * #k + p(#0)` (p a polynomial in the index, possibly 0), into its closed form
 // `A1 * exp(r1, n) + ... + Am * exp(rm, n) + q(n)` (`5 * #1 - 6 * #2` from 2, 5 is `exp(2, n) + exp(3, n)`). It applies
-// when the characteristic polynomial `t^k - c1 t^(k-1) - ... - ck` splits into integer roots, each other than 1
-// simple (found among the divisors of ck, at most `max_root_trials`), and the coefficients are integers. The powers'
-// bases are the roots other than 1; q has degree deg p plus the multiplicity of 1. The coefficients are solved exactly
+// when the characteristic polynomial `t^k - c1 t^(k-1) - ... - ck` splits into integer roots (found among the divisors
+// of ck, at most `max_root_trials`), and the coefficients are integers. The powers' bases are the roots other than 1,
+// and a root r of multiplicity m contributes `exp(r, n)`, `n * exp(r, n)`, ..., `n^(m-1) * exp(r, n)` (`4 * #1 - 4 *
+// #2` from 0, 2 is `n * exp(2, n)`); q has degree deg p plus the multiplicity of 1. The coefficients are solved exactly
 // from the terms the recurrence gives, on more terms than they need: agreeing on k + deg q + 1 consecutive terms means
 // the closed form satisfies the step there, so everywhere. Fires only when the closed form holds a power (so it has
 // no value at a negative index, as the recurrence has none) and is smaller than the recurrence. An affine step of
@@ -42,8 +43,9 @@ struct seq_linear_closer {
 private:
     std::optional<std::vector<integer>> find_roots(const std::vector<integer>& coefficients,
                                                    size_t& multiplicity_of_one);
-    const expr* build(const std::vector<integer>& roots, const std::vector<integer>& amplitudes,
-                      const std::vector<integer>& polynomial, const expr* index);
+    const expr* build(const std::vector<integer>& roots, const std::vector<uint32_t>& repeats,
+                      const std::vector<integer>& amplitudes, const std::vector<integer>& polynomial,
+                      const expr* index);
     const expr* add_term(const expr* sum, const integer& coefficient, const expr* term);
 
     IFindBody& find_body_;
@@ -141,7 +143,12 @@ SEQ_LINEAR_CLOSER_TEMPLATE void SEQ_LINEAR_CLOSER::detect(const expr* e, std::ve
     const std::optional<std::vector<integer>> roots = find_roots(coefficients, multiplicity_of_one);
     if (!roots.has_value() || roots.value().empty())
         return;
-    // the basis: a power per root other than 1, then the index's powers up to the degree of q
+    // the basis: n^j * exp(r, n) per root r other than 1, j counting its earlier repeats, then the index's powers up to
+    // the degree of q
+    std::vector<uint32_t> repeats;
+    for (size_t position = 0; position < roots.value().size(); ++position)
+        repeats.push_back(position > 0 && roots.value()[position - 1] == roots.value()[position]
+                              ? repeats.back() + 1 : 0);
     const size_t degree_count = inhomogeneous.size() + multiplicity_of_one;
     const size_t unknowns = roots.value().size() + degree_count;
     const size_t equations = unknowns + order + degree_count + 1;
@@ -160,8 +167,9 @@ SEQ_LINEAR_CLOSER_TEMPLATE void SEQ_LINEAR_CLOSER::detect(const expr* e, std::ve
     std::vector<std::vector<integer>> rows;
     for (size_t index = 0; index < equations; ++index) {
         std::vector<integer> row;
-        for (const integer& root : roots.value())
-            row.push_back(boost::multiprecision::pow(root, static_cast<unsigned>(index)));
+        for (size_t position = 0; position < roots.value().size(); ++position)
+            row.push_back(boost::multiprecision::pow(integer(static_cast<long>(index)), repeats[position])
+                          * boost::multiprecision::pow(roots.value()[position], static_cast<unsigned>(index)));
         integer power = 1;
         for (size_t degree = 0; degree < degree_count; ++degree) {
             row.push_back(power);
@@ -180,13 +188,14 @@ SEQ_LINEAR_CLOSER_TEMPLATE void SEQ_LINEAR_CLOSER::detect(const expr* e, std::ve
         powered = powered || amplitude != 0;
     if (!powered)
         return;
-    const expr* closed = build(roots.value(), amplitudes, polynomial, f->args.back());
+    const expr* closed = build(roots.value(), repeats, amplitudes, polynomial, f->args.back());
     if (find_cost_.cost(closed) >= find_cost_.cost(e))
         return;
     out.push_back([closed]() { return closed; });
 }
 
-// The roots of `t^k - c1 t^(k-1) - ... - ck` other than 1, each simple, when every root is an integer; nothing else.
+// The roots of `t^k - c1 t^(k-1) - ... - ck` other than 1, a repeated root once per multiplicity and in a row, when
+// every root is an integer; nothing else.
 SEQ_LINEAR_CLOSER_TEMPLATE std::optional<std::vector<integer>> SEQ_LINEAR_CLOSER::find_roots(
     const std::vector<integer>& coefficients, size_t& multiplicity_of_one) {
     // highest degree first: 1, -c1, ..., -ck
@@ -215,9 +224,6 @@ SEQ_LINEAR_CLOSER_TEMPLATE std::optional<std::vector<integer>> SEQ_LINEAR_CLOSER
                     ++multiplicity_of_one;
                     continue;
                 }
-                const bool repeated = !roots.empty() && roots.back() == root;
-                if (repeated)
-                    return std::nullopt;
                 roots.push_back(root);
             }
         }
@@ -228,6 +234,7 @@ SEQ_LINEAR_CLOSER_TEMPLATE std::optional<std::vector<integer>> SEQ_LINEAR_CLOSER
 }
 
 SEQ_LINEAR_CLOSER_TEMPLATE const expr* SEQ_LINEAR_CLOSER::build(const std::vector<integer>& roots,
+                                                                const std::vector<uint32_t>& repeats,
                                                                 const std::vector<integer>& amplitudes,
                                                                 const std::vector<integer>& polynomial,
                                                                 const expr* index) {
@@ -238,7 +245,17 @@ SEQ_LINEAR_CLOSER_TEMPLATE const expr* SEQ_LINEAR_CLOSER::build(const std::vecto
             if ((amplitudes[position] > 0) != positive)
                 continue;
             const expr* base = make_literal_.make_literal(roots[position]);
-            sum = add_term(sum, amplitudes[position], make_functor_.make_functor(symbols_.power, {base, index}));
+            const expr* power = make_functor_.make_functor(symbols_.power, {base, index});
+            const uint32_t repeat = repeats[position];
+            const expr* raised = repeat == 0   ? power
+                                 : repeat == 1 ? make_functor_.make_functor(arithmetic_symbols_.mul, {index, power})
+                                               : make_functor_.make_functor(
+                                                     arithmetic_symbols_.mul,
+                                                     {make_functor_.make_functor(
+                                                          arithmetic_symbols_.pow,
+                                                          {index, make_literal_.make_literal(integer(repeat))}),
+                                                      power});
+            sum = add_term(sum, amplitudes[position], raised);
         }
     }
     for (size_t degree = polynomial.size(); degree-- > 1;) {

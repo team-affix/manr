@@ -57,14 +57,24 @@ regions can compare recurrences.
 - **`seq_power_closer`** (local rule): closes an affine recurrence of order one, step `r * p1 + d` (`r` not 0 or 1),
   into `a * exp(r, n) + b`, with `b = -d / (r - 1)` the fixed point and `a = a(0) - b`. It fires only when `b` is an
   integer, and drops the trivial parts. It always shrinks the expression. So `rec(lam(lam(2 * #1)), 1, n)` (cost 8)
-  becomes `exp(2, n)` (3), and `rec(lam(lam(2 * #1 + 1)), 0, n)` (10) becomes `exp(2, n) - 1` (5).
+  becomes `exp(2, n)` (3), and `rec(lam(lam(2 * #1 + 1)), 0, n)` (10) becomes `exp(2, n) - 1` (5). A ratio built
+  from holes and literals, `h * #1`, closes the same way to `c * exp(h, n)`, leaving the hole for a binding (#50).
 - **`seq_linear_closer`** (local rule): closes a linear recurrence with constant coefficients of any order, step
-  `c1 * #1 + ... + ck * #k + p(#0)`, when its characteristic polynomial splits into integer roots, each other than 1
-  simple (#35): `5 * #1 - 6 * #2` from 2, 5 is `exp(2, #0) + exp(3, #0)`, and `3 * #1 - 2 * #2 + 1` from 1, 1 is
-  `exp(2, #0) - #0`. The closed form is a power per root other than 1 plus a polynomial of degree deg p plus the
-  multiplicity of 1, its coefficients solved exactly from the first terms (`arith_linear_solver`) on more terms than
+  `c1 * #1 + ... + ck * #k + p(#0)`, when its characteristic polynomial splits into integer roots (#35):
+  `5 * #1 - 6 * #2` from 2, 5 is `exp(2, #0) + exp(3, #0)`, and `3 * #1 - 2 * #2 + 1` from 1, 1 is
+  `exp(2, #0) - #0`. The closed form is `n^j * exp(r, n)` per root r other than 1, j below its multiplicity
+  (`4 * #1 - 4 * #2` from 0, 2 is `#0 * exp(2, #0)`, #45), plus a polynomial of degree deg p plus the multiplicity of
+  1, its coefficients solved exactly from the first terms (`arith_linear_solver`) on more terms than
   they need, which proves it. Only integer coefficients, only when the result holds a power and is smaller.
 
+- **`seq_power_merger`** (local rule): the laws of powers with a symbolic exponent, each merging two powers into one
+  when smaller: `exp(a, n) * exp(b, n)` is `exp(a * b, n)`, `exp(a, m) * exp(a, n)` is `exp(a, m + n)`, and
+  `exp(a, n)^k` is `exp(a^k, n)` for literal a and k, so `2^n * 2^n - 4^n` cancels to 0 (#48).
+- **`poly_atom_unifier`** (polynomial module, at the root of every subterm holding all of its holes, through
+  `hole_scope_proposer`): binds the holes of an atom (a term outside polynomial algebra) so it becomes another atom
+  with the same head, when the whole then shrinks as a polynomial over its atoms: `exp(2, n) - exp(?0, n)` is 0 with
+  `?0 = 2` (#49), `prime(n + ?0) - prime(n)` is 0 with `?0 = 0`. With the hole ratio above,
+  `rec(lam(lam(?0 * #1)), 3, n) - 3 * exp(2, n)` is 0 with `?0 = 2` (#50).
 - **`seq_open_list_reader`** (at the root, since it rebinds a hole): an open-ended list `cons(a0, ..., cons(a(k-1),
   ?n))` of at least 3 literal terms is the infinite list of a sequence, `tabulate(pw(case(point(0), a0), ...,
   case(point(k-1), a(k-1)), ?n))`: the terms become data over the index and the tail's hole the catch-all, which the
@@ -114,9 +124,13 @@ the alternating terms (`plans.md`, search: stopping at a form nothing can improv
 
 - **Data that starts late with a step that has no inverse** (`p1^2 + 1`): its bases could be unknowns of the fit
   instead, or the recurrence could carry its start index.
-- **Closed forms of higher order** close when the characteristic roots are integers and the coefficients too
-  (#35). Not yet: repeated roots other than 1 (`n * 2^n`), rational coefficients (`(n^2 - 3n) / 2 + 2^n`), and
-  irrational roots (Fibonacci's Binet form), which stay recurrences.
+- **Closed forms of higher order** close when the characteristic roots are integers, repeated or not, and the
+  coefficients too (#35, #45). Not yet: rational coefficients (`(n^2 - 3n) / 2 + 2^n`), and irrational roots
+  (Fibonacci's Binet form), which stay recurrences.
+- **Polynomial rules over atoms.** `exp(3, n) + n * exp(3, n)` is not factored to `(n + 1) * exp(3, n)`: the factor
+  detector sees only variables (benchmark: `(n + 1) * 3^n (open)`, 10 against 8).
+- **Primitives inside arithmetic are not evaluated** (`prime(n) - 1`, #46), so the benchmark cannot check a reduction
+  of one; `prime(n + ?0) - prime(n)` is an integration test instead.
 - **Recurrences inside larger expressions** are evaluated, but nothing proposes one as part of a larger model, e.g.
   a piecewise of recurrences, or `rec(...) + n^2`.
 - **Steps the polynomial domain cannot express**: `a(n) = a(n-1) + a(n-1) mod 3`, `a(n) = a(a(n-1))`.

@@ -14,7 +14,9 @@
 // `r * #1 + d` (r not 0 or 1; `#1` is the previous term), into its closed form `a * exp(r, n) + b`, with b = -d / (r -
 // 1) the fixed point and a = c - b; it fires only when b is an integer. The form drops what is trivial: `exp(r, n)`
 // when a is 1, no `+ b` when b is 0, just b when a is 0. Both sides have no value at a negative index, and the result
-// is always smaller: the step alone is at least `lam(lam(mul(r, #1)))`, plus `add(.., d)` when d is not 0.
+// is always smaller: the step alone is at least `lam(lam(mul(r, #1)))`, plus `add(.., d)` when d is not 0. A ratio
+// built from holes and literals only, `h * #1`, closes the same way to `c * exp(h, n)` (`rec(lam(lam(?0 * #1)), 3, n)`
+// is `3 * exp(?0, n)`), leaving the hole for a binding.
 template<typename IFindBody, typename IFindPolynomial, typename IFindLiteralValue, typename IMakeLiteral,
          typename IMakeFunctor>
 struct seq_power_closer {
@@ -27,6 +29,8 @@ struct seq_power_closer {
                      poly_symbols arithmetic_symbols);
     void detect(const expr* e, std::vector<rewrite>& out);
 private:
+    bool holds_holes_only(const expr* e, bool& holed) const;
+
     IFindBody& find_body_;
     IFindPolynomial& find_polynomial_;
     IFindLiteralValue& find_literal_value_;
@@ -67,6 +71,29 @@ SEQ_POWER_CLOSER_TEMPLATE void SEQ_POWER_CLOSER::detect(const expr* e, std::vect
     const std::optional<const expr*> body = find_body_.find_body(f->args[0], 2);
     if (!body.has_value())
         return;
+    const expr* index = f->args[2];
+    // a ratio holding holes, `h * #1` (no offset): `c * exp(h, n)`
+    const expr::functor* product = std::get_if<expr::functor>(&body.value()->content);
+    const bool multiplied = product != nullptr && product->id == arithmetic_symbols_.mul && product->args.size() == 2;
+    for (size_t side = 0; multiplied && side < 2; ++side) {
+        const expr::functor* previous = std::get_if<expr::functor>(&product->args[side]->content);
+        const bool previous_term =
+            previous != nullptr && previous->id == symbols_.previous[0] && previous->args.empty();
+        bool holed = false;
+        const bool free = previous_term && holds_holes_only(product->args[1 - side], holed);
+        if (!free || !holed)
+            continue;
+        const integer scale = start.value();
+        const expr* ratio = product->args[1 - side];
+        out.push_back([this, scale, ratio, index]() {
+            if (scale == 0)
+                return make_literal_.make_literal(integer(0));
+            const expr* power = make_functor_.make_functor(symbols_.power, {ratio, index});
+            const expr* scaled = make_literal_.make_literal(scale);
+            return scale == 1 ? power : make_functor_.make_functor(arithmetic_symbols_.mul, {scaled, power});
+        });
+        return;
+    }
     const auto step = find_polynomial_.find_polynomial(body.value());
     if (!step.has_value() || step.value().terms.empty() || step.value().terms.size() > 2)
         return;
@@ -89,7 +116,6 @@ SEQ_POWER_CLOSER_TEMPLATE void SEQ_POWER_CLOSER::detect(const expr* e, std::vect
         return;
     const integer fixed_point = -offset / (ratio - 1);
     const integer scale = start.value() - fixed_point;
-    const expr* index = f->args[2];
     out.push_back([this, ratio, fixed_point, scale, index]() {
         if (scale == 0)
             return make_literal_.make_literal(fixed_point);
@@ -104,6 +130,21 @@ SEQ_POWER_CLOSER_TEMPLATE void SEQ_POWER_CLOSER::detect(const expr* e, std::vect
                                               {scaled, make_literal_.make_literal(integer(-fixed_point))});
         return make_functor_.make_functor(arithmetic_symbols_.add, {scaled, make_literal_.make_literal(fixed_point)});
     });
+}
+
+// Whether e is built from holes and literals only (no index), setting `holed` when it holds a hole.
+SEQ_POWER_CLOSER_TEMPLATE bool SEQ_POWER_CLOSER::holds_holes_only(const expr* e, bool& holed) const {
+    if (std::holds_alternative<expr::var>(e->content)) {
+        holed = true;
+        return true;
+    }
+    const expr::functor& f = std::get<expr::functor>(e->content);
+    if (f.args.empty())
+        return find_literal_value_.find_value(e).has_value();
+    bool only = true;
+    for (const expr* arg : f.args)
+        only = only && holds_holes_only(arg, holed);
+    return only;
 }
 
 #undef SEQ_POWER_CLOSER

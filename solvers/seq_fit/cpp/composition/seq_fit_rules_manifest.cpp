@@ -65,9 +65,25 @@ seq_fit_rules_manifest::seq_fit_rules_manifest(
     , merger_(binders_, kernel.literals_, kernel.exprs_, abs_symbols_)
     , open_lists_(kernel.literals_, kernel.literals_, kernel.exprs_, kernel.symbols_.intern_symbol("cons"),
                   point_symbol_, seq_symbols_.tabulation, pw_symbols_)
+    , power_merger_(kernel.literals_, kernel.literals_, kernel.exprs_, kernel.sizes_, seq_symbols_,
+                    kernel.poly_symbols_)
+    , atoms_(kernel.expander_, kernel.arithmetic_, kernel.arithmetic_, kernel.renderer_, kernel.exprs_, kernel.exprs_,
+             kernel.sizes_, kernel.poly_symbols_, intern_numbered(kernel, "hole_", 8),
+             intern_numbered(kernel, "%term", 8))
+    , atom_scopes_(atoms_, kernel.exprs_)
     , local_rules_(piecewise_.binder_, piecewise_.absorber_, closer_, linear_closer_, unfolder_, merger_,
-                   poly_rules_.local_rules_)
-    , root_rules_(open_lists_)
+                   poly_rules_.local_rules_, power_merger_)
+    , root_rules_(open_lists_, atom_scopes_)
     , subterms_(local_rules_, kernel.exprs_)
     , rules_(subterms_, root_rules_)
     , initial_(piecewise_.builder_.build(fit_.converter_.convert(samples), 0)) {}
+
+// the symbols `<prefix>0`, `<prefix>1`, ..., interned in order
+std::vector<uint32_t> seq_fit_rules_manifest::intern_numbered(kernel_t& kernel,
+                                                              const std::string& prefix,
+                                                              size_t count) {
+    std::vector<uint32_t> symbols;
+    for (size_t index = 0; index < count; ++index)
+        symbols.push_back(kernel.symbols_.intern_symbol(prefix + std::to_string(index)));
+    return symbols;
+}

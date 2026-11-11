@@ -1,7 +1,9 @@
 // Sequence benchmark: integer sequences given by a recurrence (closed forms included, as recurrences of order one),
 // some with wrong labels, under the best-first and MCTS sequence solvers. A problem is solved when the result is no
 // larger than a known compact form (its cost is given, since recurrences do not parse). Every result is checked by
-// evaluating it at every sample.
+// evaluating it at every sample. Expression problems start from an expression instead of data (`parse_expression`):
+// powers, recurrences and primes to reduce by their laws, under best-first; a result is sound when it agrees with the
+// expression at every index from 0 to 12, once both have the problem's bindings for their holes.
 //
 //   seq_bench [--fast] [--serial] [--full-inputs] [--write FILE] [--check FILE]
 //
@@ -214,6 +216,73 @@ outcome run_mcts(const std::vector<poly_sample>& samples) {
     return finish(m, m.search_, m.rule_set_.fit_.converter_.convert(samples), start);
 }
 
+// An expression as text: `name(a, b, ...)` is a functor over its arguments, anything else polynomial text.
+const expr* parse_expression(seq_fit_manifest& m, const std::string& text) {
+    const size_t first = text.find_first_not_of(' ');
+    const size_t last = text.find_last_not_of(' ');
+    const std::string trimmed = text.substr(first, last - first + 1);
+    const size_t open = trimmed.find('(');
+    const bool named = open != std::string::npos && open > 0 && trimmed.back() == ')'
+                       && trimmed.find_first_not_of("abcdefghijklmnopqrstuvwxyz_") == open;
+    // a named call must span the whole text: `exp(2, #0) - 1` is polynomial text over calls, which this does not read
+    int depth = 0;
+    bool spans = named;
+    for (size_t at = open; spans && at < trimmed.size(); ++at) {
+        depth += trimmed[at] == '(' ? 1 : trimmed[at] == ')' ? -1 : 0;
+        spans = depth > 0 || at + 1 == trimmed.size();
+    }
+    if (!spans)
+        return m.kernel_.parser_.parse(trimmed);
+    std::vector<const expr*> args;
+    depth = 0;
+    size_t start = open + 1;
+    for (size_t at = open + 1; at + 1 < trimmed.size(); ++at) {
+        depth += trimmed[at] == '(' ? 1 : trimmed[at] == ')' ? -1 : 0;
+        if (depth != 0 || trimmed[at] != ',')
+            continue;
+        args.push_back(parse_expression(m, trimmed.substr(start, at - start)));
+        start = at + 1;
+    }
+    args.push_back(parse_expression(m, trimmed.substr(start, trimmed.size() - 1 - start)));
+    return m.kernel_.exprs_.make_functor(m.kernel_.symbols_.intern_symbol(trimmed.substr(0, open)), args);
+}
+
+// an expression to reduce, with the bindings of its holes that witness the target
+struct expression_problem {
+    std::string name;
+    std::string text;
+    std::vector<std::pair<uint32_t, std::string>> bindings;
+    size_t target;
+    std::string target_text;
+};
+
+outcome run_expression(const expression_problem& p) {
+    const auto start = std::chrono::steady_clock::now();
+    seq_fit_manifest m{{}, k_poly_default_limits, k_poly_fit_default_limits, k_frontier};
+    const expr* initial = parse_expression(m, p.text);
+    seq_fit_manifest::search_t search{m.rule_set_.rules_, m.kernel_.sizes_, initial, k_frontier};
+    while (search.rewrites() < k_rewrites && search.next()) {}
+    const double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
+    std::map<uint32_t, const expr*> bindings;
+    for (const auto& [hole, text] : p.bindings)
+        bindings.emplace(hole, parse_expression(m, text));
+    const expr* bound_input = m.rule_set_.piecewise_.matcher_.substitute_holes(initial, bindings);
+    const expr* bound_best = m.rule_set_.piecewise_.matcher_.substitute_holes(search.best(), bindings);
+    bool sound = true;
+    for (int index = 0; index <= 12; ++index) {
+        const expr* point = m.kernel_.exprs_.make_functor(m.rule_set_.point_symbol_, {m.kernel_.literals_.make_literal(index)});
+        const std::optional<const expr*> expected = m.rule_set_.pw_evaluator_.evaluate_at(bound_input, point);
+        const std::optional<const expr*> value = m.rule_set_.pw_evaluator_.evaluate_at(bound_best, point);
+        sound = sound && expected.has_value() && value.has_value() && value.value() == expected.value();
+    }
+    std::ostringstream input;
+    std::ostringstream os;
+    m.kernel_.printer_.print(input, initial);
+    m.kernel_.printer_.print(os, search.best());
+    return outcome{.input = input.str(), .cost = search.best_cost(), .best = os.str(), .seconds = seconds,
+                   .sound = sound};
+}
+
 std::string cell(const outcome& o, size_t target) {
     char buffer[64];
     std::snprintf(buffer, sizeof(buffer), "%5zu%s %6.2fs", o.cost, !o.sound ? "!" : o.cost <= target ? "*" : " ",
@@ -324,6 +393,11 @@ int main(int argc, char** argv) {
         {"open list: Lucas", "p1 + p2", {2, 1}, 0, 9, {}, {}, 8, "unfold(lams(3, #1 + #2), 2, 1)"},
         {"open list: factorials", "i*p1", {1}, 0, 9, {}, {}, 7, "unfold(lam(lam(#0 * #1)), 1)"},
         {"open list: powers of 3", "3*p1", {1}, 0, 6, {}, {}, 5, "tabulate(lam(exp(3, #0)))"},
+        // reduce request #45: closed forms with repeated characteristic roots
+        {"#45 n * 2^n, a repeated root", "4*p1 - 4*p2", {0, 2}, 0, 15, {}, {}, 6, "lam(#0 * exp(2, #0))"},
+        {"(n + 1) * 3^n (open)", "6*p1 - 9*p2", {1, 6}, 0, 15, {}, {}, 8, "lam((#0 + 1) * exp(3, #0))"},
+        {"n^2 * 2^n, a triple root", "6*p1 - 12*p2 + 8*p3", {0, 2, 16}, 0, 15, {}, {}, 8, "lam(#0^2 * exp(2, #0))"},
+        {"n * 2^n + 3^n", "7*p1 - 16*p2 + 12*p3", {1, 5, 17}, 0, 15, {}, {}, 10, "lam(#0 * exp(2, #0) + exp(3, #0))"},
         {"open list: tribonacci", "p1 + p2 + p3", {0, 0, 1}, 0, 12, {}, {}, 11, "unfold(lams(4, #1 + #2 + #3), 0, 0, 1)"},
     };
 
@@ -354,7 +428,32 @@ int main(int argc, char** argv) {
                         + (options.full_inputs ? best_first.input : abbreviate_piecewise(best_first.input)) + "\n    target:   " + p.target_text + "\n    best-1st: " + (options.full_inputs ? best_first.best : best_first.best.substr(0, 400))
                         + "\n    mcts:     " + mcts.best.substr(0, 160));
     }
-    std::printf("\nsolved (of %zu): best-1st %zu, mcts %zu\n\n", problems.size(), solved_counts[0], solved_counts[1]);
+    // reduce requests #48 to #50, and similar: powers, recurrences and primes reduced by their laws and by binding holes
+    // inside them
+    const std::vector<expression_problem> expressions{
+        {"#48 2^n * 2^n - 4^n", "lam(sub(mul(exp(2, #0), exp(2, #0)), exp(4, #0)))", {}, 2, "lam(0)"},
+        {"powers of one exponent", "lam(mul(exp(2, #0), exp(3, #0)))", {}, 4, "lam(exp(6, #0))"},
+        {"powers of one base", "lam(mul(exp(2, #0), exp(2, #0 + 1)))", {}, 8, "lam(exp(2, 2 * #0 + 1))"},
+        {"a square of a power", "lam(sub(pow(exp(3, #0), 2), exp(9, #0)))", {}, 2, "lam(0)"},
+        {"#49 exp(2, n) - exp(?0, n)", "lam(sub(exp(2, #0), exp(?0, #0)))", {{0, "2"}}, 2, "lam(0), ?0 = 2"},
+        {"a hole in an exponent", "lam(sub(exp(3, #0 + ?0), exp(3, #0 + 2)))", {{0, "2"}}, 2, "lam(0), ?0 = 2"},
+        {"#50 a hole in a recurrence's step", "lam(sub(rec(lam(lam(?0 * #1)), 3, #0), mul(3, exp(2, #0))))",
+         {{0, "2"}}, 2, "lam(0), ?0 = 2"},
+        {"atoms that do not unify stay", "lam(sub(exp(2, #0), exp(?0, #0 + 1)))", {{0, "2"}}, 10,
+         "lam(exp(2, #0) - exp(?0, #0 + 1))"},
+    };
+    for (const expression_problem& p : expressions) {
+        const outcome reached = run_expression(p);
+        solved_counts[0] += reached.cost <= p.target ? 1 : 0;
+        std::printf("%-30s %6s %6zu | %s | %15s\n", p.name.c_str(), "-", p.target, cell(reached, p.target).c_str(),
+                    "(skipped)");
+        gated.push_back(bench_result{.problem = p.name, .solver = "best-1st", .cost = reached.cost,
+                                     .target = p.target, .seconds = reached.seconds, .sound = reached.sound});
+        notes.push_back(p.name + "\n    input:    " + reached.input + "\n    target:   " + p.target_text
+                        + "\n    best-1st: " + reached.best);
+    }
+    std::printf("\nsolved (of %zu): best-1st %zu, mcts %zu\n\n", problems.size() + expressions.size(),
+                solved_counts[0], solved_counts[1]);
     for (const std::string& note : notes)
         std::printf("%s\n", note.c_str());
     return finish_bench(options, gated);
