@@ -48,6 +48,14 @@ TEST_F(PolyHolesIntegrationTest, AHoleIsBoundToAnExpressionOfTheInputsThatCancel
     EXPECT_THAT(bound("(x - 1) * ?0 - x^2 + 1"), Contains("0"));
 }
 
+TEST_F(PolyHolesIntegrationTest, AHoleOfDegreeOneIsAlsoBoundToLeaveOneVariableAlone) {
+    // ?0 = -2 cancels everything, and ?0 = -1 leaves x: the body of an identity
+    EXPECT_THAT(bound("?0 * x + 2 * x"), Contains("0"));
+    EXPECT_THAT(bound("?0 * x + 2 * x"), Contains("x"));
+    // ?0 = 1 leaves y
+    EXPECT_THAT(bound("?0 + y - 1"), Contains("y"));
+}
+
 TEST_F(PolyHolesIntegrationTest, AHoleOfHigherDegreeIsBoundToARootOfTheRest) {
     // reduce request #25: ?0 = x
     EXPECT_THAT(bound("?0^2 - x^2 + 1"), Contains("1"));

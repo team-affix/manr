@@ -101,8 +101,16 @@ list_fit_rules_manifest::list_fit_rules_manifest(
     , piecewise_(hypotheses_, pw_evaluator_, function_maker_, kernel.literals_, kernel.exprs_, pw_symbols_,
                  point_symbol_, kernel.poly_symbols_.add, kernel.poly_symbols_.sub, kernel.poly_symbols_.mul,
                  kernel.poly_symbols_.pow)
-    , local_rules_(piecewise_.binder_, piecewise_.absorber_, poly_rules_.local_rules_)
-    , root_rules_()
+    , indices_(kernel.symbols_, kernel.exprs_, k_abs_default_indices)
+    , reducer_(indices_, indices_, binders_, kernel.literals_, kernel.exprs_, abs_symbols_)
+    , map_fuser_(reducer_, kernel.sizes_, kernel.exprs_, list_symbols_)
+    , identity_maps_(list_symbols_)
+    , filter_fuser_(kernel.exprs_, list_symbols_, logic_symbols_.conjunction)
+    , reverse_canceller_(kernel.exprs_, list_symbols_)
+    , holes_(poly_rules_.holes_, kernel.exprs_)
+    , local_rules_(piecewise_.binder_, piecewise_.absorber_, poly_rules_.local_rules_, map_fuser_, identity_maps_,
+                   filter_fuser_, reverse_canceller_)
+    , root_rules_(holes_)
     , subterms_(local_rules_, kernel.exprs_)
     , rules_(subterms_, root_rules_)
     , initial_(piecewise_.builder_.build(converter_.convert(samples), 0)) {}

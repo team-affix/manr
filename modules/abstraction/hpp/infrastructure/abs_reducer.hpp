@@ -29,11 +29,12 @@ struct abs_reducer {
                 abs_symbols symbols,
                 size_t max_reductions = k_abs_default_max_reductions);
     std::optional<const expr*> reduce(const expr* e);
+    // e with `value` for the index `index`, `value` shifted under each binder it enters; no other index moves.
+    const expr* substitute(const expr* e, size_t index, const expr* value);
 private:
     std::optional<const expr*> reduce_within(const expr* e, size_t& budget);
     std::optional<const expr*> apply(const expr* body, const expr* argument, size_t& budget);
     const expr* shift(const expr* e, int amount, size_t cutoff);
-    const expr* substitute(const expr* e, size_t index, const expr* value);
     size_t count_bound(const expr::functor& f, const expr* e, size_t position) const;
 
     IFindIndex& find_index_;

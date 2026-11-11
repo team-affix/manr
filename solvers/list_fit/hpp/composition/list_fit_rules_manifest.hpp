@@ -30,8 +30,11 @@
 #include "infrastructure/abs_applying_evaluator.hpp"
 #include "infrastructure/abs_binders.hpp"
 #include "infrastructure/abs_function_maker.hpp"
+#include "infrastructure/abs_indices.hpp"
+#include "infrastructure/abs_reducer.hpp"
 #include "infrastructure/expr_pool.hpp"
 #include "infrastructure/expr_size.hpp"
+#include "infrastructure/hole_scope_proposer.hpp"
 #include "infrastructure/list_affine_fold_solver.hpp"
 #include "infrastructure/list_evaluator.hpp"
 #include "infrastructure/list_factor_fold_solver.hpp"
@@ -46,6 +49,11 @@
 #include "infrastructure/pw_evaluator.hpp"
 #include "infrastructure/pw_hypotheses_union.hpp"
 #include "infrastructure/subterm_proposer.hpp"
+#include "infrastructure/symbol_table.hpp"
+#include "rules/list_filter_fuser.hpp"
+#include "rules/list_identity_map_remover.hpp"
+#include "rules/list_map_fuser.hpp"
+#include "rules/list_reverse_canceller.hpp"
 #include "value_objects/abs_symbols.hpp"
 #include "value_objects/expr.hpp"
 #include "value_objects/list_sample.hpp"
@@ -68,8 +76,10 @@
 // fold detector reads folds that build lists by enumerating their small steps, and the reverse detector proposes the
 // primitive `reverse(#0)`. The list detectors hand the element-level part of the problem to polynomial fitting:
 // `element_fit_` over `#0` for map bodies, `step_fit_` over `#0` (the head) and `#1` (the accumulator) for fold steps.
-// The full polynomial rule set then compresses the bodies, all at every position. `rules_` is what a search injects and
-// `initial_` is where it starts.
+// The full polynomial rule set then compresses the bodies, all at every position, beside the laws of list programs
+// (fusion of maps and of filters, the identity map, reverses cancelling); the polynomial hole binder runs at every
+// subterm holding all of its holes, such as a map's body. `rules_` is what a search injects and `initial_` is where it
+// starts.
 // The most atoms a filter condition combines (the placeholder inputs of its truth table).
 constexpr size_t k_list_condition_atoms = 6;
 
@@ -247,17 +257,43 @@ struct list_fit_rules_manifest {
         using pw_fit_rules_manifest<hypotheses_t, pw_evaluator_t, function_maker_t,
                                     kernel_t::literals_t>::pw_fit_rules_manifest;
     };
+    // the laws of list programs: fusion of maps and of filters, the identity map, reverses cancelling
+    struct indices_t : abs_indices<symbol_table, expr_pool> {
+        using abs_indices<symbol_table, expr_pool>::abs_indices;
+    };
+    struct reducer_t : abs_reducer<indices_t, indices_t, binders_t, kernel_t::literals_t, expr_pool> {
+        using abs_reducer<indices_t, indices_t, binders_t, kernel_t::literals_t, expr_pool>::abs_reducer;
+    };
+    struct map_fuser_t : list_map_fuser<reducer_t, expr_size, expr_pool> {
+        using list_map_fuser<reducer_t, expr_size, expr_pool>::list_map_fuser;
+    };
+    struct filter_fuser_t : list_filter_fuser<expr_pool> {
+        using list_filter_fuser<expr_pool>::list_filter_fuser;
+    };
+    struct reverse_canceller_t : list_reverse_canceller<expr_pool> {
+        using list_reverse_canceller<expr_pool>::list_reverse_canceller;
+    };
+    // the polynomial hole binder, at every subterm holding every occurrence of its holes (a map's body)
+    struct holes_t : hole_scope_proposer<poly_rules_manifest::holes_t, expr_pool> {
+        using hole_scope_proposer<poly_rules_manifest::holes_t, expr_pool>::hole_scope_proposer;
+    };
 
     // ---- the rule lists ----
     using local_rules_base_t = proposer_union<
         piecewise_t::binder_t,
         piecewise_t::absorber_t,
-        poly_rules_manifest::local_rules_t>;
+        poly_rules_manifest::local_rules_t,
+        map_fuser_t,
+        list_identity_map_remover,
+        filter_fuser_t,
+        reverse_canceller_t>;
     struct local_rules_t : local_rules_base_t {
         using local_rules_base_t::local_rules_base_t;
     };
-    struct root_rules_t : proposer_union<> {
-        using proposer_union<>::proposer_union;
+    using root_rules_base_t = proposer_union<
+        holes_t>;
+    struct root_rules_t : root_rules_base_t {
+        using root_rules_base_t::root_rules_base_t;
     };
     struct subterms_t : subterm_proposer<local_rules_t, expr_pool> {
         using subterm_proposer<local_rules_t, expr_pool>::subterm_proposer;
@@ -322,6 +358,14 @@ struct list_fit_rules_manifest {
     hypotheses_t hypotheses_;
     // rules
     piecewise_t piecewise_;
+    // constructed last: the index table interns `#2` and above, and interning order is behavior
+    indices_t indices_;
+    reducer_t reducer_;
+    map_fuser_t map_fuser_;
+    list_identity_map_remover identity_maps_;
+    filter_fuser_t filter_fuser_;
+    reverse_canceller_t reverse_canceller_;
+    holes_t holes_;
 
     // the rule lists
     local_rules_t local_rules_;

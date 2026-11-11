@@ -24,7 +24,8 @@
 // - 0, the binding that drops every term holding the hole (`?0 * ?1` gives 0);
 // - for a hole of degree 1, `c1 * ?k + c0`: the exact quotient `-c0 / c1`, which cancels everything (`x * ?0 + x * y`
 //   with `?0 = -y` gives 0), or, when c1 is a constant, the nearest quotient coefficient by coefficient, which leaves
-//   the smallest remainder (`2 * ?0 + 1` with `?0 = 0` gives 1);
+//   the smallest remainder (`2 * ?0 + 1` with `?0 = 0` gives 1), and the bindings that leave one variable alone
+//   (`(?0 + 2) * x` with `?0 = -1` gives x: a lambda's body that becomes its own input makes the identity);
 // - for a hole of degree d > 1 that occurs only as `c * ?k^d`, c constant: the d-th roots of `-c0 / c` by completing
 //   the power (`?0^2 - x^2 + 1` with `?0 = x` gives 1);
 // - for a hole of degree d > 1 with a term of degree d - 1: the shift `-c(d-1) / (d * cd)`, when exact, which
@@ -252,6 +253,23 @@ POLY_HOLE_BINDER_TEMPLATE void POLY_HOLE_BINDER::collect_candidates(const std::v
             candidates.push_back(exact.value());
         if (!exact.has_value() && leading.has_value())
             candidates.push_back(find_nearest_quotient(target, leading.value()));
+        // the bindings that leave one variable alone, `(v - c0) / c1` (a body that is its own input)
+        std::set<uint32_t> variables;
+        for (const poly_polynomial& coefficient : by_degree)
+            for (const auto& [monomial, value] : coefficient.terms)
+                for (const poly_power& power : monomial.powers)
+                    variables.insert(power.variable);
+        for (const uint32_t hole_symbol : hole_symbols_)
+            variables.erase(hole_symbol);
+        for (const uint32_t variable : variables) {
+            poly_polynomial alone;
+            alone.terms.emplace(poly_monomial{.powers = {poly_power{.variable = variable, .exponent = 1}}}, integer(1));
+            const std::optional<poly_polynomial> rest = add_polynomials_.add(alone, target);
+            const std::optional<poly_polynomial> leaving =
+                rest.has_value() ? find_quotient_.find_quotient(rest.value(), by_degree[1]) : std::nullopt;
+            if (leaving.has_value())
+                candidates.push_back(leaving.value());
+        }
         return;
     }
     if (!by_degree[degree - 1].terms.empty()) {

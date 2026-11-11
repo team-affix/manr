@@ -62,7 +62,8 @@ arith/       (arith_)  integer arithmetic: literals, evaluator, simplifier, the 
 poly/        (poly_)   polynomials over Z: normal form oracle, rules and detectors, interpolation and the other
                        fitting detectors over piecewises (splits, residues, iterated helpers)
 list/        (list_)   lists and list programs (map, filter, fold): vocabulary, evaluator, program detectors (generic
-                       and integer cases; affine, extremum, product, count, selection, factor, sum folds)
+                       and integer cases; affine, extremum, product, count, selection, factor, sum folds), the laws
+                       of programs (map and filter fusion, the identity map, reverses cancelling)
 seq/         (seq_)    integer sequences: recurrences (`rec`), powers (`exp`), infinite lists (`tabulate`, `unfold`),
                        evaluator, the recurrence detector, the closing rule, open-ended lists read as sequences
 number/      (num_)    number theory over another domain: `prime(n)`, `is_prime(n)`, a sieve, evaluator, detector

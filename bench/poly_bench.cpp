@@ -1,7 +1,8 @@
 // Polynomial reduction benchmark: every problem under four solvers (full rules or low-level only, best-first or
 // MCTS) with comparable budgets. A problem is solved when the result is no larger than a known compact form.
 // Every result is checked against the input's normal form. A problem holding free variables `?n` gives the bindings
-// that reach its target after a `|` (`1 | ?0 = 0, ?1 = x`): a result is sound when it equals the input under them.
+// that reach its target after a `|` (`1 | ?0 = 0, ?1 = x`): a result is sound when it equals the input under them, or
+// under one of several such witnesses separated by `;` (a result as small as the target may need other bindings).
 //
 //   poly_bench [--fast] [--serial] [--write FILE] [--check FILE]
 //
@@ -192,14 +193,21 @@ solved solve(const problem& p, bool fast) {
     }};
     if (bar == std::string::npos)
         return run;
-    const std::map<uint32_t, const expr*> bindings = parse_bindings(sizing, p.target.substr(bar + 1));
-    const std::optional<poly_polynomial> meaning =
-        sizing.expander_.find_polynomial(bind_holes(sizing, sizing.parser_.parse(p.text), bindings));
+    std::vector<std::map<uint32_t, const expr*>> witnesses;
+    std::istringstream listed(p.target.substr(bar + 1));
+    std::string witness;
+    while (std::getline(listed, witness, ';'))
+        witnesses.push_back(parse_bindings(sizing, witness));
     for (outcome& result : run.results) {
         if (result.best == "(skipped)")
             continue;
-        const expr* best = bind_holes(sizing, sizing.parser_.parse(result.best), bindings);
-        result.sound = meaning.has_value() && sizing.expander_.find_polynomial(best) == meaning;
+        result.sound = false;
+        for (const std::map<uint32_t, const expr*>& bindings : witnesses) {
+            const std::optional<poly_polynomial> meaning =
+                sizing.expander_.find_polynomial(bind_holes(sizing, sizing.parser_.parse(p.text), bindings));
+            const expr* best = bind_holes(sizing, sizing.parser_.parse(result.best), bindings);
+            result.sound = result.sound || (meaning.has_value() && sizing.expander_.find_polynomial(best) == meaning);
+        }
     }
     return run;
 }
@@ -249,7 +257,7 @@ int main(int argc, char** argv) {
         // free variables, bound to what makes the whole smallest: reduce requests #17, #25, #26, and similar
         {"#17 (?0 + 1)^2 - ?0^2", "(?0 + 1)^2 - ?0^2", "1 | ?0 = 0"},
         {"#25 a hole bound to an input", "?0^2 - x^2 + 1", "1 | ?0 = x"},
-        {"#26 x * ?0 + x * y", "x * ?0 + x * y", "0 | ?0 = -1 * y"},
+        {"#26 x * ?0 + x * y", "x * ?0 + x * y", "0 | ?0 = -1 * y; ?0 = 1 - y"},
         {"a hole twice", "?0 + ?0", "0 | ?0 = 0"},
         {"two holes in a product", "?0 * ?1 + x^2 - 5", "x^2 - 5 | ?0 = 0, ?1 = 0"},
         {"a hole cancelling a product", "(x - 1) * ?0 - x^2 + 1", "0 | ?0 = x + 1"},

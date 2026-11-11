@@ -39,9 +39,11 @@ Detectors propose only results no larger than their input (factoring and power) 
 Horner, like terms). The splitter is the exception, since its job is restructuring.
 
 Free variables (`?n`, parsed as text too) are bound by `poly_hole_binder`, at the root only, since a binding
-substitutes the hole everywhere. It reads the expression as a polynomial in each hole and proposes the bindings that
+substitutes the hole everywhere (another domain may apply it at any subterm holding every occurrence of its holes,
+through `hole_scope_proposer`, as `list_fit` does for map bodies). It reads the expression as a polynomial in each hole and proposes the bindings that
 cancel the most, when strictly smaller: 0; for a hole of degree 1, `c1 * ?k + c0`, the exact quotient `-c0 / c1`
-(`x * ?0 + x * y` -> `0`, `?0 = -y`) or, for a constant c1, the nearest one (`(?0 + 1)^2 - ?0^2` -> `1`, `?0 = 0`);
+(`x * ?0 + x * y` -> `0`, `?0 = -y`) or, for a constant c1, the nearest one (`(?0 + 1)^2 - ?0^2` -> `1`, `?0 = 0`),
+and the bindings that leave one variable alone (`(?0 + 2) * x` -> `x`, `?0 = -1`: a body that becomes the identity);
 for `c * ?k^d + c0`, the d-th roots of `-c0 / c` by completing the power (`?0^2 - x^2 + 1` -> `1`, `?0 = x`); for a
 hole of degree d with a term of degree d - 1, the shift `-c(d-1) / (d * cd)` that completes the square or power
 (`(?0 - x)^2 + y` -> `y`, `?0 = x`, #32). Holes the expression is linear in are also bound jointly, to integers, by

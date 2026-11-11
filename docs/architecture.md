@@ -60,6 +60,8 @@ void detect(const expr* e, std::vector<rewrite>& out);
 nothing means the rule does not apply. A rule is either *local* (it reads only the node it is handed, and the solver
 lifts it to every position) or a *root* rule (it reads the whole expression, for example because a binding of a hole
 must substitute everywhere). The rule itself does not say which: the solver puts it in its local or its root list.
+A root rule may also go through `hole_scope_proposer`, which applies it at every subterm holding every occurrence of
+its holes (a binding there changes nothing outside it).
 
 Every rule follows `docs/rule-design.md`: certain detection, cheap refutation first, filters that only reject, limits
 as defaulted parameters.

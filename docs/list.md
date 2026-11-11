@@ -23,6 +23,25 @@ examples below that name an input (`x`, `xs`, `n`, `a`) mean its index: one inpu
 To improve how programs are detected, add or change a detector in `modules/list/hpp/hypotheses/` and list it in
 `list_fit_rules_manifest` (`docs/architecture.md`). To add list operations, work in the vocabulary and evaluator.
 
+## Laws
+
+Programs are expressions too, and the laws of the vocabulary reduce them (`modules/list/hpp/rules/`, local rules in
+`list_fit`, each strictly smaller):
+
+- `list_map_fuser`: `map(lam(f), map(lam(g), xs))` to `map(lam(f'), xs)`, f' being f with g for its element
+  (capture-free, `abs_reducer::substitute`), when smaller; the polynomial rules then simplify the fused body (#51).
+- `list_identity_map_remover`: `map(lam(#0), xs)` to `xs`.
+- `list_filter_fuser`: `filter(lam(p), filter(lam(q), xs))` to `filter(lam(and(q, p)), xs)`, or one filter when the
+  conditions are the same (#54).
+- `list_reverse_canceller`: `reverse(reverse(xs))` to `xs`, through element-wise steps that commute with it:
+  `reverse(map(f, filter(p, reverse(xs))))` to `map(f, filter(p, xs))` (#52).
+
+Holes in a program are bound by the polynomial hole binder at any subterm holding every occurrence of its holes
+(`hole_scope_proposer`, the root list of `list_fit`), so a map's body is bound in place:
+`map(lam(#0 + ?0), map(lam(#0 - 1), xs))` fuses to `map(lam(#0 - 1 + ?0), xs)`, `?0 = 1` leaves the identity, and the
+map goes (#53). The benchmark's program problems start from a program instead of data (`parse_program` in
+`list_bench`), under best-first only.
+
 ## Vocabulary
 
 | expression | meaning |
@@ -194,6 +213,9 @@ accumulator (`#1`):
 | list-valued | `cons(h, acc)`, `append(acc, cons(h, nil))` | reverse, duplicating each element, reverse with each element twice | enumerate the small steps over `cons`, `append`, `nil`, `#0`, `#1`; refute by length (`a * length(acc) + b` elements), then run the rest | `list_listed_fold_hypotheses` (steps up to 7 nodes) |
 
 ## Gaps (the open problems)
+
+- **More laws.** Folds over maps (`fold(s, b, map(f, xs))` into one fold), a fold over a reverse when its step
+  commutes, `map` over `append`, the length of a map, and filters on a condition that is always true or false.
 
 - **Steps in pieces in general.** The extremum detector covers the largest and smallest element. A step in pieces
   that compares the two variables some other way (`lt(acc, p(h))`, e.g. the largest square) is still out of reach:

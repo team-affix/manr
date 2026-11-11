@@ -1,6 +1,9 @@
 // List-program benchmark: samples of programs over integer lists (folds, maps, filters, some with a wrong label),
 // under the best-first and MCTS list solvers. A problem is solved when the result is no larger than a known compact
 // form (its cost is given, since programs do not parse). Every result is checked by evaluating it at every sample.
+// Program problems start from a program instead of data (`parse_program`) and are reduced by the laws of list
+// programs under best-first; a result is sound when it agrees with the program on every short list, once both have
+// the problem's bindings for their holes.
 //
 //   list_bench [--fast] [--serial] [--full-inputs] [--write FILE] [--check FILE]
 //
@@ -251,6 +254,68 @@ list_t sum(const list_t& list) {
 }
 
 // one problem under both solvers
+// A list program as text: `name(a, b, ...)` is a functor over its arguments, anything else polynomial text.
+const expr* parse_program(list_fit_manifest& m, const std::string& text) {
+    const size_t first = text.find_first_not_of(' ');
+    const size_t last = text.find_last_not_of(' ');
+    const std::string trimmed = text.substr(first, last - first + 1);
+    const size_t open = trimmed.find('(');
+    const bool named = open != std::string::npos && open > 0 && trimmed.back() == ')'
+                       && trimmed.find_first_not_of("abcdefghijklmnopqrstuvwxyz_") == open;
+    if (!named)
+        return m.kernel_.parser_.parse(trimmed);
+    std::vector<const expr*> args;
+    int depth = 0;
+    size_t start = open + 1;
+    for (size_t at = open + 1; at + 1 < trimmed.size(); ++at) {
+        depth += trimmed[at] == '(' ? 1 : trimmed[at] == ')' ? -1 : 0;
+        if (depth != 0 || trimmed[at] != ',')
+            continue;
+        args.push_back(parse_program(m, trimmed.substr(start, at - start)));
+        start = at + 1;
+    }
+    args.push_back(parse_program(m, trimmed.substr(start, trimmed.size() - 1 - start)));
+    return m.kernel_.exprs_.make_functor(m.kernel_.symbols_.intern_symbol(trimmed.substr(0, open)), args);
+}
+
+// a program to reduce, with the bindings of its holes that witness the target
+struct program_problem {
+    std::string name;
+    std::string text;
+    std::vector<std::pair<uint32_t, std::string>> bindings;
+    size_t target;
+    std::string target_text;
+};
+
+outcome run_program(const program_problem& p) {
+    const auto start = std::chrono::steady_clock::now();
+    list_fit_manifest m{{}, k_poly_default_limits, k_poly_fit_default_limits, k_frontier};
+    const expr* initial = parse_program(m, p.text);
+    list_fit_manifest::search_t search{m.rule_set_.rules_, m.kernel_.sizes_, initial, k_frontier};
+    while (search.rewrites() < k_rewrites && search.next()) {}
+    const double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
+    std::map<uint32_t, const expr*> bindings;
+    for (const auto& [hole, text] : p.bindings)
+        bindings.emplace(hole, parse_program(m, text));
+    const expr* bound_input = m.rule_set_.piecewise_.matcher_.substitute_holes(initial, bindings);
+    const expr* bound_best = m.rule_set_.piecewise_.matcher_.substitute_holes(search.best(), bindings);
+    std::vector<list_sample> lists;
+    for (const list_t& list : all_lists(-3, 3, 3))
+        lists.push_back(list_sample{.input = list, .output = list, .output_is_list = true});
+    bool sound = true;
+    for (const pw_data_point& point : m.rule_set_.converter_.convert(lists)) {
+        const std::optional<const expr*> expected = m.rule_set_.pw_evaluator_.evaluate_at(bound_input, point.input);
+        const std::optional<const expr*> value = m.rule_set_.pw_evaluator_.evaluate_at(bound_best, point.input);
+        sound = sound && expected.has_value() && value.has_value() && value.value() == expected.value();
+    }
+    std::ostringstream input;
+    std::ostringstream os;
+    m.kernel_.printer_.print(input, initial);
+    m.kernel_.printer_.print(os, search.best());
+    return outcome{.input = input.str(), .cost = search.best_cost(), .best = os.str(), .seconds = seconds,
+                   .sound = sound};
+}
+
 struct solved {
     size_t points;
     bool skip_mcts;
@@ -596,7 +661,42 @@ int main(int argc, char** argv) {
                         + (options.full_inputs ? best_first.input : abbreviate_piecewise(best_first.input)) + "\n    target:   " + p.target_text + "\n    best-1st: " + (options.full_inputs ? best_first.best : best_first.best.substr(0, 400))
                         + "\n    mcts:     " + mcts.best.substr(0, 160));
     }
-    std::printf("\nsolved (of %zu): best-1st %zu, mcts %zu\n\n", problems.size(), solved_counts[0], solved_counts[1]);
+    // reduce requests #51 to #54, and similar: list programs reduced by the laws of maps, filters and reverses
+    const std::vector<program_problem> programs{
+        {"#51 map fusion", "lam(map(lam(#0 + 1), map(lam(2 * #0), #0)))", {}, 9, "lam(map(lam(2 * #0 + 1), #0))"},
+        {"map fusion, square of a shift", "lam(map(lam(#0^2), map(lam(#0 + 1), #0)))", {}, 9,
+         "lam(map(lam((#0 + 1)^2), #0))"},
+        {"map fusion, three maps", "lam(map(lam(#0 + 1), map(lam(#0 - 1), map(lam(3 * #0), #0))))", {}, 7,
+         "lam(map(lam(3 * #0), #0))"},
+        {"map fusion, the element used twice", "lam(map(lam(#0 * #0 + #0), map(lam(#0 + 1), #0)))", {}, 11,
+         "lam(map(lam((#0 + 1) * (#0 + 2)), #0))"},
+        {"map of the identity", "lam(map(lam(#0), filter(lam(lt(0, #0)), #0)))", {}, 7,
+         "lam(filter(lam(lt(0, #0)), #0))"},
+        {"#52 reverse twice", "lam(reverse(reverse(#0)))", {}, 2, "lam(#0)"},
+        {"reverse around a map and a filter", "lam(reverse(map(lam(#0^2), filter(lam(lt(0, #0)), reverse(#0)))))", {},
+         12, "lam(map(lam(#0^2), filter(lam(lt(0, #0)), #0)))"},
+        {"#53 a hole making a map the identity", "lam(map(lam(#0 + ?0), map(lam(#0 - 1), #0)))", {{0, "1"}}, 2,
+         "lam(#0), ?0 = 1"},
+        {"a hole in one map's body", "lam(map(lam(?0 * #0 + 2 * #0), #0))", {{0, "-1"}}, 2, "lam(#0), ?0 = -1"},
+        {"#54 filter twice", "lam(filter(lam(lt(0, #0)), filter(lam(lt(0, #0)), #0)))", {}, 7,
+         "lam(filter(lam(lt(0, #0)), #0))"},
+        {"filters on two conditions", "lam(filter(lam(lt(0, #0)), filter(lam(eq(mod(#0, 2), 0)), #0)))", {}, 13,
+         "lam(filter(lam(and(eq(mod(#0, 2), 0), lt(0, #0))), #0))"},
+        {"a fold over a reverse stays", "lam(fold(lam(lam(#0 - #1)), 0, reverse(#0)))", {}, 10,
+         "lam(fold(lam(lam(#0 - #1)), 0, reverse(#0)))"},
+    };
+    for (const program_problem& p : programs) {
+        const outcome reached = run_program(p);
+        solved_counts[0] += reached.cost <= p.target ? 1 : 0;
+        std::printf("%-28s %6s %6zu | %s | %15s\n", p.name.c_str(), "-", p.target, cell(reached, p.target).c_str(),
+                    "(skipped)");
+        gated.push_back(bench_result{.problem = p.name, .solver = "best-1st", .cost = reached.cost,
+                                     .target = p.target, .seconds = reached.seconds, .sound = reached.sound});
+        notes.push_back(p.name + "\n    input:    " + reached.input + "\n    target:   " + p.target_text
+                        + "\n    best-1st: " + reached.best);
+    }
+    std::printf("\nsolved (of %zu): best-1st %zu, mcts %zu\n\n", problems.size() + programs.size(), solved_counts[0],
+                solved_counts[1]);
     for (const std::string& note : notes)
         std::printf("%s\n", note.c_str());
     return finish_bench(options, gated);
